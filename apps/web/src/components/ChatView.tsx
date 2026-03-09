@@ -94,6 +94,11 @@ import {
   setPendingUserInputCustomAnswer,
   type PendingUserInputDraftAnswer,
 } from "../pendingUserInput";
+import {
+  findProviderStatus,
+  resolveProviderStatusForChat,
+  shouldBlockUnavailableKimiSend,
+} from "../providerStatus";
 import { useStore } from "../store";
 import {
   buildPlanImplementationThreadTitle,
@@ -1486,10 +1491,14 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const keybindings = serverConfigQuery.data?.keybindings ?? EMPTY_KEYBINDINGS;
   const availableEditors = serverConfigQuery.data?.availableEditors ?? EMPTY_AVAILABLE_EDITORS;
   const providerStatuses = serverConfigQuery.data?.providers ?? EMPTY_PROVIDER_STATUSES;
-  const activeProvider = activeThread?.session?.provider ?? "codex";
   const activeProviderStatus = useMemo(
-    () => providerStatuses.find((status) => status.provider === activeProvider) ?? null,
-    [activeProvider, providerStatuses],
+    () =>
+      resolveProviderStatusForChat({
+        providerStatuses,
+        selectedProvider,
+        sessionProvider,
+      }),
+    [providerStatuses, selectedProvider, sessionProvider],
   );
   const activeProjectCwd = activeProject?.cwd ?? null;
   const activeThreadWorktreePath = activeThread?.worktreePath ?? null;
@@ -2687,6 +2696,25 @@ export default function ChatView({ threadId }: ChatViewProps) {
       return;
     }
     if (!activeProject) return;
+    if (selectedProvider === "kimi") {
+      const refreshedConfig = await serverConfigQuery.refetch();
+      const latestKimiStatus = findProviderStatus(
+        refreshedConfig.data?.providers ?? providerStatuses,
+        "kimi",
+      );
+      if (
+        shouldBlockUnavailableKimiSend({
+          status: latestKimiStatus,
+          binaryPath: settings.kimiBinaryPath,
+        })
+      ) {
+        setThreadError(
+          activeThread.id,
+          latestKimiStatus?.message ?? "Kimi Code CLI (`kimi`) is not installed or not on PATH.",
+        );
+        return;
+      }
+    }
     const threadIdForSend = activeThread.id;
     const isFirstMessage = !isServerThread || activeThread.messages.length === 0;
     const baseBranchForWorktree =
