@@ -3830,7 +3830,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
         >
           <div
             data-chat-composer-surface="true"
-            className={`group rounded-[20px] border bg-card transition-colors duration-200 focus-within:border-ring/45 ${
+            className={`group app-interactive-motion rounded-[20px] border bg-card focus-within:border-ring/45 ${
               isDragOverComposer ? "border-primary/70 bg-accent/30" : "border-border"
             }`}
             onDragEnter={onComposerDragEnter}
@@ -4162,7 +4162,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                   ) : phase === "running" ? (
                     <button
                       type="button"
-                      className="flex size-8 items-center justify-center rounded-full bg-rose-500/90 text-white transition-all duration-150 hover:bg-rose-500 hover:scale-105 sm:h-8 sm:w-8"
+                      className="app-interactive-motion flex size-8 items-center justify-center rounded-full bg-rose-500/90 text-white hover:bg-rose-500 hover:scale-105 motion-reduce:hover:scale-100 sm:h-8 sm:w-8"
                       onClick={() => void onInterrupt()}
                       aria-label="Stop generation"
                     >
@@ -4225,7 +4225,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                     ) : (
                       <button
                         type="submit"
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/90 text-primary-foreground transition-all duration-150 hover:bg-primary hover:scale-105 disabled:opacity-30 disabled:hover:scale-100 sm:h-8 sm:w-8"
+                        className="app-interactive-motion flex h-9 w-9 items-center justify-center rounded-full bg-primary/90 text-primary-foreground hover:bg-primary hover:scale-105 disabled:opacity-30 disabled:hover:scale-100 motion-reduce:hover:scale-100 sm:h-8 sm:w-8"
                         disabled={
                           isSendBusy ||
                           isConnecting ||
@@ -4247,7 +4247,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                             height="14"
                             viewBox="0 0 14 14"
                             fill="none"
-                            className="animate-spin"
+                            className="motion-safe:animate-spin motion-reduce:animate-none"
                             aria-hidden="true"
                           >
                             <circle
@@ -4868,7 +4868,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
               disabled={isResponding}
               onClick={() => selectOptionAndAutoAdvance(activeQuestion.id, option.label)}
               className={cn(
-                "group flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-all duration-150",
+                "app-interactive-motion group flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left",
                 isSelected
                   ? "border-blue-500/40 bg-blue-500/8 text-foreground"
                   : "border-transparent bg-muted/20 text-foreground/80 hover:bg-muted/40 hover:border-border/40",
@@ -4878,7 +4878,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
               {shortcutKey !== null ? (
                 <kbd
                   className={cn(
-                    "flex size-5 shrink-0 items-center justify-center rounded text-[11px] font-medium tabular-nums transition-colors duration-150",
+                    "app-fade-motion flex size-5 shrink-0 items-center justify-center rounded text-[11px] font-medium tabular-nums",
                     isSelected
                       ? "bg-blue-500/20 text-blue-400"
                       : "bg-muted/40 text-muted-foreground/50 group-hover:bg-muted/60 group-hover:text-muted-foreground/70",
@@ -5675,7 +5675,7 @@ const MessagesTimeline = memo(function MessagesTimeline({
                   </pre>
                 )}
                 <div className="mt-1.5 flex items-center justify-end gap-2">
-                  <div className="flex items-center gap-1.5 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100">
+                  <div className="app-fade-motion flex items-center gap-1.5 opacity-0 focus-within:opacity-100 group-hover:opacity-100">
                     {row.message.text && <MessageCopyButton text={row.message.text} />}
                     {canRevertAgentWork && (
                       <Button
@@ -5803,9 +5803,9 @@ const MessagesTimeline = memo(function MessagesTimeline({
         <div className="py-0.5 pl-1.5">
           <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground/70">
             <span className="inline-flex items-center gap-[3px]">
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/30 animate-pulse" />
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/30 animate-pulse [animation-delay:200ms]" />
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/30 animate-pulse [animation-delay:400ms]" />
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/30 motion-safe:animate-pulse motion-reduce:animate-none" />
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/30 motion-safe:animate-pulse motion-reduce:animate-none [animation-delay:200ms]" />
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/30 motion-safe:animate-pulse motion-reduce:animate-none [animation-delay:400ms]" />
             </span>
             <span>
               {row.createdAt
@@ -5832,7 +5832,7 @@ const MessagesTimeline = memo(function MessagesTimeline({
     <div
       ref={timelineRootRef}
       data-timeline-root="true"
-      className="mx-auto w-full min-w-0 max-w-3xl overflow-x-hidden"
+      className="mx-auto w-full min-w-0 max-w-3xl overflow-x-hidden [contain:content]"
     >
       {virtualizedRowCount > 0 && (
         <div className="relative" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>

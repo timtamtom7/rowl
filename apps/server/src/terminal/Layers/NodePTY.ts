@@ -45,6 +45,16 @@ type NodePtyModuleLike = {
   ): NodePtyHandle;
 };
 
+class NodePtyLoadError extends Error {
+  constructor(
+    message: string,
+    override readonly cause: unknown,
+  ) {
+    super(message);
+    this.name = "NodePtyLoadError";
+  }
+}
+
 const resolveNodePtySpawnHelperPath = Effect.gen(function* () {
   const requireForNodePty = createRequire(import.meta.url);
   const path = yield* Path.Path;
@@ -146,7 +156,7 @@ export const NodePtyAdapterLive = Layer.effect(
 
     const nodePty = yield* Effect.try({
       try: () => requireForNodePty("node-pty") as NodePtyModuleLike,
-      catch: (cause) => cause,
+      catch: (cause) => new NodePtyLoadError("Failed to load node-pty", cause),
     }).pipe(
       Effect.catch((cause) =>
         Effect.sync(() => {

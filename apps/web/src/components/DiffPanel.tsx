@@ -566,7 +566,7 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
               </div>
             ) : renderablePatch.kind === "files" ? (
               <Virtualizer
-                className="diff-render-surface h-full min-h-0 overflow-auto px-2 pb-2"
+                className="diff-render-surface h-full min-h-0 overflow-auto px-2 pb-2 [contain:content]"
                 config={{
                   overscrollSize: 600,
                   intersectionObserverMargin: 1200,

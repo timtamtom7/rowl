@@ -36,6 +36,11 @@
 
 @theme inline {
   --animate-skeleton: skeleton 2s -1s infinite linear;
+  --motion-duration-fast: 150ms;
+  --motion-duration-base: 180ms;
+  --motion-duration-slow: 240ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
   --color-warning-foreground: var(--warning-foreground);
   --color-warning: var(--warning);
   --color-success-foreground: var(--success-foreground);
@@ -81,6 +86,70 @@
   }
   body {
     @apply bg-background text-foreground relative;
+  }
+}
+
+@layer components {
+  .app-overlay-backdrop {
+    transition-property: opacity;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .app-popup-motion {
+    transition-property: opacity, translate, scale;
+    transition-duration: var(--motion-duration-base);
+    transition-timing-function: var(--motion-ease-emphasized);
+    will-change: transform, opacity;
+  }
+
+  .app-sheet-motion {
+    transition-property: opacity, translate;
+    transition-duration: var(--motion-duration-base);
+    transition-timing-function: var(--motion-ease-emphasized);
+    will-change: transform, opacity;
+  }
+
+  .app-toast-stack-motion {
+    transition-property: transform, opacity, height;
+    transition-duration: 500ms, 500ms, 150ms;
+    transition-timing-function:
+      var(--motion-ease-emphasized),
+      var(--motion-ease-emphasized),
+      var(--motion-ease-standard);
+  }
+
+  .app-toast-popup-motion {
+    transition-property: opacity, scale;
+    transition-duration: var(--motion-duration-base);
+    transition-timing-function: var(--motion-ease-emphasized);
+    will-change: transform, opacity;
+  }
+
+  .app-interactive-motion {
+    transition-property: background-color, border-color, color, opacity, scale, box-shadow;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .app-fade-motion {
+    transition-property: opacity, color, border-color;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-overlay-backdrop,
+  .app-popup-motion,
+  .app-sheet-motion,
+  .app-toast-stack-motion,
+  .app-toast-popup-motion,
+  .app-interactive-motion,
+  .app-fade-motion {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    will-change: auto;
   }
 }
 

@@ -38,6 +38,7 @@ Prefer shared extraction over duplicated local fixes.
 
 <tool_persistence_rules>
 - Use tools whenever they materially improve correctness, completeness, or grounding.
+- Use subagents when possible to keep the main context window clear.
 - Do not stop early when another inspection, search, or validation step would materially improve the result.
 - Keep going until the task is complete and verification passes.
 - If a lookup or test result is partial or suspiciously narrow, retry with a different strategy.
