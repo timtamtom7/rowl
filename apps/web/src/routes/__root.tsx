@@ -23,6 +23,7 @@ import { useTerminalStateStore } from "../terminalStateStore";
 import { preferredTerminalEditor } from "../terminal-links";
 import { terminalRunningSubprocessFromEvent } from "../terminalActivity";
 import {
+  getLatestServerWelcome,
   getServerConnectionState,
   onServerConfigUpdated,
   onServerWelcome,
@@ -220,8 +221,28 @@ function EventRouter() {
     let syncing = false;
     let pending = false;
     let needsProviderInvalidation = false;
+    let snapshotRetryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearSnapshotRetry = () => {
+      if (snapshotRetryTimer === null) {
+        return;
+      }
+      clearTimeout(snapshotRetryTimer);
+      snapshotRetryTimer = null;
+    };
+
+    const scheduleSnapshotRetry = () => {
+      if (disposed || snapshotRetryTimer !== null || getServerConnectionState() !== "open") {
+        return;
+      }
+      snapshotRetryTimer = setTimeout(() => {
+        snapshotRetryTimer = null;
+        void syncSnapshot();
+      }, 500);
+    };
 
     const flushSnapshotSync = async (): Promise<void> => {
+      clearSnapshotRetry();
       const snapshot = await api.orchestration.getSnapshot();
       if (disposed) return;
       latestSequence = Math.max(latestSequence, snapshot.snapshotSequence);
@@ -251,7 +272,7 @@ function EventRouter() {
       try {
         await flushSnapshotSync();
       } catch {
-        // Keep prior state and wait for next domain event to trigger a resync.
+        scheduleSnapshotRetry();
       }
       syncing = false;
     };
@@ -367,6 +388,7 @@ function EventRouter() {
     subscribed = true;
     return () => {
       disposed = true;
+      clearSnapshotRetry();
       needsProviderInvalidation = false;
       domainEventFlushThrottler.cancel();
       unsubDomainEvent();
@@ -396,6 +418,10 @@ function DesktopProjectBootstrap() {
 
   useEffect(() => {
     if (!isElectron || pathname !== "/" || !threadsHydrated) {
+      return;
+    }
+
+    if (getLatestServerWelcome()?.bootstrapThreadId) {
       return;
     }
 

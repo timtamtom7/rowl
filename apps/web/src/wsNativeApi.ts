@@ -49,6 +49,10 @@ export function onServerWelcome(listener: (payload: WsWelcomePayload) => void): 
   };
 }
 
+export function getLatestServerWelcome(): WsWelcomePayload | null {
+  return instance?.transport.getLatestPush(WS_CHANNELS.serverWelcome)?.data ?? null;
+}
+
 /**
  * Subscribe to server config update events. Replays the latest update for
  * late subscribers to avoid missing config validation feedback.

@@ -761,6 +761,9 @@ const makeOrchestrationProjectionPipeline = Effect.gen(function* () {
         runtimeMode: event.payload.session.runtimeMode,
         activeTurnId: event.payload.session.activeTurnId,
         lastError: event.payload.session.lastError,
+        ...(event.payload.session.startedAt !== undefined
+          ? { startedAt: event.payload.session.startedAt }
+          : {}),
         ...(event.payload.session.tokenUsage !== undefined
           ? { tokenUsage: event.payload.session.tokenUsage }
           : {}),

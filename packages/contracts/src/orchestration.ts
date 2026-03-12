@@ -199,6 +199,7 @@ export const OrchestrationSession = Schema.Struct({
   runtimeMode: RuntimeMode.pipe(Schema.withDecodingDefault(() => DEFAULT_RUNTIME_MODE)),
   activeTurnId: Schema.NullOr(TurnId),
   lastError: Schema.NullOr(TrimmedNonEmptyString),
+  startedAt: Schema.optional(IsoDateTime),
   tokenUsage: Schema.optional(Schema.Unknown),
   updatedAt: IsoDateTime,
 });

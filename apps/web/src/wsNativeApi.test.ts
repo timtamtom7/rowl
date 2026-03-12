@@ -52,14 +52,14 @@ const subscribeMock = vi.fn<
   };
 });
 
-const subscribeStateMock = vi.fn<
-  (listener: (state: MockTransportState) => void) => () => void
->((listener) => {
-  transportStateListeners.add(listener);
-  return () => {
-    transportStateListeners.delete(listener);
-  };
-});
+const subscribeStateMock = vi.fn<(listener: (state: MockTransportState) => void) => () => void>(
+  (listener) => {
+    transportStateListeners.add(listener);
+    return () => {
+      transportStateListeners.delete(listener);
+    };
+  },
+);
 
 vi.mock("./wsTransport", () => {
   return {

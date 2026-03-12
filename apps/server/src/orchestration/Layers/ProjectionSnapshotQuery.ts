@@ -62,6 +62,7 @@ const ProjectionThreadActivityDbRowSchema = ProjectionThreadActivity.mapFields(
 );
 const ProjectionThreadSessionSnapshotDbRowSchema = ProjectionThreadSession.mapFields(
   Struct.assign({
+    startedAt: Schema.NullOr(IsoDateTime),
     tokenUsage: Schema.NullOr(Schema.fromJsonString(Schema.Unknown)),
   }),
 );
@@ -250,6 +251,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
           runtime_mode AS "runtimeMode",
           active_turn_id AS "activeTurnId",
           last_error AS "lastError",
+          started_at AS "startedAt",
           token_usage_json AS "tokenUsage",
           updated_at AS "updatedAt"
         FROM projection_thread_sessions
@@ -514,6 +516,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
               runtimeMode: row.runtimeMode,
               activeTurnId: row.activeTurnId,
               lastError: row.lastError,
+              ...(row.startedAt !== null ? { startedAt: row.startedAt } : {}),
               ...(row.tokenUsage !== null ? { tokenUsage: row.tokenUsage } : {}),
               updatedAt: row.updatedAt,
             });

@@ -74,7 +74,7 @@ import {
   replaceTextRange,
 } from "../composer-logic";
 import {
-  deriveConfiguredModelOptionsFromActivityGroups,
+  deriveConfiguredModelOptions,
   derivePendingApprovals,
   derivePendingUserInputs,
   derivePhase,
@@ -767,7 +767,6 @@ export default function ChatView({ threadId }: ChatViewProps) {
   >({});
   const [sendPhaseByThreadId, setSendPhaseByThreadId] = useState<Record<string, SendPhase>>({});
   const [sendStartedAt, setSendStartedAt] = useState<string | null>(null);
-  const [isConnecting, _setIsConnecting] = useState(false);
   const [isRevertingCheckpoint, setIsRevertingCheckpoint] = useState(false);
   const [respondingRequestIds, setRespondingRequestIds] = useState<ApprovalRequestId[]>([]);
   const [respondingUserInputRequestIds, setRespondingUserInputRequestIds] = useState<
@@ -1050,20 +1049,14 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const selectedProvider: ProviderKind = lockedProvider ?? selectedProviderByThreadId ?? "codex";
   const configuredModelOptionsByProvider = useMemo(
     () => ({
-      codex: deriveConfiguredModelOptionsFromActivityGroups(
-        threads.map((thread) => thread.activities),
-        "codex",
-      ),
-      copilot: deriveConfiguredModelOptionsFromActivityGroups(
-        threads.map((thread) => thread.activities),
+      codex: deriveConfiguredModelOptions(activeThread?.activities ?? EMPTY_ACTIVITIES, "codex"),
+      copilot: deriveConfiguredModelOptions(
+        activeThread?.activities ?? EMPTY_ACTIVITIES,
         "copilot",
       ),
-      kimi: deriveConfiguredModelOptionsFromActivityGroups(
-        threads.map((thread) => thread.activities),
-        "kimi",
-      ),
+      kimi: deriveConfiguredModelOptions(activeThread?.activities ?? EMPTY_ACTIVITIES, "kimi"),
     }),
-    [threads],
+    [activeThread?.activities],
   );
   const modelOptionsByProvider = useMemo(
     () => getCustomModelOptionsByProvider(settings, configuredModelOptionsByProvider),
@@ -1211,6 +1204,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
     [lockedProvider, modelOptionsByProvider],
   );
   const phase = derivePhase(activeThread?.session ?? null);
+  const isConnecting = phase === "connecting";
   const isSendBusy = sendPhase !== "idle";
   const isPreparingWorktree = sendPhase === "preparing-worktree";
   const isWorking = phase === "running" || isSendBusy || isConnecting || isRevertingCheckpoint;
@@ -1230,12 +1224,12 @@ export default function ChatView({ threadId }: ChatViewProps) {
     [activeLatestTurn?.turnId, threadActivities],
   );
   const pendingApprovals = useMemo(
-    () => derivePendingApprovals(threadActivities),
-    [threadActivities],
+    () => derivePendingApprovals(threadActivities, activeThread?.session?.createdAt),
+    [activeThread?.session?.createdAt, threadActivities],
   );
   const pendingUserInputs = useMemo(
-    () => derivePendingUserInputs(threadActivities),
-    [threadActivities],
+    () => derivePendingUserInputs(threadActivities, activeThread?.session?.createdAt),
+    [activeThread?.session?.createdAt, threadActivities],
   );
   const activePendingUserInput = pendingUserInputs[0] ?? null;
   const activePendingDraftAnswers = useMemo(

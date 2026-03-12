@@ -927,6 +927,10 @@ const make = Effect.gen(function* () {
             : event.type === "turn.completed" || event.type === "session.exited"
               ? null
               : activeTurnId;
+        const startedAt =
+          event.type === "session.started" || event.type === "thread.started"
+            ? event.createdAt
+            : thread.session?.startedAt;
         const status = (() => {
           switch (event.type) {
             case "session.state.changed":
@@ -965,6 +969,7 @@ const make = Effect.gen(function* () {
               runtimeMode: thread.session?.runtimeMode ?? "full-access",
               activeTurnId: nextActiveTurnId,
               lastError,
+              ...(startedAt !== undefined ? { startedAt } : {}),
               ...sessionTokenUsageField(thread.session?.tokenUsage, nextTokenUsage),
               updatedAt: now,
             },
@@ -985,6 +990,9 @@ const make = Effect.gen(function* () {
             runtimeMode: thread.session?.runtimeMode ?? "full-access",
             activeTurnId: thread.session?.activeTurnId ?? null,
             lastError: thread.session?.lastError ?? null,
+            ...(thread.session?.startedAt !== undefined
+              ? { startedAt: thread.session.startedAt }
+              : {}),
             tokenUsage: createSessionTokenUsageSnapshot({
               kind: "thread",
               event,

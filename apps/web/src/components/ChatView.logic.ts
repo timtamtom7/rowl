@@ -133,8 +133,12 @@ export function cloneComposerImageForRetry(
 
 export function getCustomModelOptionsByProvider(settings: {
   customCodexModels: readonly string[];
+  customCopilotModels: readonly string[];
+  customKimiModels: readonly string[];
 }): Record<ProviderKind, ReadonlyArray<{ slug: string; name: string }>> {
   return {
     codex: getAppModelOptions("codex", settings.customCodexModels),
+    copilot: getAppModelOptions("copilot", settings.customCopilotModels),
+    kimi: getAppModelOptions("kimi", settings.customKimiModels),
   };
 }

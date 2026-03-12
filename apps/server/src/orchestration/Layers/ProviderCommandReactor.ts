@@ -218,6 +218,7 @@ const make = Effect.gen(function* () {
     readonly runtimeMode: RuntimeMode;
     readonly lastError: string;
     readonly createdAt: string;
+    readonly startedAt?: string;
     readonly tokenUsage?: OrchestrationSession["tokenUsage"];
   }) =>
     setThreadSession({
@@ -229,6 +230,7 @@ const make = Effect.gen(function* () {
         runtimeMode: input.runtimeMode,
         activeTurnId: null,
         lastError: input.lastError,
+        ...(input.startedAt !== undefined ? { startedAt: input.startedAt } : {}),
         ...(input.tokenUsage !== undefined ? { tokenUsage: input.tokenUsage } : {}),
         updatedAt: input.createdAt,
       },
@@ -310,6 +312,7 @@ const make = Effect.gen(function* () {
           // Provider turn ids are not orchestration turn ids.
           activeTurnId: null,
           lastError: session.lastError ?? null,
+          startedAt: createdAt,
           updatedAt: session.updatedAt,
         },
         createdAt,
@@ -596,6 +599,9 @@ const make = Effect.gen(function* () {
             runtimeMode: thread.runtimeMode,
             lastError: detail,
             createdAt: event.payload.createdAt,
+            ...(thread.session?.startedAt !== undefined
+              ? { startedAt: thread.session.startedAt }
+              : {}),
             ...(thread.session?.tokenUsage !== undefined
               ? { tokenUsage: thread.session.tokenUsage }
               : {}),
@@ -736,6 +742,7 @@ const make = Effect.gen(function* () {
         runtimeMode: thread.session?.runtimeMode ?? DEFAULT_RUNTIME_MODE,
         activeTurnId: null,
         lastError: thread.session?.lastError ?? null,
+        ...(thread.session?.startedAt !== undefined ? { startedAt: thread.session.startedAt } : {}),
         updatedAt: now,
       },
       createdAt: now,

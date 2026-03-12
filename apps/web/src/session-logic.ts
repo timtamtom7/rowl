@@ -169,11 +169,15 @@ function requestKindFromRequestType(requestType: unknown): PendingApproval["requ
 
 export function derivePendingApprovals(
   activities: ReadonlyArray<OrchestrationThreadActivity>,
+  sessionStartedAt?: string,
 ): PendingApproval[] {
   const openByRequestId = new Map<ApprovalRequestId, PendingApproval>();
   const ordered = [...activities].toSorted(compareActivitiesByOrder);
 
   for (const activity of ordered) {
+    if (sessionStartedAt && activity.createdAt < sessionStartedAt) {
+      continue;
+    }
     const payload =
       activity.payload && typeof activity.payload === "object"
         ? (activity.payload as Record<string, unknown>)
@@ -274,11 +278,15 @@ function parseUserInputQuestions(
 
 export function derivePendingUserInputs(
   activities: ReadonlyArray<OrchestrationThreadActivity>,
+  sessionStartedAt?: string,
 ): PendingUserInput[] {
   const openByRequestId = new Map<ApprovalRequestId, PendingUserInput>();
   const ordered = [...activities].toSorted(compareActivitiesByOrder);
 
   for (const activity of ordered) {
+    if (sessionStartedAt && activity.createdAt < sessionStartedAt) {
+      continue;
+    }
     const payload =
       activity.payload && typeof activity.payload === "object"
         ? (activity.payload as Record<string, unknown>)

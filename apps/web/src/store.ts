@@ -323,7 +323,7 @@ export function syncServerReadModel(state: AppState, readModel: OrchestrationRea
               status: toLegacySessionStatus(thread.session.status),
               orchestrationStatus: thread.session.status,
               activeTurnId: thread.session.activeTurnId ?? undefined,
-              createdAt: thread.session.updatedAt,
+              createdAt: thread.session.startedAt ?? thread.session.updatedAt,
               updatedAt: thread.session.updatedAt,
               ...(thread.session.lastError ? { lastError: thread.session.lastError } : {}),
               ...(thread.session.tokenUsage !== undefined

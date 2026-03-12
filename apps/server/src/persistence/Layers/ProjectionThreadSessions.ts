@@ -14,6 +14,7 @@ import {
 
 const ProjectionThreadSessionDbRowSchema = ProjectionThreadSession.mapFields(
   Struct.assign({
+    startedAt: Schema.NullOr(Schema.String),
     tokenUsage: Schema.NullOr(Schema.fromJsonString(Schema.Unknown)),
   }),
 );
@@ -32,6 +33,7 @@ const makeProjectionThreadSessionRepository = Effect.gen(function* () {
           runtime_mode,
           active_turn_id,
           last_error,
+          started_at,
           token_usage_json,
           updated_at
         )
@@ -42,6 +44,7 @@ const makeProjectionThreadSessionRepository = Effect.gen(function* () {
           ${row.runtimeMode},
           ${row.activeTurnId},
           ${row.lastError},
+          ${row.startedAt ?? null},
           ${row.tokenUsage !== undefined ? JSON.stringify(row.tokenUsage) : null},
           ${row.updatedAt}
         )
@@ -52,6 +55,7 @@ const makeProjectionThreadSessionRepository = Effect.gen(function* () {
           runtime_mode = excluded.runtime_mode,
           active_turn_id = excluded.active_turn_id,
           last_error = excluded.last_error,
+          started_at = excluded.started_at,
           token_usage_json = excluded.token_usage_json,
           updated_at = excluded.updated_at
       `,
@@ -69,6 +73,7 @@ const makeProjectionThreadSessionRepository = Effect.gen(function* () {
           runtime_mode AS "runtimeMode",
           active_turn_id AS "activeTurnId",
           last_error AS "lastError",
+          started_at AS "startedAt",
           token_usage_json AS "tokenUsage",
           updated_at AS "updatedAt"
         FROM projection_thread_sessions
@@ -103,6 +108,7 @@ const makeProjectionThreadSessionRepository = Effect.gen(function* () {
           runtimeMode: entry.runtimeMode,
           activeTurnId: entry.activeTurnId,
           lastError: entry.lastError,
+          ...(entry.startedAt !== null ? { startedAt: entry.startedAt } : {}),
           ...(entry.tokenUsage !== null ? { tokenUsage: entry.tokenUsage } : {}),
           updatedAt: entry.updatedAt,
         })),

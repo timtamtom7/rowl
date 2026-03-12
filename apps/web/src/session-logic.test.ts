@@ -136,6 +136,41 @@ describe("derivePendingApprovals", () => {
 
     expect(derivePendingApprovals(activities)).toEqual([]);
   });
+
+  it("ignores approvals from before the active session started", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "approval-old",
+        createdAt: "2026-02-23T00:00:01.000Z",
+        kind: "approval.requested",
+        summary: "Old approval requested",
+        tone: "approval",
+        payload: {
+          requestId: "req-old",
+          requestKind: "command",
+        },
+      }),
+      makeActivity({
+        id: "approval-new",
+        createdAt: "2026-02-23T00:00:03.000Z",
+        kind: "approval.requested",
+        summary: "New approval requested",
+        tone: "approval",
+        payload: {
+          requestId: "req-new",
+          requestKind: "file-change",
+        },
+      }),
+    ];
+
+    expect(derivePendingApprovals(activities, "2026-02-23T00:00:02.000Z")).toEqual([
+      {
+        requestId: "req-new",
+        requestKind: "file-change",
+        createdAt: "2026-02-23T00:00:03.000Z",
+      },
+    ]);
+  });
 });
 
 describe("derivePendingUserInputs", () => {
@@ -217,6 +252,62 @@ describe("derivePendingUserInputs", () => {
                 description: "Allow workspace writes only",
               },
             ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("ignores structured prompts from before the active session started", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "user-input-old",
+        createdAt: "2026-02-23T00:00:01.000Z",
+        kind: "user-input.requested",
+        summary: "Old user input requested",
+        tone: "info",
+        payload: {
+          requestId: "req-user-old",
+          questions: [
+            {
+              id: "old",
+              header: "Old",
+              question: "Old question?",
+              options: [{ label: "yes", description: "Yes" }],
+            },
+          ],
+        },
+      }),
+      makeActivity({
+        id: "user-input-new",
+        createdAt: "2026-02-23T00:00:03.000Z",
+        kind: "user-input.requested",
+        summary: "New user input requested",
+        tone: "info",
+        payload: {
+          requestId: "req-user-new",
+          questions: [
+            {
+              id: "new",
+              header: "New",
+              question: "New question?",
+              options: [{ label: "ok", description: "Continue" }],
+            },
+          ],
+        },
+      }),
+    ];
+
+    expect(derivePendingUserInputs(activities, "2026-02-23T00:00:02.000Z")).toEqual([
+      {
+        requestId: "req-user-new",
+        createdAt: "2026-02-23T00:00:03.000Z",
+        questions: [
+          {
+            id: "new",
+            header: "New",
+            question: "New question?",
+            options: [{ label: "ok", description: "Continue" }],
           },
         ],
       },
