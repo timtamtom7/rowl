@@ -295,7 +295,7 @@ function SettingsRouteView() {
               <div className="mb-4">
                 <h2 className="text-sm font-medium text-foreground">Appearance</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Choose how T3 Code handles light and dark mode.
+                  Choose how CUT3 handles light and dark mode.
                 </p>
               </div>
 
@@ -551,7 +551,7 @@ function SettingsRouteView() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   These overrides apply to new Kimi Code sessions. Install with{" "}
                   <code>curl -LsSf https://code.kimi.com/install.sh | bash</code> and add a Kimi
-                  Code API key to let T3 Code start Kimi sessions directly.
+                  Code API key to let CUT3 start Kimi sessions directly.
                 </p>
               </div>
 
@@ -584,8 +584,8 @@ function SettingsRouteView() {
                   <span className="text-xs text-muted-foreground">
                     Generate this from the Kimi Code Console.{" "}
                     {isElectron
-                      ? "T3 Code keeps it in the desktop session and persists it in your OS credential store when secure storage is available."
-                      : "T3 Code keeps it only in memory for the current browser session."}{" "}
+                      ? "CUT3 keeps it in the desktop session and persists it in your OS credential store when secure storage is available."
+                      : "CUT3 keeps it only in memory for the current browser session."}{" "}
                     It is only used when starting new Kimi CLI sessions.
                   </span>
                 </label>

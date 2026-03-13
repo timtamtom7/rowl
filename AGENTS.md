@@ -7,7 +7,7 @@
 
 ## Project Snapshot
 
-T3 Code is a minimal web GUI for using coding agents. It currently supports Codex, GitHub Copilot, and Kimi Code, with unavailable picker placeholders for Claude Code and Cursor.
+CUT3 is a minimal web GUI for using coding agents. It currently supports Codex, GitHub Copilot, and Kimi Code, with unavailable picker placeholders for Claude Code and Cursor.
 
 This repository is a VERY EARLY WIP. Proposing sweeping changes that improve long-term maintainability is encouraged.
 
@@ -22,7 +22,7 @@ If a tradeoff is required, choose correctness and robustness over short-term con
 ## GPT-5.4 Prompt Guidance
 
 <task_context>
-You are working in the T3 Code monorepo.
+You are working in the CUT3 monorepo.
 Priorities:
 
 1. Performance first.
@@ -99,7 +99,7 @@ Long term maintainability is a core priority. If you add new functionality, firs
 
 ## Provider Runtimes (Important)
 
-T3 Code exposes one orchestration/WebSocket surface, then delegates provider-native runtime behavior to provider adapters and managers.
+CUT3 exposes one orchestration/WebSocket surface, then delegates provider-native runtime behavior to provider adapters and managers.
 
 How we use it in this codebase:
 

@@ -8,6 +8,8 @@ const STATUS_UPSTREAM_REFRESH_INTERVAL = Duration.seconds(15);
 const STATUS_UPSTREAM_REFRESH_TIMEOUT = Duration.seconds(5);
 const STATUS_UPSTREAM_REFRESH_CACHE_CAPACITY = 2_048;
 const DEFAULT_BASE_BRANCH_CANDIDATES = ["main", "master"] as const;
+const PREFERRED_REMOTE_NAME = "CUT3";
+const LEGACY_REMOTE_NAME = "origin";
 
 class StatusUpstreamRefreshCacheKey extends Data.Class<{
   cwd: string;
@@ -98,6 +100,24 @@ function parseRemoteNames(stdout: string): ReadonlyArray<string> {
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
     .toSorted((a, b) => b.length - a.length);
+}
+
+function isPreferredRemoteName(value: string): boolean {
+  const normalizedValue = value.trim().toLowerCase();
+  return (
+    normalizedValue === PREFERRED_REMOTE_NAME.toLowerCase() ||
+    normalizedValue === LEGACY_REMOTE_NAME
+  );
+}
+
+function resolvePreferredRemoteName(
+  remoteNames: ReadonlyArray<string>,
+): string | null {
+  const preferredRemote =
+    remoteNames.find((remoteName) => remoteName === PREFERRED_REMOTE_NAME) ??
+    remoteNames.find((remoteName) => remoteName.toLowerCase() === PREFERRED_REMOTE_NAME.toLowerCase()) ??
+    remoteNames.find((remoteName) => remoteName.toLowerCase() === LEGACY_REMOTE_NAME);
+  return preferredRemote ?? null;
 }
 
 function sanitizeRemoteName(value: string): string {
@@ -449,11 +469,6 @@ const makeGitCore = Effect.gen(function* () {
       },
     ).pipe(Effect.map((result) => result.code === 0));
 
-  const originRemoteExists = (cwd: string): Effect.Effect<boolean, GitCommandError> =>
-    executeGit("GitCore.originRemoteExists", cwd, ["remote", "get-url", "origin"], {
-      allowNonZeroExit: true,
-    }).pipe(Effect.map((result) => result.code === 0));
-
   const listRemoteNames = (cwd: string): Effect.Effect<ReadonlyArray<string>, GitCommandError> =>
     runGitStdout("GitCore.listRemoteNames", cwd, ["remote"]).pipe(
       Effect.map((stdout) => parseRemoteNames(stdout).toReversed()),
@@ -461,10 +476,11 @@ const makeGitCore = Effect.gen(function* () {
 
   const resolvePrimaryRemoteName = (cwd: string): Effect.Effect<string, GitCommandError> =>
     Effect.gen(function* () {
-      if (yield* originRemoteExists(cwd)) {
-        return "origin";
-      }
       const remotes = yield* listRemoteNames(cwd);
+      const preferredRemote = resolvePreferredRemoteName(remotes);
+      if (preferredRemote) {
+        return preferredRemote;
+      }
       const [firstRemote] = remotes;
       if (firstRemote) {
         return firstRemote;
@@ -565,10 +581,9 @@ const makeGitCore = Effect.gen(function* () {
           continue;
         }
 
-        const remotePrefix =
-          primaryRemoteName && primaryRemoteName !== "origin" ? `${primaryRemoteName}/` : null;
-        const normalizedCandidate = candidate.startsWith("origin/")
-          ? candidate.slice("origin/".length)
+        const remotePrefix = primaryRemoteName ? `${primaryRemoteName}/` : null;
+        const normalizedCandidate = candidate.startsWith(`${LEGACY_REMOTE_NAME}/`)
+          ? candidate.slice(`${LEGACY_REMOTE_NAME}/`.length)
           : remotePrefix && candidate.startsWith(remotePrefix)
             ? candidate.slice(remotePrefix.length)
             : candidate;
@@ -1012,7 +1027,7 @@ const makeGitCore = Effect.gen(function* () {
       if (localBranchResult.code !== 0) {
         const stderr = localBranchResult.stderr.trim();
         if (stderr.toLowerCase().includes("not a git repository")) {
-          return { branches: [], isRepo: false, hasOriginRemote: false };
+          return { branches: [], isRepo: false, hasPreferredRemote: false };
         }
         return yield* createGitCommandError(
           "GitCore.listBranches",
@@ -1054,18 +1069,9 @@ const makeGitCore = Effect.gen(function* () {
         ),
       );
 
-      const [defaultRef, worktreeList, remoteBranchResult, remoteNamesResult, branchLastCommit] =
+      const [worktreeList, remoteBranchResult, remoteNamesResult, branchLastCommit] =
         yield* Effect.all(
           [
-            executeGit(
-              "GitCore.listBranches.defaultRef",
-              input.cwd,
-              ["symbolic-ref", "refs/remotes/origin/HEAD"],
-              {
-                timeoutMs: 5_000,
-                allowNonZeroExit: true,
-              },
-            ),
             executeGit(
               "GitCore.listBranches.worktreeList",
               input.cwd,
@@ -1084,6 +1090,7 @@ const makeGitCore = Effect.gen(function* () {
 
       const remoteNames =
         remoteNamesResult.code === 0 ? parseRemoteNames(remoteNamesResult.stdout) : [];
+      const primaryRemoteName = resolvePreferredRemoteName(remoteNames) ?? remoteNames[0] ?? null;
       if (remoteBranchResult.code !== 0 && remoteBranchResult.stderr.trim().length > 0) {
         yield* Effect.logWarning(
           `GitCore.listBranches: remote branch lookup returned code ${remoteBranchResult.code} for ${input.cwd}: ${remoteBranchResult.stderr.trim()}. Falling back to an empty remote branch list.`,
@@ -1095,9 +1102,21 @@ const makeGitCore = Effect.gen(function* () {
         );
       }
 
+      const defaultRef =
+        primaryRemoteName === null
+          ? { code: 1, stdout: "", stderr: "" }
+          : yield* executeGit(
+              "GitCore.listBranches.defaultRef",
+              input.cwd,
+              ["symbolic-ref", `refs/remotes/${primaryRemoteName}/HEAD`],
+              {
+                timeoutMs: 5_000,
+                allowNonZeroExit: true,
+              },
+            );
       const defaultBranch =
-        defaultRef.code === 0
-          ? defaultRef.stdout.trim().replace(/^refs\/remotes\/origin\//, "")
+        defaultRef.code === 0 && primaryRemoteName
+          ? parseDefaultBranchFromRemoteHeadRef(defaultRef.stdout, primaryRemoteName)
           : null;
 
       const worktreeMap = new Map<string, string>();
@@ -1178,7 +1197,11 @@ const makeGitCore = Effect.gen(function* () {
 
       const branches = [...localBranches, ...remoteBranches];
 
-      return { branches, isRepo: true, hasOriginRemote: remoteNames.includes("origin") };
+      return {
+        branches,
+        isRepo: true,
+        hasPreferredRemote: remoteNames.some((remoteName) => isPreferredRemoteName(remoteName)),
+      };
     });
 
   const createWorktree: GitCoreShape["createWorktree"] = (input) =>

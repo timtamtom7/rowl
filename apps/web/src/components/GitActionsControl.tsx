@@ -61,17 +61,18 @@ interface PendingDefaultBranchAction {
 }
 
 type GitActionToastId = ReturnType<typeof toastManager.add>;
+const PREFERRED_REMOTE_NAME = "CUT3";
 
 function getMenuActionDisabledReason({
   item,
   gitStatus,
   isBusy,
-  hasOriginRemote,
+  hasPreferredRemote,
 }: {
   item: GitActionMenuItem;
   gitStatus: GitStatusResult | null;
   isBusy: boolean;
-  hasOriginRemote: boolean;
+  hasPreferredRemote: boolean;
 }): string | null {
   if (!item.disabled) return null;
   if (isBusy) return "Git action in progress.";
@@ -100,8 +101,8 @@ function getMenuActionDisabledReason({
     if (isBehind) {
       return "Branch is behind upstream. Pull/rebase before pushing.";
     }
-    if (!gitStatus.hasUpstream && !hasOriginRemote) {
-      return 'Add an "origin" remote before pushing.';
+    if (!gitStatus.hasUpstream && !hasPreferredRemote) {
+      return `Add a "${PREFERRED_REMOTE_NAME}" remote before pushing.`;
     }
     if (!isAhead) {
       return "No local commits to push.";
@@ -118,8 +119,8 @@ function getMenuActionDisabledReason({
   if (hasChanges) {
     return "Commit local changes before creating a PR.";
   }
-  if (!gitStatus.hasUpstream && !hasOriginRemote) {
-    return 'Add an "origin" remote before creating a PR.';
+  if (!gitStatus.hasUpstream && !hasPreferredRemote) {
+    return `Add a "${PREFERRED_REMOTE_NAME}" remote before creating a PR.`;
   }
   if (!isAhead) {
     return "No local commits to include in a PR.";
@@ -171,7 +172,7 @@ export default function GitActionsControl({ gitCwd, activeThreadId }: GitActions
   const { data: branchList = null } = useQuery(gitBranchesQueryOptions(gitCwd));
   // Default to true while loading so we don't flash init controls.
   const isRepo = branchList?.isRepo ?? true;
-  const hasOriginRemote = branchList?.hasOriginRemote ?? false;
+  const hasPreferredRemote = branchList?.hasPreferredRemote ?? false;
   const currentBranch = branchList?.branches.find((branch) => branch.current)?.name ?? null;
   const isGitStatusOutOfSync =
     !!gitStatus?.branch && !!currentBranch && gitStatus.branch !== currentBranch;
@@ -207,13 +208,18 @@ export default function GitActionsControl({ gitCwd, activeThreadId }: GitActions
   }, [branchList?.branches, gitStatusForActions?.branch]);
 
   const gitActionMenuItems = useMemo(
-    () => buildMenuItems(gitStatusForActions, isGitActionRunning, hasOriginRemote),
-    [gitStatusForActions, hasOriginRemote, isGitActionRunning],
+    () => buildMenuItems(gitStatusForActions, isGitActionRunning, hasPreferredRemote),
+    [gitStatusForActions, hasPreferredRemote, isGitActionRunning],
   );
   const quickAction = useMemo(
     () =>
-      resolveQuickAction(gitStatusForActions, isGitActionRunning, isDefaultBranch, hasOriginRemote),
-    [gitStatusForActions, hasOriginRemote, isDefaultBranch, isGitActionRunning],
+      resolveQuickAction(
+        gitStatusForActions,
+        isGitActionRunning,
+        isDefaultBranch,
+        hasPreferredRemote,
+      ),
+    [gitStatusForActions, hasPreferredRemote, isDefaultBranch, isGitActionRunning],
   );
   const quickActionDisabledReason = quickAction.disabled
     ? (quickAction.hint ?? "This action is currently unavailable.")
@@ -694,7 +700,7 @@ export default function GitActionsControl({ gitCwd, activeThreadId }: GitActions
                   item,
                   gitStatus: gitStatusForActions,
                   isBusy: isGitActionRunning,
-                  hasOriginRemote,
+                  hasPreferredRemote,
                 });
                 if (item.disabled && disabledReason) {
                   return (

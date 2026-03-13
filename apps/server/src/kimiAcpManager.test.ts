@@ -55,11 +55,11 @@ describe("kimiAcpManager model availability", () => {
       buildKimiCliArgs({
         runtimeMode: "approval-required",
         model: "kimi-for-coding",
-        configFilePath: "/tmp/t3code-kimi/config.json",
+        configFilePath: "/tmp/cut3-kimi/config.json",
       }),
     ).toEqual([
       "--config-file",
-      "/tmp/t3code-kimi/config.json",
+      "/tmp/cut3-kimi/config.json",
       "--model",
       "kimi-for-coding",
       "acp",
@@ -109,7 +109,7 @@ describe("kimiAcpManager model availability", () => {
     ).toEqual({
       default_model: "kimi-k2-thinking",
       providers: {
-        "t3code-kimi": {
+        "cut3-kimi": {
           type: "kimi",
           base_url: "https://api.kimi.com/coding/v1",
           api_key: "sk-kimi-test",
@@ -117,12 +117,12 @@ describe("kimiAcpManager model availability", () => {
       },
       models: {
         "kimi-k2-thinking": {
-          provider: "t3code-kimi",
+          provider: "cut3-kimi",
           model: "kimi-k2-thinking",
           max_context_size: 262144,
         },
         "kimi-for-coding": {
-          provider: "t3code-kimi",
+          provider: "cut3-kimi",
           model: "kimi-for-coding",
           max_context_size: 262144,
         },

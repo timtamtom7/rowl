@@ -1,4 +1,4 @@
-// This file mostly exists because we want dev mode to say "T3 Code (Dev)" instead of "electron"
+// This file mostly exists because we want the dev launcher to use the app's branding instead of "electron"
 
 import { spawnSync } from "node:child_process";
 import {

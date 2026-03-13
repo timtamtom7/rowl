@@ -1,6 +1,6 @@
 # Keybindings
 
-T3 Code reads keybindings from the active state directory:
+CUT3 reads keybindings from the active state directory:
 
 - `<state-dir>/keybindings.json`
 
@@ -8,7 +8,7 @@ Examples:
 
 - Default server/desktop path: `~/.t3/userdata/keybindings.json`
 - Root dev commands usually use a dev-scoped state dir, so the file is typically under `~/.t3/dev/keybindings.json`
-- `--state-dir` or `T3CODE_STATE_DIR` changes the location
+- `--state-dir` or `CUT3_STATE_DIR` changes the location
 
 The file must be a JSON array of rules:
 

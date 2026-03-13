@@ -77,7 +77,7 @@ describe("resolveBranchToolbarValue", () => {
 
 describe("deriveLocalBranchNameFromRemoteRef", () => {
   it("strips the remote prefix from a remote ref", () => {
-    expect(deriveLocalBranchNameFromRemoteRef("origin/feature/demo")).toBe("feature/demo");
+    expect(deriveLocalBranchNameFromRemoteRef("CUT3/feature/demo")).toBe("feature/demo");
   });
 
   it("supports remote names that contain slashes", () => {
@@ -87,7 +87,7 @@ describe("deriveLocalBranchNameFromRemoteRef", () => {
   });
 
   it("returns the original name when ref is malformed", () => {
-    expect(deriveLocalBranchNameFromRemoteRef("origin/")).toBe("origin/");
+    expect(deriveLocalBranchNameFromRemoteRef("CUT3/")).toBe("CUT3/");
     expect(deriveLocalBranchNameFromRemoteRef("/feature/demo")).toBe("/feature/demo");
   });
 });
@@ -102,17 +102,17 @@ describe("dedupeRemoteBranchesWithLocalMatches", () => {
         worktreePath: null,
       },
       {
-        name: "origin/feature/demo",
+        name: "CUT3/feature/demo",
         isRemote: true,
-        remoteName: "origin",
+        remoteName: "CUT3",
         current: false,
         isDefault: false,
         worktreePath: null,
       },
       {
-        name: "origin/feature/remote-only",
+        name: "CUT3/feature/remote-only",
         isRemote: true,
-        remoteName: "origin",
+        remoteName: "CUT3",
         current: false,
         isDefault: false,
         worktreePath: null,
@@ -121,7 +121,7 @@ describe("dedupeRemoteBranchesWithLocalMatches", () => {
 
     expect(dedupeRemoteBranchesWithLocalMatches(input).map((branch) => branch.name)).toEqual([
       "feature/demo",
-      "origin/feature/remote-only",
+      "CUT3/feature/remote-only",
     ]);
   });
 
@@ -134,9 +134,9 @@ describe("dedupeRemoteBranchesWithLocalMatches", () => {
         worktreePath: null,
       },
       {
-        name: "origin/feature/remote-only",
+        name: "CUT3/feature/remote-only",
         isRemote: true,
-        remoteName: "origin",
+        remoteName: "CUT3",
         current: false,
         isDefault: false,
         worktreePath: null,
@@ -145,11 +145,11 @@ describe("dedupeRemoteBranchesWithLocalMatches", () => {
 
     expect(dedupeRemoteBranchesWithLocalMatches(input).map((branch) => branch.name)).toEqual([
       "feature/local",
-      "origin/feature/remote-only",
+      "CUT3/feature/remote-only",
     ]);
   });
 
-  it("keeps non-origin remote refs visible even when a matching local branch exists", () => {
+  it("keeps non-CUT3 remote refs visible even when a matching local branch exists", () => {
     const input: GitBranch[] = [
       {
         name: "feature/demo",
@@ -173,7 +173,7 @@ describe("dedupeRemoteBranchesWithLocalMatches", () => {
     ]);
   });
 
-  it("keeps non-origin remote refs visible when git tracks with first-slash local naming", () => {
+  it("keeps non-CUT3 remote refs visible when git tracks with first-slash local naming", () => {
     const input: GitBranch[] = [
       {
         name: "upstream/feature",

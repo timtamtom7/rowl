@@ -134,7 +134,7 @@ export const CUSTOM_THEME_OPTIONS = [
   {
     id: "none",
     label: "Default theme",
-    description: "Use T3 Code's built-in theme tokens.",
+    description: "Use CUT3's built-in theme tokens.",
     family: "default",
     appearance: null,
   },

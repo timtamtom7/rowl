@@ -38,47 +38,47 @@ describe("isForkPrereleaseVersion", () => {
 });
 
 describe("resolveAppReleaseBranding", () => {
-  it("keeps local dev-server sessions on Dev branding", () => {
+  it("keeps local dev-server sessions on unified CUT3 branding", () => {
     expect(resolveAppReleaseBranding({ version: "1.2.3", isDevelopment: true })).toEqual({
-      stageLabel: "Dev",
-      displayName: "T3 Code (Dev)",
-      productName: "T3 Code (Dev)",
-      appId: "com.t3tools.t3code.dev",
-      stateDirName: "dev",
-      userDataDirName: "t3code-dev",
+      stageLabel: "CUT3",
+      displayName: "CUT3",
+      productName: "CUT3",
+      appId: "com.t3tools.cut3",
+      stateDirName: "cut3",
+      userDataDirName: "cut3",
     });
   });
 
-  it("brands alpha prerelease packages as Dev", () => {
+  it("keeps prerelease packages on unified CUT3 branding", () => {
     expect(resolveAppReleaseBranding({ version: "0.0.11-alpha.3", isDevelopment: false })).toEqual({
-      stageLabel: "Dev",
-      displayName: "T3 Code (Dev)",
-      productName: "T3 Code (Dev)",
-      appId: "com.t3tools.t3code.dev",
-      stateDirName: "dev",
-      userDataDirName: "t3code-dev",
+      stageLabel: "CUT3",
+      displayName: "CUT3",
+      productName: "CUT3",
+      appId: "com.t3tools.cut3",
+      stateDirName: "cut3",
+      userDataDirName: "cut3",
     });
   });
 
-  it("keeps fork prerelease packages on Dev branding", () => {
+  it("keeps fork prerelease packages on unified CUT3 branding", () => {
     expect(resolveAppReleaseBranding({ version: "0.0.11-fork.3", isDevelopment: false })).toEqual({
-      stageLabel: "Dev",
-      displayName: "T3 Code (Dev)",
-      productName: "T3 Code (Dev)",
-      appId: "com.t3tools.t3code.dev",
-      stateDirName: "dev",
-      userDataDirName: "t3code-dev",
+      stageLabel: "CUT3",
+      displayName: "CUT3",
+      productName: "CUT3",
+      appId: "com.t3tools.cut3",
+      stateDirName: "cut3",
+      userDataDirName: "cut3",
     });
   });
 
-  it("keeps stable packaged builds on Alpha branding", () => {
+  it("keeps stable packaged builds on unified CUT3 branding", () => {
     expect(resolveAppReleaseBranding({ version: "1.2.3", isDevelopment: false })).toEqual({
-      stageLabel: "Alpha",
-      displayName: "T3 Code (Alpha)",
-      productName: "T3 Code",
-      appId: "com.t3tools.t3code",
-      stateDirName: "userdata",
-      userDataDirName: "t3code",
+      stageLabel: "CUT3",
+      displayName: "CUT3",
+      productName: "CUT3",
+      appId: "com.t3tools.cut3",
+      stateDirName: "cut3",
+      userDataDirName: "cut3",
     });
   });
 });

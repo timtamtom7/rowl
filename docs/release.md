@@ -14,7 +14,7 @@ This document covers how to run desktop releases from one tag, first without sig
 - Publishes one GitHub Release with all produced files.
   - Versions with a suffix after `X.Y.Z` (for example `1.2.3-alpha.1`) are published as GitHub prereleases.
   - Only plain `X.Y.Z` releases are marked as the repository's latest release.
-  - Desktop prerelease artifacts launch as `T3 Code (Dev)` so they stay distinct from stable Alpha installs.
+  - Desktop prerelease artifacts launch as `CUT3`, the same as stable builds.
 - Includes Electron auto-update metadata (for example `latest*.yml` and `*.blockmap`) in release assets.
 - Optionally publishes the CLI package (`apps/server`, npm package `t3`) when explicitly enabled.
 - Signing is optional and auto-detected per platform from secrets.
@@ -28,10 +28,10 @@ This document covers how to run desktop releases from one tag, first without sig
   - The desktop UI shows a rocket update button when an update is available; click once to download, click again after download to restart/install.
 - Provider: GitHub Releases (`provider: github`) configured at build time.
 - Repository slug source:
-  - `T3CODE_DESKTOP_UPDATE_REPOSITORY` (format `owner/repo`), if set.
+  - `CUT3_DESKTOP_UPDATE_REPOSITORY` (format `owner/repo`), if set.
   - otherwise `GITHUB_REPOSITORY` from GitHub Actions.
 - Temporary private-repo auth workaround:
-  - set `T3CODE_DESKTOP_UPDATE_GITHUB_TOKEN` (or `GH_TOKEN`) in the desktop app runtime environment.
+  - set `CUT3_DESKTOP_UPDATE_GITHUB_TOKEN` (or `GH_TOKEN`) in the desktop app runtime environment.
   - the app forwards it as an `Authorization: Bearer <token>` request header for updater HTTP calls.
 - Required release assets for updater:
   - platform installers (`.exe`, `.dmg`, `.AppImage`, plus macOS `.zip` for Squirrel.Mac update payloads)
@@ -46,7 +46,7 @@ This document covers how to run desktop releases from one tag, first without sig
 The workflow only publishes the CLI when you explicitly opt in:
 
 - `workflow_dispatch` with `publish_cli=true`, or
-- repository variable `T3CODE_PUBLISH_CLI=true` for tag-triggered releases.
+- repository variable `CUT3_PUBLISH_CLI=true` for tag-triggered releases.
 
 When enabled, it publishes the CLI with `bun publish` from `apps/server` after
 bumping the package version to the release tag version.
@@ -72,7 +72,7 @@ Use this first to validate the GitHub release pipeline.
 1. Confirm no signing secrets are required for this test.
 2. Create a test tag:
    - `git tag v0.0.0-test.1`
-   - `git push origin v0.0.0-test.1`
+   - `git push CUT3 v0.0.0-test.1`
 3. Wait for `.github/workflows/release.yml` to finish.
 4. Verify the GitHub Release contains all platform artifacts.
 5. Download each artifact and sanity-check installation on each OS.

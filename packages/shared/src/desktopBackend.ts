@@ -1,4 +1,4 @@
-export const DESKTOP_BACKEND_READY_PREFIX = "[t3code-desktop-ready]";
+export const DESKTOP_BACKEND_READY_PREFIX = "[cut3-desktop-ready]";
 
 export interface DesktopBackendReadyPayload {
   readonly port: number;

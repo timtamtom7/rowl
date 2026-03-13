@@ -652,7 +652,7 @@ describe("when: branch has no upstream configured", () => {
     assert.deepEqual(quick, {
       kind: "show_hint",
       label: "Push",
-      hint: 'Add an "origin" remote before pushing or creating a PR.',
+      hint: 'Add a "CUT3" remote before pushing or creating a PR.',
       disabled: true,
     });
   });
@@ -861,9 +861,9 @@ describe("buildGitActionProgressStages", () => {
       hasCustomCommitMessage: false,
       hasWorkingTreeChanges: true,
       forcePushOnly: true,
-      pushTarget: "origin/feature/test",
+      pushTarget: "CUT3/feature/test",
     });
-    assert.deepEqual(stages, ["Pushing to origin/feature/test..."]);
+    assert.deepEqual(stages, ["Pushing to CUT3/feature/test..."]);
   });
 
   it("skips commit stages for create-pr flow when push-only is forced", () => {
@@ -872,9 +872,9 @@ describe("buildGitActionProgressStages", () => {
       hasCustomCommitMessage: false,
       hasWorkingTreeChanges: true,
       forcePushOnly: true,
-      pushTarget: "origin/feature/test",
+      pushTarget: "CUT3/feature/test",
     });
-    assert.deepEqual(stages, ["Pushing to origin/feature/test...", "Creating PR..."]);
+    assert.deepEqual(stages, ["Pushing to CUT3/feature/test...", "Creating PR..."]);
   });
 
   it("includes commit stages for commit+push when working tree is dirty", () => {
@@ -882,12 +882,12 @@ describe("buildGitActionProgressStages", () => {
       action: "commit_push",
       hasCustomCommitMessage: false,
       hasWorkingTreeChanges: true,
-      pushTarget: "origin/feature/test",
+      pushTarget: "CUT3/feature/test",
     });
     assert.deepEqual(stages, [
       "Generating commit message...",
       "Committing...",
-      "Pushing to origin/feature/test...",
+      "Pushing to CUT3/feature/test...",
     ]);
   });
 });
@@ -924,13 +924,13 @@ describe("summarizeGitResult", () => {
       push: {
         status: "pushed",
         branch: "foo",
-        upstreamBranch: "origin/foo",
+        upstreamBranch: "CUT3/foo",
       },
       pr: { status: "skipped_not_requested" },
     });
 
     assert.deepEqual(result, {
-      title: "Pushed abcdef0 to origin/foo",
+      title: "Pushed abcdef0 to CUT3/foo",
       description: "fix: tighten quick action tooltip hover handling",
     });
   });

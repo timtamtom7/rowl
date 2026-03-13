@@ -10,7 +10,7 @@ import {
 
 import { CUSTOM_THEME_IDS } from "./lib/customThemes";
 
-const APP_SETTINGS_STORAGE_KEY = "t3code:app-settings:v1";
+const APP_SETTINGS_STORAGE_KEY = "cut3:app-settings:v1";
 const MAX_CUSTOM_MODEL_COUNT = 32;
 export const MAX_CUSTOM_MODEL_LENGTH = 256;
 export const APP_SERVICE_TIER_OPTIONS = [

@@ -1040,7 +1040,7 @@ export class CopilotAcpManager extends EventEmitter<CopilotAcpManagerEvents> {
 
   async respondToUserInput(): Promise<void> {
     throw new Error(
-      "GitHub Copilot CLI does not expose structured user input requests in T3 Code.",
+      "GitHub Copilot CLI does not expose structured user input requests in CUT3.",
     );
   }
 

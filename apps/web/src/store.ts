@@ -25,13 +25,13 @@ export interface AppState {
   threadsHydrated: boolean;
 }
 
-const PERSISTED_STATE_KEY = "t3code:renderer-state:v8";
+const PERSISTED_STATE_KEY = "cut3:renderer-state:v8";
 const LEGACY_PERSISTED_STATE_KEYS = [
-  "t3code:renderer-state:v7",
-  "t3code:renderer-state:v6",
-  "t3code:renderer-state:v5",
-  "t3code:renderer-state:v4",
-  "t3code:renderer-state:v3",
+  "cut3:renderer-state:v7",
+  "cut3:renderer-state:v6",
+  "cut3:renderer-state:v5",
+  "cut3:renderer-state:v4",
+  "cut3:renderer-state:v3",
   "codething:renderer-state:v4",
   "codething:renderer-state:v3",
   "codething:renderer-state:v2",

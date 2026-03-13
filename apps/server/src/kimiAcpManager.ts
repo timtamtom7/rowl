@@ -130,7 +130,7 @@ export function buildKimiCliArgs(input: {
   ];
 }
 
-const KIMI_CODE_PROVIDER_ID = "t3code-kimi";
+const KIMI_CODE_PROVIDER_ID = "cut3-kimi";
 const KIMI_CODE_BASE_URL = "https://api.kimi.com/coding/v1";
 const KIMI_DEFAULT_MODEL_ID = "kimi-for-coding";
 const KIMI_DEFAULT_MAX_CONTEXT_SIZE = 262_144;
@@ -210,7 +210,7 @@ function createKimiApiKeyConfigFile(input: { readonly apiKey: string; readonly m
   readonly dirPath: string;
   readonly filePath: string;
 } {
-  const dirPath = mkdtempSync(join(tmpdir(), "t3code-kimi-"));
+  const dirPath = mkdtempSync(join(tmpdir(), "cut3-kimi-"));
   const filePath = join(dirPath, "config.json");
   try {
     chmodSync(dirPath, 0o700);
@@ -1122,7 +1122,7 @@ export class KimiAcpManager extends EventEmitter<KimiAcpManagerEvents> {
   }
 
   async respondToUserInput(): Promise<void> {
-    throw new Error("Kimi Code CLI does not expose structured user input requests in T3 Code.");
+    throw new Error("Kimi Code CLI does not expose structured user input requests in CUT3.");
   }
 
   async stopSession(threadId: ThreadId): Promise<void> {

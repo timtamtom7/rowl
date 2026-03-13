@@ -35,6 +35,7 @@ export type DefaultBranchConfirmableAction = "commit_push" | "commit_push_pr";
 
 const SHORT_SHA_LENGTH = 7;
 const TOAST_DESCRIPTION_MAX = 72;
+const PREFERRED_REMOTE_NAME = "CUT3";
 
 function shortenSha(sha: string | undefined): string | null {
   if (!sha) return null;
@@ -113,7 +114,7 @@ export function summarizeGitResult(result: GitRunStackedActionResult): {
 export function buildMenuItems(
   gitStatus: GitStatusResult | null,
   isBusy: boolean,
-  hasOriginRemote = true,
+  hasPreferredRemote = true,
 ): GitActionMenuItem[] {
   if (!gitStatus) return [];
 
@@ -121,7 +122,7 @@ export function buildMenuItems(
   const hasChanges = gitStatus.hasWorkingTreeChanges;
   const hasOpenPr = gitStatus.pr?.state === "open";
   const isBehind = gitStatus.behindCount > 0;
-  const canPushWithoutUpstream = hasOriginRemote && !gitStatus.hasUpstream;
+  const canPushWithoutUpstream = hasPreferredRemote && !gitStatus.hasUpstream;
   const canCommit = !isBusy && hasChanges;
   const canPush =
     !isBusy &&
@@ -180,7 +181,7 @@ export function resolveQuickAction(
   gitStatus: GitStatusResult | null,
   isBusy: boolean,
   isDefaultBranch = false,
-  hasOriginRemote = true,
+  hasPreferredRemote = true,
 ): GitQuickAction {
   if (isBusy) {
     return { label: "Commit", disabled: true, kind: "show_hint", hint: "Git action in progress." };
@@ -212,7 +213,7 @@ export function resolveQuickAction(
   }
 
   if (hasChanges) {
-    if (!gitStatus.hasUpstream && !hasOriginRemote) {
+    if (!gitStatus.hasUpstream && !hasPreferredRemote) {
       return { label: "Commit", disabled: false, kind: "run_action", action: "commit" };
     }
     if (hasOpenPr || isDefaultBranch) {
@@ -227,7 +228,7 @@ export function resolveQuickAction(
   }
 
   if (!gitStatus.hasUpstream) {
-    if (!hasOriginRemote) {
+    if (!hasPreferredRemote) {
       if (hasOpenPr && !isAhead) {
         return { label: "View PR", disabled: false, kind: "open_pr" };
       }
@@ -235,7 +236,7 @@ export function resolveQuickAction(
         label: "Push",
         disabled: true,
         kind: "show_hint",
-        hint: 'Add an "origin" remote before pushing or creating a PR.',
+        hint: `Add a "${PREFERRED_REMOTE_NAME}" remote before pushing or creating a PR.`,
       };
     }
     if (!isAhead) {

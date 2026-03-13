@@ -8,7 +8,7 @@ import {
 describe("getServerConnectionBannerTitle", () => {
   it("uses a desktop-specific connecting title in Electron", () => {
     expect(getServerConnectionBannerTitle({ retrying: false, isElectron: true })).toContain(
-      "Connecting to T3 Code",
+      "Connecting to CUT3",
     );
   });
 
@@ -28,7 +28,7 @@ describe("getServerConnectionBannerTitle", () => {
 describe("getServerConnectionBannerDescription", () => {
   it("uses desktop-specific retry guidance in Electron", () => {
     expect(getServerConnectionBannerDescription({ retrying: true, isElectron: true })).toContain(
-      "restart T3 Code",
+      "restart CUT3",
     );
   });
 

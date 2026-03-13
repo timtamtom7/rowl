@@ -70,7 +70,7 @@ const UPDATE_STATE_CHANNEL = "desktop:update-state";
 const UPDATE_GET_STATE_CHANNEL = "desktop:update-get-state";
 const UPDATE_DOWNLOAD_CHANNEL = "desktop:update-download";
 const UPDATE_INSTALL_CHANNEL = "desktop:update-install";
-const DESKTOP_SCHEME = "t3";
+const DESKTOP_SCHEME = "cut3";
 const ROOT_DIR = Path.resolve(__dirname, "../../..");
 const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
 const appReleaseBranding = resolveAppReleaseBranding({
@@ -78,14 +78,13 @@ const appReleaseBranding = resolveAppReleaseBranding({
   isDevelopment,
 });
 const STATE_DIR =
-  process.env.T3CODE_STATE_DIR?.trim() ||
+  process.env.CUT3_STATE_DIR?.trim() ||
   Path.join(OS.homedir(), ".t3", appReleaseBranding.stateDirName);
 const APP_DISPLAY_NAME = appReleaseBranding.displayName;
 const APP_USER_MODEL_ID = appReleaseBranding.appId;
 const USER_DATA_DIR_NAME = appReleaseBranding.userDataDirName;
 const LEGACY_USER_DATA_DIR_NAMES = getLegacyUserDataDirNames({
   appDisplayName: APP_DISPLAY_NAME,
-  stageLabel: appReleaseBranding.stageLabel,
 });
 const COMMIT_HASH_PATTERN = /^[0-9a-f]{7,40}$/i;
 const COMMIT_HASH_DISPLAY_LENGTH = 12;
@@ -527,8 +526,8 @@ function resolveEmbeddedCommitHash(): string | null {
 
   try {
     const raw = FS.readFileSync(packageJsonPath, "utf8");
-    const parsed = JSON.parse(raw) as { t3codeCommitHash?: unknown };
-    return normalizeCommitHash(parsed.t3codeCommitHash);
+    const parsed = JSON.parse(raw) as { cut3CommitHash?: unknown };
+    return normalizeCommitHash(parsed.cut3CommitHash);
   } catch {
     return null;
   }
@@ -539,7 +538,7 @@ function resolveAboutCommitHash(): string | null {
     return aboutCommitHashCache;
   }
 
-  const envCommitHash = normalizeCommitHash(process.env.T3CODE_COMMIT_HASH);
+  const envCommitHash = normalizeCommitHash(process.env.CUT3_COMMIT_HASH);
   if (envCommitHash) {
     aboutCommitHashCache = envCommitHash;
     return aboutCommitHashCache;
@@ -561,7 +560,7 @@ function resolveBackendEntry(): string {
 }
 
 function resolveBackendCwd(): string {
-  const override = process.env.T3CODE_BACKEND_CWD?.trim();
+  const override = process.env.CUT3_BACKEND_CWD?.trim();
   if (override) {
     return override;
   }
@@ -627,7 +626,7 @@ function handleFatalStartupError(stage: string, error: unknown): void {
   console.error(`[desktop] fatal startup error (${stage})`, error);
   if (!isQuitting) {
     isQuitting = true;
-    dialog.showErrorBox("T3 Code failed to start", `Stage: ${stage}\n${message}${detail}`);
+    dialog.showErrorBox("CUT3 failed to start", `Stage: ${stage}\n${message}${detail}`);
   }
   stopBackend();
   restoreStdIoCapture?.();
@@ -648,7 +647,7 @@ function updateBackendWsUrl(port: number): void {
     port,
     authToken: backendAuthToken,
   });
-  process.env.T3CODE_DESKTOP_WS_URL = backendWsUrl;
+  process.env.CUT3_DESKTOP_WS_URL = backendWsUrl;
   writeDesktopLogHeader(`backend websocket url updated port=${port}`);
   broadcastBackendWsUrl();
 }
@@ -744,7 +743,7 @@ function handleCheckForUpdatesMenuClick(): void {
     isPackaged: app.isPackaged,
     platform: process.platform,
     appImage: process.env.APPIMAGE,
-    disabledByEnv: process.env.T3CODE_DISABLE_AUTO_UPDATE === "1",
+    disabledByEnv: process.env.CUT3_DISABLE_AUTO_UPDATE === "1",
   });
   if (disabledReason) {
     console.info("[desktop-updater] Manual update check requested, but updates are disabled.");
@@ -904,7 +903,7 @@ function resolveWindowIcon(): Electron.NativeImage | null {
  * parentheses (e.g. `~/.config/T3 Code (Alpha)` on Linux). This is
  * unfriendly for shell usage and violates Linux naming conventions.
  *
- * We override it to a clean lowercase name (`t3code`). If the legacy
+ * We override it to a clean lowercase name (`cut3`). If the legacy
  * directory already exists we keep using it so existing users do not
  * lose their Chromium profile data (localStorage, cookies, sessions).
  */
@@ -975,7 +974,7 @@ function shouldEnableAutoUpdates(): boolean {
       isPackaged: app.isPackaged,
       platform: process.platform,
       appImage: process.env.APPIMAGE,
-      disabledByEnv: process.env.T3CODE_DISABLE_AUTO_UPDATE === "1",
+      disabledByEnv: process.env.CUT3_DISABLE_AUTO_UPDATE === "1",
     }) === null
   );
 }
@@ -1060,7 +1059,7 @@ function configureAutoUpdater(): void {
   updaterConfigured = true;
 
   const githubToken =
-    process.env.T3CODE_DESKTOP_UPDATE_GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim() || "";
+    process.env.CUT3_DESKTOP_UPDATE_GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim() || "";
   if (githubToken) {
     // When a token is provided, re-configure the feed with `private: true` so
     // electron-updater uses the GitHub API (api.github.com) instead of the
@@ -1163,11 +1162,11 @@ function configureAutoUpdater(): void {
 function backendEnv(): NodeJS.ProcessEnv {
   return {
     ...process.env,
-    T3CODE_MODE: "desktop",
-    T3CODE_NO_BROWSER: "1",
-    T3CODE_PORT: "0",
-    T3CODE_STATE_DIR: STATE_DIR,
-    T3CODE_AUTH_TOKEN: backendAuthToken,
+    CUT3_MODE: "desktop",
+    CUT3_NO_BROWSER: "1",
+    CUT3_PORT: "0",
+    CUT3_STATE_DIR: STATE_DIR,
+    CUT3_AUTH_TOKEN: backendAuthToken,
   };
 }
 
@@ -1574,7 +1573,7 @@ function createWindow(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      additionalArguments: backendWsUrl ? [`--t3code-desktop-ws-url=${backendWsUrl}`] : [],
+      additionalArguments: backendWsUrl ? [`--cut3-desktop-ws-url=${backendWsUrl}`] : [],
     },
   });
 

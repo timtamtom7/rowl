@@ -260,7 +260,7 @@ it.layer(TestLayer)("git integration", (it) => {
         yield* initRepoWithCommit(tmp);
         const result = yield* listGitBranches({ cwd: tmp });
         expect(result.isRepo).toBe(true);
-        expect(result.hasOriginRemote).toBe(false);
+        expect(result.hasPreferredRemote).toBe(false);
         expect(result.branches.length).toBeGreaterThanOrEqual(1);
       }),
     );
@@ -274,7 +274,7 @@ it.layer(TestLayer)("git integration", (it) => {
         const tmp = yield* makeTmpDir();
         const result = yield* listGitBranches({ cwd: tmp });
         expect(result.isRepo).toBe(false);
-        expect(result.hasOriginRemote).toBe(false);
+        expect(result.hasPreferredRemote).toBe(false);
         expect(result.branches).toEqual([]);
       }),
     );
@@ -433,7 +433,7 @@ it.layer(TestLayer)("git integration", (it) => {
         const result = yield* listGitBranches({ cwd: tmp });
         const firstRemoteIndex = result.branches.findIndex((branch) => branch.isRemote);
 
-        expect(result.hasOriginRemote).toBe(true);
+        expect(result.hasPreferredRemote).toBe(true);
         expect(firstRemoteIndex).toBeGreaterThan(0);
         expect(result.branches.slice(0, firstRemoteIndex).every((branch) => !branch.isRemote)).toBe(
           true,
@@ -889,26 +889,26 @@ it.layer(TestLayer)("git integration", (it) => {
       Effect.gen(function* () {
         const tmp = yield* makeTmpDir();
         yield* initRepoWithCommit(tmp);
-        yield* createGitBranch({ cwd: tmp, branch: "t3code/feat/session" });
-        yield* createGitBranch({ cwd: tmp, branch: "t3code/tmp-working" });
-        yield* checkoutGitBranch({ cwd: tmp, branch: "t3code/tmp-working" });
+        yield* createGitBranch({ cwd: tmp, branch: "cut3/feat/session" });
+        yield* createGitBranch({ cwd: tmp, branch: "cut3/tmp-working" });
+        yield* checkoutGitBranch({ cwd: tmp, branch: "cut3/tmp-working" });
 
         const renamed = yield* renameGitBranch({
           cwd: tmp,
-          oldBranch: "t3code/tmp-working",
-          newBranch: "t3code/feat/session",
+          oldBranch: "cut3/tmp-working",
+          newBranch: "cut3/feat/session",
         });
 
-        expect(renamed.branch).toBe("t3code/feat/session-1");
+        expect(renamed.branch).toBe("cut3/feat/session-1");
         const branches = yield* listGitBranches({ cwd: tmp });
-        expect(branches.branches.some((branch) => branch.name === "t3code/feat/session")).toBe(
+        expect(branches.branches.some((branch) => branch.name === "cut3/feat/session")).toBe(
           true,
         );
-        expect(branches.branches.some((branch) => branch.name === "t3code/feat/session-1")).toBe(
+        expect(branches.branches.some((branch) => branch.name === "cut3/feat/session-1")).toBe(
           true,
         );
         const current = branches.branches.find((branch) => branch.current);
-        expect(current?.name).toBe("t3code/feat/session-1");
+        expect(current?.name).toBe("cut3/feat/session-1");
       }),
     );
 
@@ -916,18 +916,18 @@ it.layer(TestLayer)("git integration", (it) => {
       Effect.gen(function* () {
         const tmp = yield* makeTmpDir();
         yield* initRepoWithCommit(tmp);
-        yield* createGitBranch({ cwd: tmp, branch: "t3code/feat/session" });
-        yield* createGitBranch({ cwd: tmp, branch: "t3code/feat/session-1" });
-        yield* createGitBranch({ cwd: tmp, branch: "t3code/tmp-working" });
-        yield* checkoutGitBranch({ cwd: tmp, branch: "t3code/tmp-working" });
+        yield* createGitBranch({ cwd: tmp, branch: "cut3/feat/session" });
+        yield* createGitBranch({ cwd: tmp, branch: "cut3/feat/session-1" });
+        yield* createGitBranch({ cwd: tmp, branch: "cut3/tmp-working" });
+        yield* checkoutGitBranch({ cwd: tmp, branch: "cut3/tmp-working" });
 
         const renamed = yield* renameGitBranch({
           cwd: tmp,
-          oldBranch: "t3code/tmp-working",
-          newBranch: "t3code/feat/session",
+          oldBranch: "cut3/tmp-working",
+          newBranch: "cut3/feat/session",
         });
 
-        expect(renamed.branch).toBe("t3code/feat/session-2");
+        expect(renamed.branch).toBe("cut3/feat/session-2");
       }),
     );
 
@@ -1328,12 +1328,12 @@ it.layer(TestLayer)("git integration", (it) => {
           yield* initRepoWithCommit(tmp);
           const core = yield* GitCore;
 
-          yield* git(tmp, ["remote", "add", "origin", "git@github.com:pingdotgg/t3code.git"]);
+          yield* git(tmp, ["remote", "add", "origin", "git@github.com:pingdotgg/cut3.git"]);
 
           const remoteName = yield* core.ensureRemote({
             cwd: tmp,
             preferredName: "origin",
-            url: "git@github.com:pingdotgg/t3code.git/",
+            url: "git@github.com:pingdotgg/cut3.git/",
           });
 
           expect(remoteName).toBe("origin");
@@ -1606,7 +1606,7 @@ it.layer(TestLayer)("git integration", (it) => {
           yield* git(tmp, [
             "checkout",
             "-b",
-            "t3code/pr-488/statemachine",
+            "cut3/pr-488/statemachine",
             "--track",
             "jasonLaster/statemachine",
           ]);
@@ -1628,7 +1628,7 @@ it.layer(TestLayer)("git integration", (it) => {
             yield* git(tmp, ["ls-remote", "--heads", "jasonLaster", "statemachine"]),
           ).toContain("statemachine");
           expect(
-            yield* git(tmp, ["ls-remote", "--heads", "jasonLaster", "t3code/pr-488/statemachine"]),
+            yield* git(tmp, ["ls-remote", "--heads", "jasonLaster", "cut3/pr-488/statemachine"]),
           ).toBe("");
         }),
     );

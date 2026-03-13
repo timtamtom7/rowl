@@ -1,6 +1,9 @@
 const VERSION_PRERELEASE_PATTERN = /^\d+\.\d+\.\d+-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)$/;
-const DEFAULT_DESKTOP_PRODUCT_NAME = "T3 Code";
-const DEFAULT_DESKTOP_APP_ID = "com.t3tools.t3code";
+const DEFAULT_DESKTOP_PRODUCT_NAME = "CUT3";
+const DEFAULT_DESKTOP_APP_ID = "com.t3tools.cut3";
+const DEFAULT_STAGE_LABEL = "CUT3";
+const DEFAULT_STATE_DIR_NAME = "cut3";
+const DEFAULT_USER_DATA_DIR_NAME = "cut3";
 
 export interface AppReleaseBrandingInput {
   readonly version: string;
@@ -8,7 +11,7 @@ export interface AppReleaseBrandingInput {
 }
 
 export interface AppReleaseBranding {
-  readonly stageLabel: "Dev" | "Alpha";
+  readonly stageLabel: "CUT3";
   readonly displayName: string;
   readonly productName: string;
   readonly appId: string;
@@ -39,14 +42,12 @@ export function isPrereleaseVersion(version: string): boolean {
 }
 
 export function resolveAppReleaseBranding(input: AppReleaseBrandingInput): AppReleaseBranding {
-  const stageLabel = input.isDevelopment || isPrereleaseVersion(input.version) ? "Dev" : "Alpha";
-
   return {
-    stageLabel,
-    displayName: `T3 Code (${stageLabel})`,
-    productName: stageLabel === "Dev" ? `T3 Code (${stageLabel})` : DEFAULT_DESKTOP_PRODUCT_NAME,
-    appId: stageLabel === "Dev" ? `${DEFAULT_DESKTOP_APP_ID}.dev` : DEFAULT_DESKTOP_APP_ID,
-    stateDirName: stageLabel === "Dev" ? "dev" : "userdata",
-    userDataDirName: stageLabel === "Dev" ? "t3code-dev" : "t3code",
+    stageLabel: DEFAULT_STAGE_LABEL,
+    displayName: DEFAULT_DESKTOP_PRODUCT_NAME,
+    productName: DEFAULT_DESKTOP_PRODUCT_NAME,
+    appId: DEFAULT_DESKTOP_APP_ID,
+    stateDirName: DEFAULT_STATE_DIR_NAME,
+    userDataDirName: DEFAULT_USER_DATA_DIR_NAME,
   };
 }

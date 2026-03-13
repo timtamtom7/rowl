@@ -1,17 +1,11 @@
 import Path from "node:path";
 
-const STABLE_DESKTOP_PRODUCT_NAME = "T3 Code";
+const LEGACY_USER_DATA_DIR_NAMES = ["T3 Code", "T3 Code (Alpha)", "T3 Code (Dev)"] as const;
 
 export function getLegacyUserDataDirNames(args: {
   appDisplayName: string;
-  stageLabel: "Dev" | "Alpha";
 }): string[] {
-  const legacyDirNames =
-    args.stageLabel === "Dev"
-      ? [args.appDisplayName]
-      : [args.appDisplayName, STABLE_DESKTOP_PRODUCT_NAME];
-
-  return Array.from(new Set(legacyDirNames));
+  return Array.from(new Set([args.appDisplayName, ...LEGACY_USER_DATA_DIR_NAMES]));
 }
 
 export function resolveDesktopUserDataPath(args: {

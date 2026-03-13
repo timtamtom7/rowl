@@ -274,8 +274,8 @@ function formatWorkingTimer(startIso: string, endIso: string): string | null {
   return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
 }
 
-const LAST_EDITOR_KEY = "t3code:last-editor";
-const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "t3code:last-invoked-script-by-project";
+const LAST_EDITOR_KEY = "cut3:last-editor";
+const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "cut3:last-invoked-script-by-project";
 const MAX_VISIBLE_WORK_LOG_ENTRIES = 6;
 const ALWAYS_UNVIRTUALIZED_TAIL_ROWS = 8;
 const ATTACHMENT_PREVIEW_HANDOFF_TTL_MS = 5000;
@@ -292,7 +292,7 @@ const EMPTY_PENDING_USER_INPUT_ANSWERS: Record<string, PendingUserInputDraftAnsw
 const COMPOSER_PATH_QUERY_DEBOUNCE_MS = 120;
 const SCRIPT_TERMINAL_COLS = 120;
 const SCRIPT_TERMINAL_ROWS = 30;
-const WORKTREE_BRANCH_PREFIX = "t3code";
+const WORKTREE_BRANCH_PREFIX = "cut3";
 
 function buildProviderOptionsForDispatch(input: {
   readonly provider: ProviderKind;
@@ -4681,7 +4681,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
           <DialogHeader>
             <DialogTitle>Enter your Kimi API key</DialogTitle>
             <DialogDescription>
-              T3 Code needs a Kimi Code API key to start Kimi CLI sessions for chat. You can
+              CUT3 needs a Kimi Code API key to start Kimi CLI sessions for chat. You can
               generate one from the Kimi Code Console.
             </DialogDescription>
           </DialogHeader>

@@ -41,7 +41,7 @@ const wsLink = ws.link(/ws(s)?:\/\/.*/);
 function createBaseServerConfig(): ServerConfig {
   return {
     cwd: "/repo/project",
-    keybindingsConfigPath: "/repo/project/.t3code-keybindings.json",
+    keybindingsConfigPath: "/repo/project/.cut3-keybindings.json",
     keybindings: [],
     issues: [],
     providers: [
@@ -138,7 +138,7 @@ function resolveWsRpc(tag: string): unknown {
   if (tag === WS_METHODS.gitListBranches) {
     return {
       isRepo: true,
-      hasOriginRemote: true,
+      hasPreferredRemote: true,
       branches: [{ name: "main", current: true, isDefault: true, worktreePath: null }],
     };
   }

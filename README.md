@@ -1,6 +1,6 @@
-# T3 Code
+# CUT3
 
-T3 Code is a minimal web GUI for coding agents. It currently supports Codex, GitHub Copilot, and Kimi Code, with Claude Code coming soon.
+CUT3 is a minimal web GUI for coding agents. It currently supports Codex, GitHub Copilot, and Kimi Code, with Claude Code coming soon.
 
 ## Supported providers
 
@@ -11,7 +11,7 @@ T3 Code is a minimal web GUI for coding agents. It currently supports Codex, Git
 ## How to use
 
 > [!WARNING]
-> Install and authenticate at least one supported provider CLI before starting T3 Code:
+> Install and authenticate at least one supported provider CLI before starting CUT3:
 >
 > - [Codex CLI](https://github.com/openai/codex)
 > - [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/use-copilot-agents/coding-agent/using-the-github-copilot-coding-agent-in-the-cli)
@@ -45,7 +45,7 @@ The chat toolbar exposes two additional execution controls:
 - **Runtime mode**: choose `Full access` for direct execution or `Supervised` for in-app command/file approvals.
 - **Interaction mode**: switch between normal `Chat` turns and `Plan` turns for plan-first collaboration.
 
-When a plan is active, T3 Code can keep it open in a sidebar and export it by copying, downloading markdown, or saving it into the workspace.
+When a plan is active, CUT3 can keep it open in a sidebar and export it by copying, downloading markdown, or saving it into the workspace.
 
 For the full details, see [.docs/runtime-modes.md](.docs/runtime-modes.md).
 

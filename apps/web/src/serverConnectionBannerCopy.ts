@@ -17,7 +17,7 @@ export function getServerConnectionBannerDescription(args: {
 }): string {
   if (args.retrying) {
     return args.isElectron
-      ? "The app is retrying the websocket connection automatically. If this keeps happening, restart T3 Code."
+      ? "The app is retrying the websocket connection automatically. If this keeps happening, restart CUT3."
       : "The app is retrying the websocket connection automatically. If this keeps happening, restart the local dev server.";
   }
 

@@ -1,6 +1,7 @@
 import type { GitBranch } from "@t3tools/contracts";
 
 export type EnvMode = "local" | "worktree";
+const PREFERRED_REMOTE_NAME = "CUT3";
 
 export function resolveEffectiveEnvMode(input: {
   activeWorktreePath: string | null;
@@ -81,7 +82,7 @@ export function dedupeRemoteBranchesWithLocalMatches(
       return true;
     }
 
-    if (branch.remoteName !== "origin") {
+    if (branch.remoteName?.toLowerCase() !== PREFERRED_REMOTE_NAME.toLowerCase()) {
       return true;
     }
 
