@@ -552,13 +552,16 @@ export class TerminalManagerRuntime extends EventEmitter<TerminalManagerEvents> 
     });
   }
 
-  dispose(): void {
+  async dispose(): Promise<void> {
     this.stopSubprocessPolling();
     const sessions = [...this.sessions.values()];
     this.sessions.clear();
     for (const session of sessions) {
       this.stopProcess(session);
     }
+    await Promise.all(
+      sessions.map((session) => this.flushPersistQueue(session.threadId, session.terminalId)),
+    );
     for (const timer of this.persistTimers.values()) {
       clearTimeout(timer);
     }
@@ -1179,7 +1182,7 @@ export const TerminalManagerLive = Layer.effect(
     const ptyAdapter = yield* PtyAdapter;
     const runtime = yield* Effect.acquireRelease(
       Effect.sync(() => new TerminalManagerRuntime({ logsDir, ptyAdapter })),
-      (r) => Effect.sync(() => r.dispose()),
+      (r) => Effect.promise(() => r.dispose()),
     );
 
     return {
@@ -1220,7 +1223,7 @@ export const TerminalManagerLive = Layer.effect(
             runtime.off("event", listener);
           };
         }),
-      dispose: Effect.sync(() => runtime.dispose()),
+      dispose: Effect.promise(() => runtime.dispose()),
     } satisfies TerminalManagerShape;
   }),
 );

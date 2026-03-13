@@ -2025,6 +2025,16 @@ describe("WebSocket Server", () => {
     });
   });
 
+  it("rejects non-loopback browser origins in unauthenticated web mode", async () => {
+    server = await createTestServer({ cwd: "/test", host: "0.0.0.0" });
+    const addr = server.address();
+    const port = typeof addr === "object" && addr !== null ? addr.port : 0;
+
+    await expect(connectWs(port, undefined, `http://192.168.1.42:${port}`)).rejects.toThrow(
+      "WebSocket connection failed",
+    );
+  });
+
   it("allows null websocket origins in desktop mode when auth is enabled", async () => {
     server = await createTestServer({
       cwd: "/test",

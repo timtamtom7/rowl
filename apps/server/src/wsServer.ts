@@ -89,6 +89,7 @@ import { makeServerReadiness } from "./wsServer/readiness.ts";
 import { decodeJsonResult, formatSchemaError } from "@t3tools/shared/schemaJson";
 import { getWsAuthToken } from "@t3tools/shared/wsAuth";
 import { listCodexMcpServerStatuses } from "./codexMcpServerStatus.ts";
+import { buildAllowedWebSocketOrigins, isAllowedWebSocketOrigin } from "./networking";
 import { isWithinAllowedRoot, resolvePathForContainmentCheck } from "./pathAuthorization";
 
 /**
@@ -133,52 +134,6 @@ function rejectUpgrade(socket: Duplex, statusCode: number, message: string): voi
       "\r\n" +
       message,
   );
-}
-
-function buildAllowedWebSocketOrigins(params: {
-  requestHost: string | undefined;
-  devUrl: URL | undefined;
-}): ReadonlySet<string> {
-  const origins = new Set<string>();
-
-  const addOrigin = (value: string | URL | undefined) => {
-    if (!value) return;
-    try {
-      const origin = typeof value === "string" ? new URL(value).origin : value.origin;
-      origins.add(origin);
-    } catch {
-      // Ignore malformed origins here and reject them during handshake validation.
-    }
-  };
-
-  if (params.requestHost) {
-    addOrigin(`http://${params.requestHost}`);
-    addOrigin(`https://${params.requestHost}`);
-  }
-  addOrigin(params.devUrl);
-
-  return origins;
-}
-
-function isAllowedWebSocketOrigin(params: {
-  originHeader: string | undefined;
-  allowedOrigins: ReadonlySet<string>;
-  allowMissingOrigin: boolean;
-  allowNullOrigin: boolean;
-}): boolean {
-  const { originHeader, allowedOrigins, allowMissingOrigin, allowNullOrigin } = params;
-  if (!originHeader) {
-    return allowMissingOrigin;
-  }
-  if (originHeader === "null") {
-    return allowNullOrigin;
-  }
-
-  try {
-    return allowedOrigins.has(new URL(originHeader).origin);
-  } catch {
-    return false;
-  }
 }
 
 function sleep(ms: number): Promise<void> {
@@ -1314,11 +1269,20 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   httpServer.on("upgrade", (request, socket, head) => {
     socket.on("error", () => {}); // Prevent unhandled `EPIPE`/`ECONNRESET` from crashing the process if the client disconnects mid-handshake
 
+    const serverAddress = httpServer.address();
+    const listeningPort =
+      typeof serverAddress === "object" &&
+      serverAddress !== null &&
+      typeof serverAddress.port === "number"
+        ? serverAddress.port
+        : port;
     const originHeader =
       typeof request.headers.origin === "string" ? request.headers.origin : undefined;
     const allowedWebSocketOrigins = buildAllowedWebSocketOrigins({
-      requestHost: request.headers.host,
+      host,
+      port: listeningPort,
       devUrl,
+      authToken,
     });
     if (authToken) {
       let providedToken: string | null = null;

@@ -18,6 +18,7 @@ import {
   type RuntimeMode,
   type ServerConfigShape,
 } from "./config";
+import { DEFAULT_LOOPBACK_HOST, formatHostForUrl, isWildcardHost } from "./networking";
 import { fixPath, resolveStateDir } from "./os-jank";
 import { Open } from "./open";
 import * as SqlitePersistence from "./persistence/Layers/Sqlite";
@@ -205,14 +206,6 @@ const LayerLive = (input: CliInput) =>
     Layer.provideMerge(AnalyticsServiceLayerLive),
     Layer.provideMerge(ServerConfigLive(input)),
   );
-
-const isWildcardHost = (host: string | undefined): boolean =>
-  host === "0.0.0.0" || host === "::" || host === "[::]";
-
-const DEFAULT_LOOPBACK_HOST = "127.0.0.1";
-
-const formatHostForUrl = (host: string): string =>
-  host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
 
 const resolveListeningPort = (
   server: { readonly address?: () => string | { port?: unknown } | null },

@@ -1,5 +1,6 @@
 import {
   DEFAULT_MODEL_BY_PROVIDER,
+  MessageId,
   ProjectId,
   ThreadId,
   TurnId,
@@ -319,5 +320,65 @@ describe("store read model sync", () => {
     const next = syncServerReadModel(initialState, readModel);
 
     expect(next.projects.map((project) => project.id)).toEqual([project2, project1, project3]);
+  });
+
+  it("preserves websocket base paths and auth tokens in attachment preview urls", () => {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        location: {
+          href: "http://localhost:3020/?token=secret-token&view=settings",
+          protocol: "http:",
+          hostname: "localhost",
+          port: "3020",
+          pathname: "/",
+          search: "?token=secret-token&view=settings",
+          hash: "",
+        },
+        history: {
+          state: null,
+          replaceState: () => undefined,
+        },
+        desktopBridge: {
+          getWsUrl: () => "ws://127.0.0.1:3773/base/",
+        },
+      },
+    });
+
+    try {
+      const initialState = makeState(makeThread());
+      const readModel = makeReadModel(
+        makeReadModelThread({
+          messages: [
+            {
+              id: MessageId.makeUnsafe("message-1"),
+              role: "user",
+              text: "hello",
+              attachments: [
+                {
+                  type: "image",
+                  id: "attachment-1",
+                  name: "preview.png",
+                  mimeType: "image/png",
+                  sizeBytes: 1,
+                },
+              ],
+              turnId: null,
+              streaming: false,
+              createdAt: "2026-02-27T00:00:00.000Z",
+              updatedAt: "2026-02-27T00:00:00.000Z",
+            },
+          ],
+        }),
+      );
+
+      const next = syncServerReadModel(initialState, readModel);
+
+      expect(next.threads[0]?.messages[0]?.attachments?.[0]?.previewUrl).toBe(
+        "http://127.0.0.1:3773/base/attachments/attachment-1?token=secret-token",
+      );
+    } finally {
+      Reflect.deleteProperty(globalThis, "window");
+    }
   });
 });
