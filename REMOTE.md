@@ -6,13 +6,13 @@ Use this when you want to open CUT3 from another device (phone, tablet, another 
 
 The CUT3 CLI accepts the following configuration options, available either as CLI flags or environment variables:
 
-| CLI flag                            | Env var                                  | Notes                                                                       |
-| ----------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------- |
+| CLI flag                            | Env var                                | Notes                                                                       |
+| ----------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
 | `--mode <web\|desktop>`             | `CUT3_MODE`                            | Runtime mode.                                                               |
 | `--port <number>`                   | `CUT3_PORT`                            | HTTP/WebSocket port.                                                        |
 | `--host <address>`                  | `CUT3_HOST`                            | Bind interface/address.                                                     |
 | `--state-dir <path>`                | `CUT3_STATE_DIR`                       | State directory.                                                            |
-| `--dev-url <url>`                   | `VITE_DEV_SERVER_URL`                    | Dev web URL redirect/proxy target.                                          |
+| `--dev-url <url>`                   | `VITE_DEV_SERVER_URL`                  | Dev web URL redirect/proxy target.                                          |
 | `--no-browser`                      | `CUT3_NO_BROWSER`                      | Disable auto-open browser.                                                  |
 | `--auth-token <token>`              | `CUT3_AUTH_TOKEN`                      | WebSocket auth token.                                                       |
 | `--auto-bootstrap-project-from-cwd` | `CUT3_AUTO_BOOTSTRAP_PROJECT_FROM_CWD` | Create a project for the current working directory on startup when missing. |

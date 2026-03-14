@@ -1039,9 +1039,7 @@ export class CopilotAcpManager extends EventEmitter<CopilotAcpManagerEvents> {
   }
 
   async respondToUserInput(): Promise<void> {
-    throw new Error(
-      "GitHub Copilot CLI does not expose structured user input requests in CUT3.",
-    );
+    throw new Error("GitHub Copilot CLI does not expose structured user input requests in CUT3.");
   }
 
   async stopSession(threadId: ThreadId): Promise<void> {

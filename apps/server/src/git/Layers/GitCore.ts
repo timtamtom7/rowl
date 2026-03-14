@@ -110,12 +110,12 @@ function isPreferredRemoteName(value: string): boolean {
   );
 }
 
-function resolvePreferredRemoteName(
-  remoteNames: ReadonlyArray<string>,
-): string | null {
+function resolvePreferredRemoteName(remoteNames: ReadonlyArray<string>): string | null {
   const preferredRemote =
     remoteNames.find((remoteName) => remoteName === PREFERRED_REMOTE_NAME) ??
-    remoteNames.find((remoteName) => remoteName.toLowerCase() === PREFERRED_REMOTE_NAME.toLowerCase()) ??
+    remoteNames.find(
+      (remoteName) => remoteName.toLowerCase() === PREFERRED_REMOTE_NAME.toLowerCase(),
+    ) ??
     remoteNames.find((remoteName) => remoteName.toLowerCase() === LEGACY_REMOTE_NAME);
   return preferredRemote ?? null;
 }

@@ -228,9 +228,7 @@ export class WsTransport {
     ws.addEventListener("error", (event) => {
       // Log WebSocket errors for debugging (close event will follow)
       const resolvedUrl = this.explicitUrl ?? resolveDefaultWsUrl();
-      console.warn(
-        `WebSocket connection error type=${event.type} url=${resolvedUrl || "<empty>"}`,
-      );
+      console.warn(`WebSocket connection error type=${event.type} url=${resolvedUrl || "<empty>"}`);
     });
   }
 

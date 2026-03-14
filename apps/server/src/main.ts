@@ -105,10 +105,7 @@ const CliEnvConfig = Config.all({
     Config.map(Option.match({ onNone: () => undefined, onSome: (value) => value })),
   ),
   host: Config.string("CUT3_HOST").pipe(Config.option, Config.map(Option.getOrUndefined)),
-  stateDir: Config.string("CUT3_STATE_DIR").pipe(
-    Config.option,
-    Config.map(Option.getOrUndefined),
-  ),
+  stateDir: Config.string("CUT3_STATE_DIR").pipe(Config.option, Config.map(Option.getOrUndefined)),
   devUrl: Config.url("VITE_DEV_SERVER_URL").pipe(Config.option, Config.map(Option.getOrUndefined)),
   noBrowser: Config.boolean("CUT3_NO_BROWSER").pipe(
     Config.option,

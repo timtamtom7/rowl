@@ -57,13 +57,7 @@ describe("kimiAcpManager model availability", () => {
         model: "kimi-for-coding",
         configFilePath: "/tmp/cut3-kimi/config.json",
       }),
-    ).toEqual([
-      "--config-file",
-      "/tmp/cut3-kimi/config.json",
-      "--model",
-      "kimi-for-coding",
-      "acp",
-    ]);
+    ).toEqual(["--config-file", "/tmp/cut3-kimi/config.json", "--model", "kimi-for-coding", "acp"]);
   });
 
   it("overrides inherited Kimi env vars with the selected model and API key", () => {

@@ -164,9 +164,7 @@ function prStatusIndicator(pr: ThreadPr): PrStatusIndicator | null {
 }
 
 function BrandMark() {
-  return (
-    <img src="/icon.png" alt="" className="size-5 shrink-0 rounded-md" />
-  );
+  return <img src="/icon.png" alt="" className="size-5 shrink-0 rounded-md" />;
 }
 
 function ProjectFavicon({ cwd }: { cwd: string }) {
