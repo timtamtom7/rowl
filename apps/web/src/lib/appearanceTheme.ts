@@ -61,11 +61,22 @@ export const DEFAULT_DARK_APPEARANCE_THEME: AppearanceThemeConfig = {
   contrast: 32,
 };
 
-export function clampAppearanceContrast(value: number): number {
+export function clampAppearanceContrast(
+  value: number,
+  fallback = DEFAULT_LIGHT_APPEARANCE_THEME.contrast,
+): number {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
   return Math.min(APPEARANCE_CONTRAST_MAX, Math.max(APPEARANCE_CONTRAST_MIN, Math.round(value)));
 }
 
-export function clampUiFontSizePx(value: number): number {
+export function clampUiFontSizePx(value: number, fallback = DEFAULT_UI_FONT_SIZE_PX): number {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
   return Math.min(UI_FONT_SIZE_MAX_PX, Math.max(UI_FONT_SIZE_MIN_PX, Math.round(value)));
 }
 
@@ -122,7 +133,7 @@ export function normalizeAppearanceThemeConfig(
     uiFont: normalizeFontStack(config.uiFont, defaults.uiFont),
     codeFont: normalizeFontStack(config.codeFont, defaults.codeFont),
     translucentSidebar: Boolean(config.translucentSidebar),
-    contrast: clampAppearanceContrast(config.contrast),
+    contrast: clampAppearanceContrast(config.contrast, defaults.contrast),
   };
 }
 

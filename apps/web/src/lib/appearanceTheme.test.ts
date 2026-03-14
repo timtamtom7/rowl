@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  clampAppearanceContrast,
+  clampUiFontSizePx,
   DEFAULT_DARK_APPEARANCE_THEME,
   DEFAULT_LIGHT_APPEARANCE_THEME,
   deriveAppearanceCssVariables,
@@ -32,6 +34,13 @@ describe("normalizeAppearanceThemeConfig", () => {
       uiFont: DEFAULT_LIGHT_APPEARANCE_THEME.uiFont,
       contrast: 100,
     });
+  });
+});
+
+describe("clamp helpers", () => {
+  it("falls back for non-finite font sizes and contrast values", () => {
+    expect(clampUiFontSizePx(Number.NaN, 17)).toBe(17);
+    expect(clampAppearanceContrast(Number.NaN, 41)).toBe(41);
   });
 });
 

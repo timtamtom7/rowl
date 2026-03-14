@@ -114,6 +114,7 @@ export function AppearanceSettingsSection() {
   }));
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importText, setImportText] = useState("");
+  const [uiFontSizeDraft, setUiFontSizeDraft] = useState(() => String(settings.uiFontSizePx));
   const { copyToClipboard, isCopied } = useCopyToClipboard<void>({
     onCopy: () => {
       toastManager.add({
@@ -143,6 +144,10 @@ export function AppearanceSettingsSection() {
     activeThemeConfig.foreground,
     editedAppearance,
   ]);
+
+  useEffect(() => {
+    setUiFontSizeDraft(String(settings.uiFontSizePx));
+  }, [settings.uiFontSizePx]);
 
   const appearanceSettingsKey =
     editedAppearance === "dark" ? "darkAppearanceTheme" : "lightAppearanceTheme";
@@ -233,6 +238,29 @@ export function AppearanceSettingsSection() {
       [field]: nextValue,
     }));
     updateActiveThemeConfig({ [field]: nextValue });
+  };
+
+  const commitUiFontSizeDraft = () => {
+    const trimmedDraft = uiFontSizeDraft.trim();
+    if (!trimmedDraft) {
+      setUiFontSizeDraft(String(settings.uiFontSizePx));
+      return;
+    }
+
+    const parsed = Number(trimmedDraft);
+    if (!Number.isFinite(parsed)) {
+      setUiFontSizeDraft(String(settings.uiFontSizePx));
+      toastManager.add({
+        type: "warning",
+        title: "Invalid font size",
+        description: "Enter a whole number between 12 and 18 pixels.",
+      });
+      return;
+    }
+
+    const nextValue = clampUiFontSizePx(parsed, settings.uiFontSizePx);
+    updateSettings({ uiFontSizePx: nextValue });
+    setUiFontSizeDraft(String(nextValue));
   };
 
   return (
@@ -596,13 +624,20 @@ export function AppearanceSettingsSection() {
                 <div className="flex items-center gap-2">
                   <Input
                     className="h-9 w-20 text-right"
+                    aria-label="UI font size in pixels"
                     inputMode="numeric"
-                    value={String(settings.uiFontSizePx)}
-                    onChange={(event) =>
-                      updateSettings({
-                        uiFontSizePx: clampUiFontSizePx(Number(event.target.value || 0)),
-                      })
-                    }
+                    min={12}
+                    max={18}
+                    step={1}
+                    type="number"
+                    value={uiFontSizeDraft}
+                    onBlur={commitUiFontSizeDraft}
+                    onChange={(event) => setUiFontSizeDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.currentTarget.blur();
+                      }
+                    }}
                   />
                   <span className="text-sm text-muted-foreground">px</span>
                 </div>
