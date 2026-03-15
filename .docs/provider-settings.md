@@ -54,7 +54,7 @@ This is an app-level default. It applies when starting new Codex turns from the 
 
 ### Custom model slugs
 
-T3 Code supports saved custom model ids for:
+CUT3 supports saved custom model ids for:
 
 - **GitHub Copilot**
 - **Kimi Code**
@@ -66,7 +66,7 @@ Saved custom model ids appear in:
 
 The app normalizes entries before saving them and ignores built-in duplicates.
 
-Codex currently uses the built-in catalog only. T3 Code still normalizes common Codex aliases such as `5.4` and `5.3-spark` to their canonical built-in model ids.
+Codex currently uses the built-in catalog only. CUT3 still normalizes common Codex aliases such as `5.4` and `5.3-spark` to their canonical built-in model ids.
 
 ## Composer controls
 

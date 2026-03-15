@@ -39,7 +39,7 @@ You can also just install the desktop app. It's cooler.
 
 If this fork does not currently publish desktop releases, build one locally with the commands below.
 
-If you want the upstream published app instead, use the [upstream Releases page](https://github.com/pingdotgg/t3code/releases).
+Published CUT3 builds are listed on the [CUT3 Releases page](https://github.com/yappologistic/t3code/releases).
 
 Once the app is running, choose Codex, GitHub Copilot, or Kimi Code from the provider picker before starting a session.
 

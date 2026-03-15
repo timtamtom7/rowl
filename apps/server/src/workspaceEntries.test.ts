@@ -71,7 +71,7 @@ describe("searchWorkspaceEntries", () => {
   });
 
   it("supports fuzzy subsequence queries for composer path search", async () => {
-    const cwd = makeTempDir("t3code-workspace-fuzzy-query-");
+    const cwd = makeTempDir("cut3-workspace-fuzzy-query-");
     writeFile(cwd, "src/components/Composer.tsx");
     writeFile(cwd, "src/components/composePrompt.ts");
     writeFile(cwd, "docs/composition.md");
@@ -85,7 +85,7 @@ describe("searchWorkspaceEntries", () => {
   });
 
   it("tracks truncation without sorting every fuzzy match", async () => {
-    const cwd = makeTempDir("t3code-workspace-fuzzy-limit-");
+    const cwd = makeTempDir("cut3-workspace-fuzzy-limit-");
     writeFile(cwd, "src/components/Composer.tsx");
     writeFile(cwd, "src/components/composePrompt.ts");
     writeFile(cwd, "docs/composition.md");

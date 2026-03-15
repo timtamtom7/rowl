@@ -1,6 +1,6 @@
 # Architecture
 
-T3 Code ships as a shared web app plus an optional Electron desktop shell, backed by a Node.js server that exposes HTTP/WebSocket APIs and routes work to provider-specific runtimes.
+CUT3 ships as a shared web app plus an optional Electron desktop shell, backed by a Node.js server that exposes HTTP/WebSocket APIs and routes work to provider-specific runtimes.
 
 ```
 ┌──────────────────────────────┐

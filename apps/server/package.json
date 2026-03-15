@@ -3,7 +3,7 @@
   "version": "0.0.12-fork.5",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pingdotgg/t3code",
+    "url": "https://github.com/yappologistic/t3code",
     "directory": "apps/server"
   },
   "bin": {
@@ -46,6 +46,6 @@
     "vitest": "catalog:"
   },
   "engines": {
-    "node": "^22.13 || ^23.4 || >=24.10"
+    "node": "^22.16 || ^23.11 || >=24.10"
   }
 }
