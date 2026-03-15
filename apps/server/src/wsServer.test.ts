@@ -646,6 +646,68 @@ describe("WebSocket Server", () => {
     expect(bytes).toEqual(Buffer.from("hello-encoded-attachment"));
   });
 
+  it("requires the auth token for attachment routes when auth is enabled", async () => {
+    const stateDir = makeTempDir("cut3-state-attachments-auth-");
+    const attachmentPath = path.join(stateDir, "attachments", "thread-a", "message-a", "0.png");
+    fs.mkdirSync(path.dirname(attachmentPath), { recursive: true });
+    fs.writeFileSync(attachmentPath, Buffer.from("hello-attachment"));
+
+    server = await createTestServer({
+      cwd: "/test/project",
+      stateDir,
+      authToken: "secret-token",
+    });
+    const addr = server.address();
+    const port = typeof addr === "object" && addr !== null ? addr.port : 0;
+    expect(port).toBeGreaterThan(0);
+
+    const unauthorized = await fetch(
+      `http://127.0.0.1:${port}/attachments/thread-a/message-a/0.png`,
+    );
+    expect(unauthorized.status).toBe(401);
+
+    const authorized = await fetch(
+      `http://127.0.0.1:${port}/attachments/thread-a/message-a/0.png?token=secret-token`,
+    );
+    expect(authorized.status).toBe(200);
+    expect(await authorized.text()).toBe("hello-attachment");
+  });
+
+  it("requires auth for project favicon requests and limits them to authorized workspaces", async () => {
+    const workspace = makeTempDir("cut3-project-favicon-auth-");
+    const outside = makeTempDir("cut3-project-favicon-auth-outside-");
+    fs.writeFileSync(path.join(workspace, "favicon.svg"), "<svg>workspace</svg>", "utf8");
+    fs.writeFileSync(path.join(outside, "favicon.svg"), "<svg>outside</svg>", "utf8");
+
+    server = await createTestServer({
+      cwd: workspace,
+      authToken: "secret-token",
+    });
+    const addr = server.address();
+    const port = typeof addr === "object" && addr !== null ? addr.port : 0;
+    expect(port).toBeGreaterThan(0);
+
+    const unauthorized = await requestPath(
+      port,
+      `/api/project-favicon?cwd=${encodeURIComponent(workspace)}`,
+    );
+    expect(unauthorized.statusCode).toBe(401);
+
+    const forbidden = await requestPath(
+      port,
+      `/api/project-favicon?cwd=${encodeURIComponent(outside)}&token=secret-token`,
+    );
+    expect(forbidden.statusCode).toBe(403);
+    expect(forbidden.body).toContain("current project, worktree, or trusted app paths");
+
+    const authorized = await requestPath(
+      port,
+      `/api/project-favicon?cwd=${encodeURIComponent(workspace)}&token=secret-token`,
+    );
+    expect(authorized.statusCode).toBe(200);
+    expect(authorized.body).toBe("<svg>workspace</svg>");
+  });
+
   it("serves static index for root path", async () => {
     const stateDir = makeTempDir("cut3-state-static-root-");
     const staticDir = makeTempDir("cut3-static-root-");
@@ -1963,6 +2025,46 @@ describe("WebSocket Server", () => {
       reference: "42",
       mode: "worktree",
     });
+  });
+
+  it("rejects git pull request routes outside authorized workspaces", async () => {
+    const workspace = makeTempDir("cut3-git-pr-authz-");
+    const unauthorizedCwd = path.dirname(workspace);
+    const gitManager: GitManagerShape = {
+      status: vi.fn(() => Effect.void as any),
+      resolvePullRequest: vi.fn(() => Effect.void as any),
+      preparePullRequestThread: vi.fn(() => Effect.void as any),
+      runStackedAction: vi.fn(() => Effect.void as any),
+    };
+
+    server = await createTestServer({ cwd: workspace, gitManager });
+    const addr = server.address();
+    const port = typeof addr === "object" && addr !== null ? addr.port : 0;
+
+    const [ws] = await connectAndAwaitWelcome(port);
+    connections.push(ws);
+
+    const resolveResponse = await sendRequest(ws, WS_METHODS.gitResolvePullRequest, {
+      cwd: unauthorizedCwd,
+      reference: "#42",
+    });
+    expect(resolveResponse.result).toBeUndefined();
+    expect(resolveResponse.error?.message).toContain(
+      "current project, worktree, or trusted app paths",
+    );
+
+    const prepareResponse = await sendRequest(ws, WS_METHODS.gitPreparePullRequestThread, {
+      cwd: unauthorizedCwd,
+      reference: "42",
+      mode: "worktree",
+    });
+    expect(prepareResponse.result).toBeUndefined();
+    expect(prepareResponse.error?.message).toContain(
+      "current project, worktree, or trusted app paths",
+    );
+
+    expect(gitManager.resolvePullRequest).not.toHaveBeenCalled();
+    expect(gitManager.preparePullRequestThread).not.toHaveBeenCalled();
   });
 
   it("returns errors from git.runStackedAction", async () => {

@@ -13,7 +13,10 @@ const COPILOT_USAGE_CACHE_TTL_MS = 5 * 60_000;
 const REQUEST_TIMEOUT_MS = 4_000;
 const DEFAULT_GITHUB_API_BASE_URL = "https://api.github.com";
 
-type FetchLike = typeof fetch;
+type FetchLike = (
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+) => Promise<Response>;
 
 type CopilotCliConfig = {
   readonly host: string | null;

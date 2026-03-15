@@ -8,6 +8,7 @@
  */
 import http from "node:http";
 import * as NodeFs from "node:fs";
+import OS from "node:os";
 import type { Duplex } from "node:stream";
 
 import type * as acp from "@agentclientprotocol/sdk";
@@ -114,7 +115,7 @@ export interface ServerShape {
 /**
  * Server - Service tag for HTTP/WebSocket lifecycle management.
  */
-export class Server extends ServiceMap.Service<Server, ServerShape>()("t3/wsServer/Server") {}
+export class Server extends ServiceMap.Service<Server, ServerShape>()("cut3/wsServer/Server") {}
 
 const isServerNotRunningError = (error: Error): boolean => {
   const maybeCode = (error as NodeJS.ErrnoException).code;
@@ -134,6 +135,19 @@ function rejectUpgrade(socket: Duplex, statusCode: number, message: string): voi
       "\r\n" +
       message,
   );
+}
+
+function rejectHttpRequest(
+  res: http.ServerResponse,
+  statusCode: number,
+  message: string,
+  headers: Record<string, string> = {},
+): void {
+  res.writeHead(statusCode, {
+    "Content-Type": "text/plain",
+    ...headers,
+  });
+  res.end(message);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -209,6 +223,16 @@ function websocketRawToString(raw: unknown): string | null {
 
 function toPosixRelativePath(input: string): string {
   return input.replaceAll("\\", "/");
+}
+
+function expandHttpRequestPath(input: string): string {
+  if (input === "~") {
+    return OS.homedir();
+  }
+  if (input.startsWith("~/") || input.startsWith("~\\")) {
+    return `${OS.homedir()}${input.slice(1)}`;
+  }
+  return input;
 }
 
 function resolveWorkspaceWritePath(params: {
@@ -640,11 +664,53 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
     void Effect.runPromise(
       Effect.gen(function* () {
         const url = new URL(req.url ?? "/", `http://localhost:${port}`);
+        if (url.pathname === "/api/project-favicon") {
+          if (authToken && getWsAuthToken(url) !== authToken) {
+            rejectHttpRequest(res, 401, "Unauthorized project favicon request");
+            return;
+          }
+
+          const requestedProjectCwd = url.searchParams.get("cwd");
+          if (requestedProjectCwd) {
+            const normalizedProjectCwd = path.resolve(
+              expandHttpRequestPath(requestedProjectCwd.trim()),
+            );
+            const canonicalProjectCwd = resolvePathForContainmentCheck({
+              requestedPath: normalizedProjectCwd,
+              pathExists: NodeFs.existsSync,
+              realpath: NodeFs.realpathSync.native,
+            });
+            const authorizedRoots = yield* readAuthorizedWorkspaceRoots();
+            const isAuthorizedProjectCwd = Array.from(authorizedRoots).some((root) => {
+              const canonicalRoot = resolvePathForContainmentCheck({
+                requestedPath: root,
+                pathExists: NodeFs.existsSync,
+                realpath: NodeFs.realpathSync.native,
+              });
+              return isWithinAllowedRoot(canonicalProjectCwd, canonicalRoot);
+            });
+            if (!isAuthorizedProjectCwd) {
+              rejectHttpRequest(
+                res,
+                403,
+                "Project favicon is only allowed inside the current project, worktree, or trusted app paths.",
+              );
+              return;
+            }
+            url.searchParams.set("cwd", normalizedProjectCwd);
+          }
+        }
+
         if (tryHandleProjectFaviconRequest(url, res)) {
           return;
         }
 
         if (url.pathname.startsWith(ATTACHMENTS_ROUTE_PREFIX)) {
+          if (authToken && getWsAuthToken(url) !== authToken) {
+            rejectHttpRequest(res, 401, "Unauthorized attachment request");
+            return;
+          }
+
           const rawRelativePath = url.pathname.slice(ATTACHMENTS_ROUTE_PREFIX.length);
           const normalizedRelativePath = normalizeAttachmentRelativePath(rawRelativePath);
           if (!normalizedRelativePath) {
@@ -1054,12 +1120,24 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
 
       case WS_METHODS.gitResolvePullRequest: {
         const body = stripRequestTag(request.body);
-        return yield* gitManager.resolvePullRequest(body);
+        return yield* gitManager.resolvePullRequest({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git pull request resolve",
+          }),
+        });
       }
 
       case WS_METHODS.gitPreparePullRequestThread: {
         const body = stripRequestTag(request.body);
-        return yield* gitManager.preparePullRequestThread(body);
+        return yield* gitManager.preparePullRequestThread({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git pull request thread preparation",
+          }),
+        });
       }
 
       case WS_METHODS.gitListBranches: {
