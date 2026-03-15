@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getWsAuthToken, withoutWsAuthToken, withWsAuthToken } from "./wsAuth";
+import { getWsAuthToken, redactWsAuthToken, withoutWsAuthToken, withWsAuthToken } from "./wsAuth";
 
 describe("getWsAuthToken", () => {
   it("reads the token query param when present", () => {
@@ -31,5 +31,19 @@ describe("withoutWsAuthToken", () => {
     expect(
       withoutWsAuthToken("http://127.0.0.1:3773/chat?token=secret-token&view=settings#plans"),
     ).toBe("http://127.0.0.1:3773/chat?view=settings#plans");
+  });
+});
+
+describe("redactWsAuthToken", () => {
+  it("redacts tokens from absolute urls", () => {
+    expect(redactWsAuthToken("ws://127.0.0.1:3773/?token=secret-token&view=settings")).toBe(
+      "ws://127.0.0.1:3773/?view=settings",
+    );
+  });
+
+  it("redacts tokens from relative request urls", () => {
+    expect(redactWsAuthToken("/chat?token=secret-token&view=settings#plans")).toBe(
+      "/chat?view=settings#plans",
+    );
   });
 });

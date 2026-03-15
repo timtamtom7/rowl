@@ -7,6 +7,7 @@ import {
   WsResponse as WsResponseSchema,
 } from "@t3tools/contracts";
 import { decodeUnknownJsonResult, formatSchemaError } from "@t3tools/shared/schemaJson";
+import { redactWsAuthToken } from "@t3tools/shared/wsAuth";
 import { Exit, Result, Schema } from "effect";
 import { resolveConfiguredWsUrl } from "./lib/serverUrl";
 
@@ -192,7 +193,7 @@ export class WsTransport {
       return;
     }
 
-    console.warn(`WebSocket connecting url=${resolvedUrl}`);
+    console.warn(`WebSocket connecting url=${redactWsAuthToken(resolvedUrl) ?? "<empty>"}`);
 
     const ws = new WebSocket(resolvedUrl);
     this.ws = ws;
@@ -228,7 +229,9 @@ export class WsTransport {
     ws.addEventListener("error", (event) => {
       // Log WebSocket errors for debugging (close event will follow)
       const resolvedUrl = this.explicitUrl ?? resolveDefaultWsUrl();
-      console.warn(`WebSocket connection error type=${event.type} url=${resolvedUrl || "<empty>"}`);
+      console.warn(
+        `WebSocket connection error type=${event.type} url=${redactWsAuthToken(resolvedUrl) ?? "<empty>"}`,
+      );
     });
   }
 

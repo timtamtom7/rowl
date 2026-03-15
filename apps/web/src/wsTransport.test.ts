@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WsTransport } from "./wsTransport";
 
 type WsEventType = "open" | "message" | "close" | "error";
-type WsListener = (event?: { data?: unknown }) => void;
+type WsListener = (event?: { data?: unknown; type?: string }) => void;
 
 const sockets: MockWebSocket[] = [];
 
@@ -49,7 +49,11 @@ class MockWebSocket {
     this.emit("message", { data });
   }
 
-  private emit(type: WsEventType, event?: { data?: unknown }) {
+  error(type = "error") {
+    this.emit("error", { type });
+  }
+
+  private emit(type: WsEventType, event?: { data?: unknown; type?: string }) {
     const listeners = this.listeners.get(type);
     if (!listeners) return;
     for (const listener of listeners) {
@@ -101,6 +105,21 @@ afterEach(() => {
 });
 
 describe("WsTransport", () => {
+  it("redacts auth tokens from websocket connection logs", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const transport = new WsTransport("ws://localhost:3020/?token=secret-token");
+    const socket = getSocket();
+    socket.error();
+
+    expect(warnSpy).toHaveBeenCalledWith("WebSocket connecting url=ws://localhost:3020/");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "WebSocket connection error type=error url=ws://localhost:3020/",
+    );
+
+    transport.dispose();
+  });
+
   it("notifies state listeners when the websocket state changes", () => {
     const transport = new WsTransport("ws://localhost:3020");
     const socket = getSocket();

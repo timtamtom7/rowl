@@ -88,7 +88,7 @@ import { CopilotAcpManager, readCopilotReasoningEffortSelector } from "./copilot
 import { makeServerPushBus } from "./wsServer/pushBus.ts";
 import { makeServerReadiness } from "./wsServer/readiness.ts";
 import { decodeJsonResult, formatSchemaError } from "@t3tools/shared/schemaJson";
-import { getWsAuthToken } from "@t3tools/shared/wsAuth";
+import { getWsAuthToken, redactWsAuthToken } from "@t3tools/shared/wsAuth";
 import { listCodexMcpServerStatuses } from "./codexMcpServerStatus.ts";
 import { buildAllowedWebSocketOrigins, isAllowedWebSocketOrigin } from "./networking";
 import { isWithinAllowedRoot, resolvePathForContainmentCheck } from "./pathAuthorization";
@@ -1376,7 +1376,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
       if (providedToken !== authToken) {
         console.warn("[ws] rejecting unauthorized websocket connection", {
           mode: serverConfig.mode,
-          requestUrl: request.url ?? null,
+          requestUrl: redactWsAuthToken(request.url),
           originHeader,
         });
         rejectUpgrade(socket, 401, "Unauthorized WebSocket connection");
@@ -1394,7 +1394,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
     ) {
       console.warn("[ws] rejecting websocket origin", {
         mode: serverConfig.mode,
-        requestUrl: request.url ?? null,
+        requestUrl: redactWsAuthToken(request.url),
         originHeader,
         allowedOrigins: [...allowedWebSocketOrigins],
       });

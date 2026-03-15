@@ -2113,6 +2113,22 @@ describe("WebSocket Server", () => {
     connections.push(authorizedWs);
   });
 
+  it("redacts auth tokens from websocket rejection logs", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    server = await createTestServer({ cwd: "/test", authToken: "secret-token" });
+    const addr = server.address();
+    const port = typeof addr === "object" && addr !== null ? addr.port : 0;
+
+    await expect(connectWs(port, "wrong-token")).rejects.toThrow("WebSocket connection failed");
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ws] rejecting unauthorized websocket connection",
+      expect.objectContaining({
+        requestUrl: "/",
+      }),
+    );
+  });
+
   it("rejects browser websocket connections from unexpected origins", async () => {
     server = await createTestServer({ cwd: "/test" });
     const addr = server.address();
