@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ServerConfig } from "../../config.ts";
 import { TextGenerationError } from "../../git/Errors.ts";
 import { ProviderAdapterRequestError } from "../../provider/Errors.ts";
+import { clearTransientTurnStartProviderOptions } from "../../provider/transientProviderOptions.ts";
 import { OrchestrationEventStoreLive } from "../../persistence/Layers/OrchestrationEventStore.ts";
 import { OrchestrationCommandReceiptRepositoryLive } from "../../persistence/Layers/OrchestrationCommandReceipts.ts";
 import { SqlitePersistenceMemory } from "../../persistence/Layers/Sqlite.ts";
@@ -69,6 +70,7 @@ describe("ProviderCommandReactor", () => {
   const createdStateDirs = new Set<string>();
 
   afterEach(async () => {
+    clearTransientTurnStartProviderOptions();
     if (scope) {
       await Effect.runPromise(Scope.close(scope, Exit.void));
     }
@@ -770,6 +772,117 @@ describe("ProviderCommandReactor", () => {
     expect(harness.sendTurn.mock.calls[1]?.[0]).not.toHaveProperty("model");
   });
 
+  it("restarts Codex sessions when switching between native and OpenRouter-routed models", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.makeUnsafe("cmd-turn-start-codex-native"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-codex-native"),
+          role: "user",
+          text: "first codex turn",
+          attachments: [],
+        },
+        provider: "codex",
+        model: "gpt-5.3-codex",
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(() => harness.startSession.mock.calls.length === 1);
+    await waitFor(() => harness.sendTurn.mock.calls.length === 1);
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.makeUnsafe("cmd-turn-start-codex-openrouter"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-codex-openrouter"),
+          role: "user",
+          text: "switch to openrouter",
+          attachments: [],
+        },
+        provider: "codex",
+        model: "openrouter/free",
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(() => harness.startSession.mock.calls.length === 2);
+    await waitFor(() => harness.sendTurn.mock.calls.length === 2);
+    expect(harness.startSession.mock.calls[1]?.[1]).toMatchObject({
+      provider: "codex",
+      model: "openrouter/free",
+    });
+    expect(harness.startSession.mock.calls[1]?.[1]).not.toHaveProperty("resumeCursor");
+    expect(harness.sendTurn.mock.calls[1]?.[0]).toMatchObject({
+      threadId: ThreadId.makeUnsafe("thread-1"),
+      model: "openrouter/free",
+    });
+  });
+
+  it("keeps Codex sessions running when switching between OpenRouter-routed models", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.makeUnsafe("cmd-turn-start-codex-openrouter-router"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-codex-openrouter-router"),
+          role: "user",
+          text: "first openrouter turn",
+          attachments: [],
+        },
+        provider: "codex",
+        model: "openrouter/free",
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(() => harness.startSession.mock.calls.length === 1);
+    await waitFor(() => harness.sendTurn.mock.calls.length === 1);
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.makeUnsafe("cmd-turn-start-codex-openrouter-specific"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-codex-openrouter-specific"),
+          role: "user",
+          text: "switch openrouter model",
+          attachments: [],
+        },
+        provider: "codex",
+        model: "google/gemma-3n-e4b-it:free",
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(() => harness.sendTurn.mock.calls.length === 2);
+    expect(harness.startSession.mock.calls.length).toBe(1);
+    expect(harness.sendTurn.mock.calls[1]?.[0]).toMatchObject({
+      threadId: ThreadId.makeUnsafe("thread-1"),
+      model: "google/gemma-3n-e4b-it:free",
+    });
+  });
+
   it("clears legacy token usage when a provider/model switch restarts the session", async () => {
     const harness = await createHarness({
       capabilitiesByProvider: {
@@ -911,6 +1024,55 @@ describe("ProviderCommandReactor", () => {
     });
 
     expect(thread.session?.lastError).toBe("Kimi request timed out");
+  });
+
+  it("clears a prior session error when a new turn starts successfully", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.session.set",
+        commandId: CommandId.makeUnsafe("cmd-session-set-error-before-retry"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        session: {
+          threadId: ThreadId.makeUnsafe("thread-1"),
+          status: "error",
+          providerName: "codex",
+          runtimeMode: "approval-required",
+          activeTurnId: null,
+          lastError:
+            "unexpected status 404 Not Found: No endpoints available matching your guardrails restrictions and data policy.",
+          startedAt: now,
+          updatedAt: now,
+        },
+        createdAt: now,
+      }),
+    );
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.makeUnsafe("cmd-turn-start-clear-previous-error"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-clear-previous-error"),
+          role: "user",
+          text: "retry after failure",
+          attachments: [],
+        },
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(() => harness.sendTurn.mock.calls.length === 1);
+
+    const readModel = await Effect.runPromise(harness.engine.getReadModel());
+    const thread = readModel.threads.find((entry) => entry.id === ThreadId.makeUnsafe("thread-1"));
+    expect(thread?.session?.status).toBe("running");
+    expect(thread?.session?.lastError).toBeNull();
   });
 
   it("reacts to thread.approval.respond by forwarding provider approval response", async () => {

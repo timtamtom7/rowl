@@ -1,5 +1,9 @@
 import type { ProviderKind } from "@t3tools/contracts";
-import { getModelContextWindowInfo, normalizeModelSlug } from "@t3tools/shared/model";
+import {
+  getModelContextWindowInfo,
+  isCodexOpenRouterModel,
+  normalizeModelSlug,
+} from "@t3tools/shared/model";
 
 export type ThreadContextUsageSnapshot = {
   provider?: string;
@@ -229,6 +233,13 @@ export function formatCompactTokenCount(tokens: number): string {
   return String(tokens);
 }
 
+export function shouldHideContextWindowForModel(
+  provider: ProviderKind,
+  model: string | null | undefined,
+): boolean {
+  return provider === "codex" && isCodexOpenRouterModel(model);
+}
+
 function formatCompactUsedTokenCount(tokens: number): string {
   if (!Number.isFinite(tokens) || tokens < 0) {
     return "Unknown";
@@ -246,6 +257,7 @@ function snapshotMatchesSelection(
   snapshot: ThreadContextUsageSnapshot | null,
   provider: ProviderKind,
   model: string | null | undefined,
+  requireExactModelMatch = false,
 ): boolean {
   if (!snapshot) {
     return false;
@@ -256,6 +268,9 @@ function snapshotMatchesSelection(
 
   const selectedModel = normalizeModelSlug(model, provider);
   const snapshotModel = normalizeModelSlug(snapshot.model, provider);
+  if (requireExactModelMatch && selectedModel && !snapshotModel) {
+    return false;
+  }
   if (selectedModel && snapshotModel && selectedModel !== snapshotModel) {
     return false;
   }
@@ -299,24 +314,33 @@ export function describeContextWindowState(input: {
   provider: ProviderKind;
   model: string | null | undefined;
   tokenUsage?: unknown;
+  documentedTotalTokens?: number | null;
+  documentedNote?: string | null;
+  requireExactModelMatch?: boolean;
 }): ContextWindowState {
   const info = getModelContextWindowInfo(input.model, input.provider);
   const snapshot = parseThreadContextUsageSnapshot(input.tokenUsage);
-  const matchingSnapshot = snapshotMatchesSelection(snapshot, input.provider, input.model)
+  const matchingSnapshot = snapshotMatchesSelection(
+    snapshot,
+    input.provider,
+    input.model,
+    input.requireExactModelMatch ?? false,
+  )
     ? snapshot
     : null;
   const runtimeContextWindow = extractContextWindowLimitFromUsageRecord(
     asRecord(matchingSnapshot?.usage),
   );
   const usedTokens = extractUsedContextTokens(matchingSnapshot);
-  const totalTokens = runtimeContextWindow ?? info?.totalTokens ?? null;
+  const totalTokens =
+    input.documentedTotalTokens ?? runtimeContextWindow ?? info?.totalTokens ?? null;
   const remainingTokens =
     totalTokens !== null && usedTokens !== null ? Math.max(totalTokens - usedTokens, 0) : null;
 
   return {
     totalTokens,
     totalLabel: totalTokens !== null ? formatCompactTokenCount(totalTokens) : null,
-    note: info?.note ?? null,
+    note: input.documentedNote ?? info?.note ?? null,
     usedTokens,
     usedLabel: usedTokens !== null ? formatCompactUsedTokenCount(usedTokens) : null,
     remainingTokens,

@@ -16,17 +16,30 @@ import {
 } from "./appSettings";
 
 describe("normalizeCustomModelSlugs", () => {
-  it("ignores saved custom Codex models", () => {
+  it("normalizes Codex custom models, keeps free OpenRouter slugs, and removes built-ins", () => {
     expect(
       normalizeCustomModelSlugs([
-        " custom/internal-model ",
+        " custom-internal-model ",
         "gpt-5.3-codex",
+        "openrouter/free",
+        "google/gemma-3n-e4b-it:free",
         "5.3",
-        "custom/internal-model",
+        "custom-internal-model",
         "",
         null,
       ]),
-    ).toEqual([]);
+    ).toEqual(["custom-internal-model", "google/gemma-3n-e4b-it:free"]);
+  });
+
+  it("drops OpenRouter slugs that are not locked to the router alias or :free", () => {
+    expect(
+      normalizeCustomModelSlugs([
+        "openrouter/hunter-alpha",
+        "meta-llama/llama-3.3-70b-instruct",
+        "openrouter/free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+      ]),
+    ).toEqual(["meta-llama/llama-3.3-70b-instruct:free"]);
   });
 
   it("normalizes aliases, removes built-ins, and deduplicates supported providers", () => {
@@ -40,8 +53,8 @@ describe("normalizeCustomModelSlugs", () => {
 });
 
 describe("getAppModelOptions", () => {
-  it("keeps Codex limited to the built-in catalog", () => {
-    const options = getAppModelOptions("codex", ["custom/internal-model"]);
+  it("includes Codex built-ins, the OpenRouter free router, and saved custom model ids", () => {
+    const options = getAppModelOptions("codex", ["custom-internal-model"]);
 
     expect(options.map((option) => option.slug)).toEqual([
       "gpt-5.4",
@@ -50,6 +63,8 @@ describe("getAppModelOptions", () => {
       "gpt-5.3-codex-spark",
       "gpt-5.2-codex",
       "gpt-5.2",
+      "openrouter/free",
+      "custom-internal-model",
     ]);
   });
 
@@ -88,24 +103,21 @@ describe("getAppModelOptions", () => {
     });
   });
 
-  it("does not keep unsupported Codex selections in the picker catalog", () => {
-    const options = getAppModelOptions("codex", [], "custom/selected-model");
+  it("keeps the selected Codex custom model in the picker catalog", () => {
+    const options = getAppModelOptions("codex", [], "custom-selected-model");
 
-    expect(options.map((option) => option.slug)).toEqual([
-      "gpt-5.4",
-      "gpt-5-codex",
-      "gpt-5.3-codex",
-      "gpt-5.3-codex-spark",
-      "gpt-5.2-codex",
-      "gpt-5.2",
-    ]);
+    expect(options.at(-1)).toEqual({
+      slug: "custom-selected-model",
+      name: "custom-selected-model",
+      isCustom: true,
+    });
   });
 });
 
 describe("resolveAppModelSelection", () => {
-  it("falls back to the default for unsupported Codex models", () => {
+  it("keeps saved Codex custom models selected", () => {
     expect(resolveAppModelSelection("codex", ["galapagos-alpha"], "galapagos-alpha")).toBe(
-      "gpt-5.4",
+      "galapagos-alpha",
     );
   });
 
@@ -116,16 +128,21 @@ describe("resolveAppModelSelection", () => {
   });
 });
 describe("getSlashModelOptions", () => {
-  it("keeps Codex /model suggestions limited to the built-in catalog", () => {
-    const options = getSlashModelOptions("codex", ["custom/internal-model"], "", "gpt-5.3-codex");
+  it("includes saved Codex custom models in /model suggestions", () => {
+    const options = getSlashModelOptions("codex", ["custom-internal-model"], "", "gpt-5.3-codex");
 
-    expect(options.some((option) => option.slug === "custom/internal-model")).toBe(false);
+    expect(options.some((option) => option.slug === "custom-internal-model")).toBe(true);
   });
 
-  it("filters slash-model suggestions across built-in Codex model names", () => {
-    const options = getSlashModelOptions("codex", ["openai/gpt-oss-120b"], "oss", "gpt-5.3-codex");
+  it("filters slash-model suggestions across Codex built-ins and custom names", () => {
+    const options = getSlashModelOptions(
+      "codex",
+      ["openai/gpt-oss-120b:free"],
+      "oss",
+      "gpt-5.3-codex",
+    );
 
-    expect(options).toEqual([]);
+    expect(options.map((option) => option.slug)).toEqual(["openai/gpt-oss-120b:free"]);
   });
 
   it("still includes saved custom model slugs for supported providers", () => {
@@ -141,20 +158,22 @@ describe("getSlashModelOptions", () => {
 });
 
 describe("supportsCustomModels", () => {
-  it("disables custom model catalogs for Codex only", () => {
-    expect(supportsCustomModels("codex")).toBe(false);
+  it("supports custom model catalogs for every current provider", () => {
+    expect(supportsCustomModels("codex")).toBe(true);
     expect(supportsCustomModels("copilot")).toBe(true);
     expect(supportsCustomModels("kimi")).toBe(true);
   });
 });
 
 describe("sanitizePersistedAppSettingsForStorage", () => {
-  it("removes the Kimi API key before writing settings to storage", () => {
+  it("removes provider API keys before writing settings to storage", () => {
     const sanitized = sanitizePersistedAppSettingsForStorage({
       ...getAppSettingsSnapshot(),
+      openRouterApiKey: "sk-or-secret",
       kimiApiKey: "sk-kimi-secret",
     });
 
+    expect(sanitized.openRouterApiKey).toBe("");
     expect(sanitized.kimiApiKey).toBe("");
     expect(sanitized.kimiBinaryPath).toBe(getAppSettingsSnapshot().kimiBinaryPath);
   });

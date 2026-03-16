@@ -453,9 +453,9 @@ const makeProviderService = (options?: ProviderServiceLiveOptions) =>
           adapter.listSessions(),
         );
         const activeSessions = sessionsByProvider.flatMap((sessions) => sessions);
-        const persistedBindings = yield* directory.listBindings().pipe(
-          Effect.orElseSucceed(() => [] as ReadonlyArray<ProviderRuntimeBinding>),
-        );
+        const persistedBindings = yield* directory
+          .listBindings()
+          .pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<ProviderRuntimeBinding>));
         const bindingsByThreadId = new Map<ThreadId, ProviderRuntimeBinding>();
         for (const binding of persistedBindings) {
           bindingsByThreadId.set(binding.threadId, binding);

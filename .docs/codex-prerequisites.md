@@ -2,17 +2,21 @@
 
 - Install Codex CLI so `codex` is on your PATH.
 - Use Codex CLI `0.37.0` or newer. Older versions are rejected by CUT3.
-- Authenticate Codex before running CUT3 (for example via API key or ChatGPT auth supported by Codex).
+- Authenticate Codex before running CUT3 if you plan to use native Codex-hosted models (for example via API key or ChatGPT auth supported by Codex).
 - CUT3 starts the server via `codex app-server` per session.
 
 Optional app settings for Codex:
 
 - Override the Codex binary path if you do not want to use the `codex` executable from `PATH`.
 - Override the Codex home path if you keep Codex state in a non-default location.
+- Add an OpenRouter API key if you want to use Codex with `openrouter/free` or specific OpenRouter `:free` model ids.
 - Set the default Codex service tier in Settings.
-- Use the composer controls to choose Codex reasoning effort and per-turn `Fast Mode`.
+- Use the **OpenRouter Free Models** settings card to browse the live OpenRouter entries that are both free-locked and tool-compatible, then pin them into the picker.
+- Save extra OpenRouter `:free` model ids such as `google/gemma-3n-e4b-it:free` or custom Codex model ids if you want them in the model picker and `/model` suggestions.
+- Use the composer controls to choose Codex reasoning effort and per-turn `Fast Mode`. OpenRouter models may advertise reasoning support, but CUT3 does not expose Codex-specific reasoning-effort levels for those free models.
 
 ## Troubleshooting
 
 - If a Codex session fails immediately, verify the configured binary override and confirm `codex --version` is `0.37.0` or newer.
 - If you override the Codex home path, make sure it points at the Codex state directory you want CUT3 to use.
+- If `openrouter/free` or another OpenRouter model fails to start, verify the OpenRouter API key in Settings, confirm the model id exists on OpenRouter, and make sure the selected model advertises tool use if you pinned it manually.

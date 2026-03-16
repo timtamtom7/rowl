@@ -92,6 +92,8 @@ import { getWsAuthToken, redactWsAuthToken } from "@t3tools/shared/wsAuth";
 import { listCodexMcpServerStatuses } from "./codexMcpServerStatus.ts";
 import { buildAllowedWebSocketOrigins, isAllowedWebSocketOrigin } from "./networking";
 import { isWithinAllowedRoot, resolvePathForContainmentCheck } from "./pathAuthorization";
+import { ProviderAdapterProcessError, ProviderAdapterRequestError } from "./provider/Errors.ts";
+import { putTransientTurnStartProviderOptions } from "./provider/transientProviderOptions.ts";
 
 /**
  * ServerShape - Service API for server lifecycle control.
@@ -297,6 +299,20 @@ function stripRequestTag<T extends { _tag: string }>(body: T) {
 
 const encodeWsResponse = Schema.encodeEffect(Schema.fromJsonString(WsResponse));
 const decodeWebSocketRequest = decodeJsonResult(WebSocketRequest);
+
+function formatWebSocketErrorCause(cause: Cause.Cause<unknown>): string {
+  const error = Cause.squash(cause);
+  if (Schema.is(ProviderAdapterRequestError)(error) && error.detail.trim().length > 0) {
+    return error.detail;
+  }
+  if (Schema.is(ProviderAdapterProcessError)(error) && error.detail.trim().length > 0) {
+    return error.detail;
+  }
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+  return Cause.pretty(cause);
+}
 
 function getWsRpcResultSchema(method: string): Schema.Schema<unknown> | null {
   if (!(method in WsRpcResultSchemaByMethod)) {
@@ -1001,6 +1017,15 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
       case ORCHESTRATION_WS_METHODS.dispatchCommand: {
         const { command } = request.body;
         const normalizedCommand = yield* normalizeDispatchCommand({ command });
+        if (
+          normalizedCommand.type === "thread.turn.start" &&
+          normalizedCommand.providerOptions !== undefined
+        ) {
+          putTransientTurnStartProviderOptions(
+            normalizedCommand.commandId,
+            normalizedCommand.providerOptions,
+          );
+        }
         return yield* orchestrationEngine.dispatch(normalizedCommand);
       }
 
@@ -1316,7 +1341,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
     if (Exit.isFailure(result)) {
       return yield* sendWsResponse({
         id: request.success.id,
-        error: { message: Cause.pretty(result.cause) },
+        error: { message: formatWebSocketErrorCause(result.cause) },
       });
     }
 

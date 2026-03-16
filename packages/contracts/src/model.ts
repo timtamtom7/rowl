@@ -6,6 +6,7 @@ export type CodexReasoningEffort = (typeof CODEX_REASONING_EFFORT_OPTIONS)[numbe
 export const COPILOT_REASONING_EFFORT_VALUES = CODEX_REASONING_EFFORT_OPTIONS;
 export const COPILOT_REASONING_EFFORT_OPTIONS = ["low", "medium", "high"] as const;
 export type CopilotReasoningEffort = (typeof COPILOT_REASONING_EFFORT_VALUES)[number];
+export const OPENROUTER_FREE_ROUTER_MODEL = "openrouter/free" as const;
 
 export const CodexModelOptions = Schema.Struct({
   reasoningEffort: Schema.optional(Schema.Literals(CODEX_REASONING_EFFORT_OPTIONS)),
@@ -52,6 +53,7 @@ export const MODEL_OPTIONS_BY_PROVIDER = {
     { slug: "gpt-5.3-codex-spark", name: "GPT-5.3 Codex Spark" },
     { slug: "gpt-5.2-codex", name: "GPT-5.2 Codex" },
     { slug: "gpt-5.2", name: "GPT-5.2" },
+    { slug: OPENROUTER_FREE_ROUTER_MODEL, name: "OpenRouter Free Router" },
   ],
   copilot: [
     { slug: "claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
@@ -113,6 +115,10 @@ export const MODEL_CONTEXT_WINDOW_INFO_BY_PROVIDER = {
     "gpt-5.2": {
       totalTokens: 400_000,
       source: "vendor-doc",
+    },
+    [OPENROUTER_FREE_ROUTER_MODEL]: {
+      source: "provider-doc",
+      note: "OpenRouter routes this alias to a currently available free model based on the request. Context window varies by the routed model.",
     },
   },
   copilot: {

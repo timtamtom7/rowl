@@ -186,7 +186,7 @@ function getSafeTheme(rawTheme: unknown): DesktopTheme | null {
 }
 
 function getSafeDesktopSecretKey(rawKey: unknown): DesktopSecretKey | null {
-  return rawKey === "kimiApiKey" ? rawKey : null;
+  return rawKey === "openRouterApiKey" || rawKey === "kimiApiKey" ? rawKey : null;
 }
 
 function readStoredDesktopSecrets(): Partial<Record<DesktopSecretKey, { encrypted: string }>> {
@@ -203,7 +203,7 @@ function readStoredDesktopSecrets(): Partial<Record<DesktopSecretKey, { encrypte
 
     const result: Partial<Record<DesktopSecretKey, { encrypted: string }>> = {};
     for (const [key, value] of Object.entries(parsed)) {
-      if (key !== "kimiApiKey") {
+      if (key !== "openRouterApiKey" && key !== "kimiApiKey") {
         continue;
       }
       if (!value || typeof value !== "object" || typeof value.encrypted !== "string") {

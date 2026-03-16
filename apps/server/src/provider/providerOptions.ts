@@ -15,7 +15,16 @@ export function sanitizeProviderOptionsForPersistence(
     ? { kimi: { binaryPath: providerOptions.kimi.binaryPath } }
     : {};
   const next = {
-    ...(providerOptions.codex ? { codex: providerOptions.codex } : {}),
+    ...(providerOptions.codex
+      ? {
+          codex: {
+            ...(providerOptions.codex.binaryPath
+              ? { binaryPath: providerOptions.codex.binaryPath }
+              : {}),
+            ...(providerOptions.codex.homePath ? { homePath: providerOptions.codex.homePath } : {}),
+          },
+        }
+      : {}),
     ...(providerOptions.copilot ? { copilot: providerOptions.copilot } : {}),
     ...kimi,
   } satisfies ProviderStartOptions;

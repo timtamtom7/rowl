@@ -24,6 +24,7 @@ describe("ProviderSessionStartInput", () => {
         codex: {
           binaryPath: "/usr/local/bin/codex",
           homePath: "/tmp/.codex",
+          openRouterApiKey: "sk-or-test",
         },
       },
     });
@@ -32,6 +33,7 @@ describe("ProviderSessionStartInput", () => {
     expect(parsed.modelOptions?.codex?.fastMode).toBe(true);
     expect(parsed.providerOptions?.codex?.binaryPath).toBe("/usr/local/bin/codex");
     expect(parsed.providerOptions?.codex?.homePath).toBe("/tmp/.codex");
+    expect(parsed.providerOptions?.codex?.openRouterApiKey).toBe("sk-or-test");
   });
 
   it("accepts copilot-compatible payloads", () => {

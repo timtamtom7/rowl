@@ -38,6 +38,18 @@ export const KimiIcon: Icon = (props) => (
   </svg>
 );
 
+export const OpenRouterIcon: Icon = (props) => (
+  <svg {...props} viewBox="0 0 64 64" fill="none">
+    <path
+      d="M32 6v10M32 48v10M58 32H48M16 32H6M50.385 13.615l-7.07 7.07M20.686 43.314l-7.07 7.07M50.385 50.385l-7.07-7.07M20.686 20.686l-7.07-7.07"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="5"
+    />
+    <circle cx="32" cy="32" r="9" fill="currentColor" />
+  </svg>
+);
+
 export const VisualStudioCode: Icon = (props) => {
   const id = useId();
   const maskId = `${id}-vscode-a`;

@@ -34,6 +34,8 @@ import { CodexAdapter, type CodexAdapterShape } from "../Services/CodexAdapter.t
 import {
   CodexAppServerManager,
   type CodexAppServerStartSessionInput,
+  formatCodexProviderErrorMessage,
+  formatCodexRpcErrorMessage,
 } from "../../codexAppServerManager.ts";
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
@@ -53,6 +55,17 @@ function toMessage(cause: unknown, fallback: string): string {
     return cause.message;
   }
   return fallback;
+}
+
+function formatProviderFailureDetail(input: {
+  readonly cause: unknown;
+  readonly fallback: string;
+  readonly model?: string | null;
+}): string {
+  return formatCodexProviderErrorMessage({
+    message: toMessage(input.cause, input.fallback),
+    ...(input.model !== undefined ? { model: input.model } : {}),
+  });
 }
 
 function toSessionError(
@@ -85,7 +98,10 @@ function toRequestError(threadId: ThreadId, method: string, cause: unknown): Pro
   return new ProviderAdapterRequestError({
     provider: PROVIDER,
     method,
-    detail: toMessage(cause, `${method} failed`),
+    detail: formatProviderFailureDetail({
+      cause,
+      fallback: `${method} failed`,
+    }),
     cause,
   });
 }
@@ -1194,9 +1210,17 @@ function mapToRuntimeEvents(
   }
 
   if (event.method === "error") {
-    const message =
+    const rawMessage =
       asString(asObject(payload?.error)?.message) ?? event.message ?? "Provider runtime error";
     const willRetry = payload?.willRetry === true;
+    const runtimeErrorModel = asString(payload?.model);
+    const message = willRetry
+      ? rawMessage
+      : formatCodexRpcErrorMessage({
+          method: "runtime error",
+          message: rawMessage,
+          ...(runtimeErrorModel ? { model: runtimeErrorModel } : {}),
+        });
     return [
       {
         type: willRetry ? "runtime.warning" : "runtime.error",
@@ -1315,7 +1339,11 @@ const makeCodexAdapter = (options?: CodexAdapterLiveOptions) =>
           new ProviderAdapterProcessError({
             provider: PROVIDER,
             threadId: input.threadId,
-            detail: toMessage(cause, "Failed to start Codex adapter session."),
+            detail: formatProviderFailureDetail({
+              cause,
+              fallback: "Failed to start Codex adapter session.",
+              ...(input.model !== undefined ? { model: input.model } : {}),
+            }),
             cause,
           }),
       }).pipe(Effect.map((session) => session));
@@ -1374,7 +1402,22 @@ const makeCodexAdapter = (options?: CodexAdapterLiveOptions) =>
             };
             return manager.sendTurn(managerInput);
           },
-          catch: (cause) => toRequestError(input.threadId, "turn/start", cause),
+          catch: (cause) => {
+            const sessionError = toSessionError(input.threadId, cause);
+            if (sessionError) {
+              return sessionError;
+            }
+            return new ProviderAdapterRequestError({
+              provider: PROVIDER,
+              method: "turn/start",
+              detail: formatProviderFailureDetail({
+                cause,
+                fallback: "turn/start failed",
+                ...(input.model !== undefined ? { model: input.model } : {}),
+              }),
+              cause,
+            });
+          },
         }).pipe(
           Effect.map((result) => ({
             ...result,

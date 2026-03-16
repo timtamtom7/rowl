@@ -6,6 +6,9 @@ import {
   deriveActivePlanState,
   deriveConfiguredModelOptions,
   deriveConfiguredModelOptionsFromActivityGroups,
+  deriveLatestModelRerouteNotice,
+  getProviderPickerBackingProvider,
+  getProviderPickerKindForSelection,
   PROVIDER_OPTIONS,
   derivePendingApprovals,
   derivePendingUserInputs,
@@ -803,6 +806,67 @@ describe("hasToolActivityForTurn", () => {
   });
 });
 
+describe("deriveLatestModelRerouteNotice", () => {
+  it("returns the newest reroute notice for the active turn", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "reroute-old",
+        createdAt: "2026-02-23T00:00:03.000Z",
+        kind: "model.rerouted",
+        summary: "Model rerouted",
+        tone: "info",
+        turnId: "turn-1",
+        payload: {
+          fromModel: "openai/gpt-oss-120b:free",
+          toModel: "openrouter/free",
+          reason: "OpenRouter ran out of free capacity.",
+        },
+      }),
+      makeActivity({
+        id: "reroute-new",
+        createdAt: "2026-02-23T00:00:04.000Z",
+        kind: "model.rerouted",
+        summary: "Model rerouted",
+        tone: "info",
+        turnId: "turn-2",
+        payload: {
+          fromModel: "qwen/qwen3-coder:free",
+          toModel: "openrouter/free",
+          reason: "OpenRouter could not serve the pinned model.",
+        },
+      }),
+    ];
+
+    expect(deriveLatestModelRerouteNotice(activities, TurnId.makeUnsafe("turn-2"))).toEqual({
+      createdAt: "2026-02-23T00:00:04.000Z",
+      turnId: "turn-2",
+      fromModel: "qwen/qwen3-coder:free",
+      toModel: "openrouter/free",
+      reason: "OpenRouter could not serve the pinned model.",
+    });
+  });
+
+  it("returns null when no reroute notice matches the current turn", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "reroute-other-turn",
+        createdAt: "2026-02-23T00:00:03.000Z",
+        kind: "model.rerouted",
+        summary: "Model rerouted",
+        tone: "info",
+        turnId: "turn-1",
+        payload: {
+          fromModel: "openai/gpt-oss-120b:free",
+          toModel: "openrouter/free",
+          reason: "OpenRouter ran out of free capacity.",
+        },
+      }),
+    ];
+
+    expect(deriveLatestModelRerouteNotice(activities, TurnId.makeUnsafe("turn-2"))).toBeNull();
+  });
+});
+
 describe("isLatestTurnSettled", () => {
   const latestTurn = {
     turnId: TurnId.makeUnsafe("turn-1"),
@@ -905,6 +969,7 @@ describe("PROVIDER_OPTIONS", () => {
     const cursor = PROVIDER_OPTIONS.find((option) => option.value === "cursor");
     expect(PROVIDER_OPTIONS).toEqual([
       { value: "codex", label: "Codex", available: true },
+      { value: "openrouter", label: "OpenRouter", available: true },
       { value: "copilot", label: "GitHub Copilot", available: true },
       { value: "kimi", label: "Kimi Code", available: true },
       { value: "claudeCode", label: "Claude Code", available: false },
@@ -920,5 +985,23 @@ describe("PROVIDER_OPTIONS", () => {
       label: "Cursor",
       available: false,
     });
+  });
+});
+
+describe("getProviderPickerBackingProvider", () => {
+  it("maps OpenRouter back to Codex while keeping other available providers stable", () => {
+    expect(getProviderPickerBackingProvider("codex")).toBe("codex");
+    expect(getProviderPickerBackingProvider("openrouter")).toBe("codex");
+    expect(getProviderPickerBackingProvider("copilot")).toBe("copilot");
+    expect(getProviderPickerBackingProvider("kimi")).toBe("kimi");
+    expect(getProviderPickerBackingProvider("claudeCode")).toBeNull();
+  });
+});
+
+describe("getProviderPickerKindForSelection", () => {
+  it("surfaces OpenRouter-routed Codex models as the OpenRouter picker section", () => {
+    expect(getProviderPickerKindForSelection("codex", "openrouter/free")).toBe("openrouter");
+    expect(getProviderPickerKindForSelection("codex", "gpt-5")).toBe("codex");
+    expect(getProviderPickerKindForSelection("copilot", "claude-sonnet-4.6")).toBe("copilot");
   });
 });

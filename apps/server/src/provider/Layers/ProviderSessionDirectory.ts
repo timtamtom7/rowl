@@ -162,7 +162,9 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
     repository.list().pipe(
       Effect.mapError(toPersistenceError("ProviderSessionDirectory.listBindings:list")),
       Effect.flatMap((rows) =>
-        Effect.forEach(rows, (row) => toBindingOption("ProviderSessionDirectory.listBindings", row)),
+        Effect.forEach(rows, (row) =>
+          toBindingOption("ProviderSessionDirectory.listBindings", row),
+        ),
       ),
       Effect.map((bindings) =>
         bindings.flatMap((binding) => (Option.isSome(binding) ? [binding.value] : [])),
@@ -177,9 +179,11 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
       );
 
   const listThreadIds: ProviderSessionDirectoryShape["listThreadIds"] = () =>
-    repository.listThreadIds().pipe(
-      Effect.mapError(toPersistenceError("ProviderSessionDirectory.listThreadIds:listThreadIds")),
-    );
+    repository
+      .listThreadIds()
+      .pipe(
+        Effect.mapError(toPersistenceError("ProviderSessionDirectory.listThreadIds:listThreadIds")),
+      );
 
   return {
     upsert,

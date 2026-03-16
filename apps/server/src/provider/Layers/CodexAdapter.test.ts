@@ -183,6 +183,42 @@ validationLayer("CodexAdapterLive validation", (it) => {
       });
     }),
   );
+
+  it.effect("rewrites OpenRouter session-start failures before surfacing adapter errors", () =>
+    Effect.gen(function* () {
+      validationManager.startSessionImpl.mockImplementationOnce(async () => {
+        throw new Error(
+          "unexpected status 404 Not Found: No endpoints available matching your guardrails restrictions and data policy. Configure: https://openrouter.ai/settings/privacy",
+        );
+      });
+      const adapter = yield* CodexAdapter;
+      const result = yield* adapter
+        .startSession({
+          threadId: asThreadId("thread-openrouter"),
+          provider: "codex",
+          runtimeMode: "full-access",
+          model: "minimax/minimax-m2.5:free",
+        })
+        .pipe(Effect.result);
+
+      assert.equal(result._tag, "Failure");
+      if (result._tag !== "Failure") {
+        return;
+      }
+
+      assert.equal(result.failure._tag, "ProviderAdapterProcessError");
+      if (result.failure._tag !== "ProviderAdapterProcessError") {
+        return;
+      }
+
+      assert.match(result.failure.detail, /OpenRouter could not find an eligible endpoint/);
+      assert.match(result.failure.detail, /settings\/privacy/);
+      assert.equal(
+        result.failure.detail.startsWith("OpenRouter could not find an eligible endpoint"),
+        true,
+      );
+    }),
+  );
 });
 
 const sessionErrorManager = new FakeCodexManager();
@@ -251,6 +287,42 @@ sessionErrorLayer("CodexAdapterLive session errors", (it) => {
         effort: "high",
         serviceTier: "fast",
       });
+    }),
+  );
+
+  it.effect("rewrites OpenRouter turn-start failures before surfacing adapter errors", () =>
+    Effect.gen(function* () {
+      sessionErrorManager.sendTurnImpl.mockImplementationOnce(async () => {
+        throw new Error(
+          "unexpected status 404 Not Found: No endpoints available matching your guardrails restrictions and data policy. Configure: https://openrouter.ai/settings/privacy",
+        );
+      });
+      const adapter = yield* CodexAdapter;
+      const result = yield* adapter
+        .sendTurn({
+          threadId: asThreadId("sess-missing"),
+          input: "hello",
+          model: "minimax/minimax-m2.5:free",
+          attachments: [],
+        })
+        .pipe(Effect.result);
+
+      assert.equal(result._tag, "Failure");
+      if (result._tag !== "Failure") {
+        return;
+      }
+
+      assert.equal(result.failure._tag, "ProviderAdapterRequestError");
+      if (result.failure._tag !== "ProviderAdapterRequestError") {
+        return;
+      }
+
+      assert.match(result.failure.detail, /OpenRouter could not find an eligible endpoint/);
+      assert.match(result.failure.detail, /settings\/privacy/);
+      assert.equal(
+        result.failure.detail.startsWith("OpenRouter could not find an eligible endpoint"),
+        true,
+      );
     }),
   );
 });
@@ -591,6 +663,40 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
       if (secondEvent?.type === "runtime.warning") {
         assert.equal(secondEvent.payload.message, "Sandbox setup failed");
       }
+    }),
+  );
+
+  it.effect("rewrites OpenRouter privacy runtime errors into actionable guidance", () =>
+    Effect.gen(function* () {
+      const adapter = yield* CodexAdapter;
+      const firstEventFiber = yield* Stream.runHead(adapter.streamEvents).pipe(Effect.forkChild);
+
+      lifecycleManager.emit("event", {
+        id: asEventId("evt-openrouter-privacy-error"),
+        kind: "notification",
+        provider: "codex",
+        threadId: asThreadId("thread-1"),
+        createdAt: new Date().toISOString(),
+        method: "error",
+        message:
+          "unexpected status 404 Not Found: No endpoints available matching your guardrails restrictions and data policy. Configure: https://openrouter.ai/settings/privacy",
+      } satisfies ProviderEvent);
+
+      const firstEvent = yield* Fiber.join(firstEventFiber);
+
+      assert.equal(firstEvent._tag, "Some");
+      if (firstEvent._tag !== "Some") {
+        return;
+      }
+      assert.equal(firstEvent.value.type, "runtime.error");
+      if (firstEvent.value.type !== "runtime.error") {
+        return;
+      }
+      assert.match(
+        firstEvent.value.payload.message,
+        /OpenRouter could not find an eligible endpoint/,
+      );
+      assert.match(firstEvent.value.payload.message, /settings\/privacy/);
     }),
   );
 

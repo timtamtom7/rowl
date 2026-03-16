@@ -70,7 +70,7 @@ export type DesktopUpdateStatus =
 
 export type DesktopRuntimeArch = "arm64" | "x64" | "other";
 export type DesktopTheme = "light" | "dark" | "system";
-export type DesktopSecretKey = "kimiApiKey";
+export type DesktopSecretKey = "openRouterApiKey" | "kimiApiKey";
 
 export interface DesktopRuntimeInfo {
   hostArch: DesktopRuntimeArch;

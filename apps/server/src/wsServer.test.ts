@@ -50,6 +50,7 @@ import { Open, type OpenShape } from "./open";
 import { GitManager, type GitManagerShape } from "./git/Services/GitManager.ts";
 import type { GitCoreShape } from "./git/Services/GitCore.ts";
 import { GitCore } from "./git/Services/GitCore.ts";
+import { clearTransientTurnStartProviderOptions } from "./provider/transientProviderOptions.ts";
 import { GitCommandError, GitManagerError } from "./git/Errors.ts";
 import { MigrationError } from "@effect/sql-sqlite-bun/SqliteMigrator";
 import { AnalyticsService } from "./telemetry/Services/AnalyticsService.ts";
@@ -574,6 +575,7 @@ describe("WebSocket Server", () => {
   }
 
   afterEach(async () => {
+    clearTransientTurnStartProviderOptions();
     for (const ws of connections) {
       ws.close();
     }
@@ -1487,6 +1489,124 @@ describe("WebSocket Server", () => {
     expect(domainEvent.payload.text).toBe("hello from runtime");
   });
 
+  it("passes non-persisted OpenRouter provider options to live Codex session startup", async () => {
+    const runtimeEventPubSub = Effect.runSync(PubSub.unbounded<ProviderRuntimeEvent>());
+    const startSession = vi.fn((threadId: ThreadId, rawInput: unknown) => {
+      const input = rawInput as {
+        runtimeMode?: "approval-required" | "full-access";
+      };
+      return Effect.succeed({
+        provider: "codex" as const,
+        status: "ready" as const,
+        runtimeMode: input.runtimeMode ?? "full-access",
+        threadId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    });
+    const unsupported = () => Effect.die(new Error("Unsupported provider call in test")) as never;
+    const providerService: ProviderServiceShape = {
+      startSession,
+      sendTurn: ({ threadId }) =>
+        Effect.succeed({
+          threadId,
+          turnId: asTurnId("provider-turn-openrouter-1"),
+        }),
+      interruptTurn: () => unsupported(),
+      respondToRequest: () => unsupported(),
+      respondToUserInput: () => unsupported(),
+      stopSession: () => unsupported(),
+      listSessions: () => Effect.succeed([]),
+      getCapabilities: () => Effect.succeed({ sessionModelSwitch: "restart-session" }),
+      rollbackConversation: () => unsupported(),
+      streamEvents: Stream.fromPubSub(runtimeEventPubSub),
+    };
+
+    server = await createTestServer({
+      cwd: "/test",
+      providerLayer: Layer.succeed(ProviderService, providerService),
+    });
+    const addr = server.address();
+    const port = typeof addr === "object" && addr !== null ? addr.port : 0;
+
+    const [ws] = await connectAndAwaitWelcome(port);
+    connections.push(ws);
+
+    const workspaceRoot = makeTempDir("cut3-ws-openrouter-project-");
+    const createdAt = new Date().toISOString();
+    const createProjectResponse = await sendRequest(ws, ORCHESTRATION_WS_METHODS.dispatchCommand, {
+      type: "project.create",
+      commandId: "cmd-ws-openrouter-project-create",
+      projectId: "project-1",
+      title: "WS OpenRouter Project",
+      workspaceRoot,
+      defaultModel: "openrouter/free",
+      createdAt,
+    });
+    expect(createProjectResponse.error).toBeUndefined();
+
+    const createThreadResponse = await sendRequest(ws, ORCHESTRATION_WS_METHODS.dispatchCommand, {
+      type: "thread.create",
+      commandId: "cmd-ws-openrouter-thread-create",
+      threadId: "thread-openrouter",
+      projectId: "project-1",
+      title: "OpenRouter Thread",
+      model: "openrouter/free",
+      runtimeMode: "approval-required",
+      interactionMode: "default",
+      branch: null,
+      worktreePath: null,
+      createdAt,
+    });
+    expect(createThreadResponse.error).toBeUndefined();
+
+    const startTurnResponse = await sendRequest(ws, ORCHESTRATION_WS_METHODS.dispatchCommand, {
+      type: "thread.turn.start",
+      commandId: "cmd-ws-openrouter-turn-start",
+      threadId: "thread-openrouter",
+      message: {
+        messageId: "msg-ws-openrouter-1",
+        role: "user",
+        text: "hello openrouter",
+        attachments: [],
+      },
+      provider: "codex",
+      model: "openrouter/free",
+      providerOptions: {
+        codex: {
+          binaryPath: "/tmp/codex",
+          homePath: "/tmp/.codex",
+          openRouterApiKey: "sk-or-test-secret",
+        },
+      },
+      assistantDeliveryMode: "streaming",
+      runtimeMode: "approval-required",
+      interactionMode: "default",
+      createdAt,
+    });
+    expect(startTurnResponse.error).toBeUndefined();
+
+    await waitForPush(ws, ORCHESTRATION_WS_CHANNELS.domainEvent, (push) => {
+      const event = push.data as { type?: string };
+      return event.type === "thread.session-set";
+    });
+
+    expect(startSession).toHaveBeenCalledTimes(1);
+    expect(startSession.mock.calls[0]?.[0]).toBe("thread-openrouter");
+    expect(startSession.mock.calls[0]?.[1]).toMatchObject({
+      provider: "codex",
+      model: "openrouter/free",
+      runtimeMode: "approval-required",
+      providerOptions: {
+        codex: {
+          binaryPath: "/tmp/codex",
+          homePath: "/tmp/.codex",
+          openRouterApiKey: "sk-or-test-secret",
+        },
+      },
+    });
+  });
+
   it("routes terminal RPC methods and broadcasts terminal events", async () => {
     const cwd = makeTempDir("cut3-ws-terminal-cwd-");
     const terminalManager = new MockTerminalManager();
@@ -1902,7 +2022,9 @@ describe("WebSocket Server", () => {
 
     const pullResponse = await sendRequest(ws, WS_METHODS.gitPull, { cwd: "/repo/path" });
     expect(pullResponse.result).toBeUndefined();
-    expect(pullResponse.error?.message).toContain("No upstream configured");
+    expect(pullResponse.error?.message).toBe(
+      "Git command failed in GitCore.test.pullCurrentBranch: git pull (/repo/path) - No upstream configured",
+    );
     expect(pullCurrentBranch).toHaveBeenCalledWith("/repo/path");
   });
 
@@ -2095,7 +2217,9 @@ describe("WebSocket Server", () => {
       action: "commit_push",
     });
     expect(response.result).toBeUndefined();
-    expect(response.error?.message).toContain("detached HEAD");
+    expect(response.error?.message).toBe(
+      "Git manager failed in GitManager.test.runStackedAction: Cannot push from detached HEAD.",
+    );
     expect(runStackedAction).toHaveBeenCalledWith({
       cwd: "/test",
       action: "commit_push",

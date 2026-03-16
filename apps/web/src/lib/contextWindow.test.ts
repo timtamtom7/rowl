@@ -5,6 +5,7 @@ import {
   extractUsedContextTokens,
   formatCompactTokenCount,
   parseThreadContextUsageSnapshot,
+  shouldHideContextWindowForModel,
 } from "./contextWindow";
 
 describe("parseThreadContextUsageSnapshot", () => {
@@ -149,6 +150,15 @@ describe("formatCompactTokenCount", () => {
   });
 });
 
+describe("shouldHideContextWindowForModel", () => {
+  it("hides remaining-context UI for OpenRouter-backed Codex models", () => {
+    expect(shouldHideContextWindowForModel("codex", "openrouter/free")).toBe(true);
+    expect(shouldHideContextWindowForModel("codex", "google/gemma-3-4b-it:free")).toBe(true);
+    expect(shouldHideContextWindowForModel("codex", "gpt-5.4")).toBe(false);
+    expect(shouldHideContextWindowForModel("copilot", "gpt-5.4")).toBe(false);
+  });
+});
+
 describe("describeContextWindowState", () => {
   it("returns the researched total for the selected provider and model", () => {
     expect(describeContextWindowState({ provider: "codex", model: "gpt-5.4" })).toMatchObject({
@@ -174,6 +184,63 @@ describe("describeContextWindowState", () => {
       totalTokens: 1_000_000,
       usedTokens: null,
       usageScope: null,
+    });
+  });
+
+  it("prefers documented OpenRouter context over ambiguous session snapshots", () => {
+    expect(
+      describeContextWindowState({
+        provider: "codex",
+        model: "google/gemma-3n-e4b-it:free",
+        documentedTotalTokens: 32_768,
+        requireExactModelMatch: true,
+        tokenUsage: {
+          provider: "codex",
+          kind: "thread",
+          usage: {
+            modelContextWindow: 200_000,
+            last: {
+              totalTokens: 12_345,
+            },
+          },
+        },
+      }),
+    ).toMatchObject({
+      totalTokens: 32_768,
+      totalLabel: "32.8K",
+      usedTokens: null,
+      remainingTokens: null,
+      usageScope: null,
+    });
+  });
+
+  it("keeps matching OpenRouter snapshots when the exact model is reported", () => {
+    expect(
+      describeContextWindowState({
+        provider: "codex",
+        model: "z-ai/glm-4.5-air:free",
+        documentedTotalTokens: 65_536,
+        requireExactModelMatch: true,
+        tokenUsage: {
+          provider: "codex",
+          kind: "thread",
+          model: "z-ai/glm-4.5-air:free",
+          usage: {
+            modelContextWindow: 65_536,
+            last: {
+              totalTokens: 8_192,
+            },
+          },
+        },
+      }),
+    ).toMatchObject({
+      totalTokens: 65_536,
+      totalLabel: "65.5K",
+      usedTokens: 8_192,
+      usedLabel: "8.2K",
+      remainingTokens: 57_344,
+      remainingLabel: "57.3K",
+      usageScope: "thread",
     });
   });
 

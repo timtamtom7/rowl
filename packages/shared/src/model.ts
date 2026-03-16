@@ -4,6 +4,7 @@ import {
   MODEL_CONTEXT_WINDOW_INFO_BY_PROVIDER,
   MODEL_OPTIONS_BY_PROVIDER,
   MODEL_SLUG_ALIASES_BY_PROVIDER,
+  OPENROUTER_FREE_ROUTER_MODEL,
   REASONING_EFFORT_OPTIONS_BY_PROVIDER,
   type CodexReasoningEffort,
   type ModelContextWindowInfo,
@@ -137,6 +138,28 @@ export function normalizeModelSlug(
   const aliases = MODEL_SLUG_ALIASES_BY_PROVIDER[provider] as Record<string, ModelSlug>;
   const aliased = aliases[trimmed];
   return typeof aliased === "string" ? aliased : (trimmed as ModelSlug);
+}
+
+export function isBuiltInModel(
+  model: string | null | undefined,
+  provider: ProviderKind = "codex",
+): boolean {
+  const normalized = normalizeModelSlug(model, provider);
+  return normalized !== null && MODEL_SLUG_SET_BY_PROVIDER[provider].has(normalized);
+}
+
+export function isCodexOpenRouterModel(model: string | null | undefined): boolean {
+  const normalized = normalizeModelSlug(model, "codex");
+  if (!normalized) {
+    return false;
+  }
+  if (normalized === OPENROUTER_FREE_ROUTER_MODEL) {
+    return true;
+  }
+  if (MODEL_SLUG_SET_BY_PROVIDER.codex.has(normalized)) {
+    return false;
+  }
+  return normalized.includes("/") || normalized.endsWith(":free");
 }
 
 export function resolveModelSlug(

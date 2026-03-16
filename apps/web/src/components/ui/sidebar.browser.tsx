@@ -93,9 +93,7 @@ function parseCssColor(value: string): [number, number, number] {
 function relativeLuminance([red, green, blue]: [number, number, number]): number {
   const linear = [red, green, blue].map((channel) => {
     const normalized = channel / 255;
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4;
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
   });
   const [r = 0, g = 0, b = 0] = linear;
   return r * 0.2126 + g * 0.7152 + b * 0.0722;

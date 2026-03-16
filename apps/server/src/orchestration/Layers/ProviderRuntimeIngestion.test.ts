@@ -1247,6 +1247,46 @@ describe("ProviderRuntimeIngestion", () => {
     expect(thread.session?.lastError).toBeNull();
   });
 
+  it("projects model.rerouted events into informative thread activities", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+
+    harness.emit({
+      type: "model.rerouted",
+      eventId: asEventId("evt-model-rerouted"),
+      provider: "codex",
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-rerouted"),
+      payload: {
+        fromModel: "openai/gpt-oss-120b:free",
+        toModel: "openrouter/free",
+        reason: "OpenRouter could not serve the pinned free model.",
+      },
+    });
+
+    const thread = await waitForThread(harness.engine, (entry) =>
+      entry.activities.some(
+        (activity: ProviderRuntimeTestActivity) =>
+          activity.id === "evt-model-rerouted" && activity.kind === "model.rerouted",
+      ),
+    );
+
+    const rerouteActivity = thread.activities.find(
+      (activity: ProviderRuntimeTestActivity) => activity.id === "evt-model-rerouted",
+    );
+    const reroutePayload =
+      rerouteActivity?.payload && typeof rerouteActivity.payload === "object"
+        ? (rerouteActivity.payload as Record<string, unknown>)
+        : undefined;
+
+    expect(rerouteActivity?.tone).toBe("info");
+    expect(rerouteActivity?.summary).toBe("Model rerouted");
+    expect(reroutePayload?.fromModel).toBe("openai/gpt-oss-120b:free");
+    expect(reroutePayload?.toModel).toBe("openrouter/free");
+    expect(reroutePayload?.reason).toBe("OpenRouter could not serve the pinned free model.");
+  });
+
   it("maps session/thread lifecycle and item.started into session/activity projections", async () => {
     const harness = await createHarness();
     const now = new Date().toISOString();

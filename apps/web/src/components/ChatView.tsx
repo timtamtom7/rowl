@@ -30,6 +30,7 @@ import {
   getModelDisplayName,
   getDefaultReasoningEffort,
   getReasoningEffortOptions,
+  isCodexOpenRouterModel,
   normalizeModelSlug,
 } from "@t3tools/shared/model";
 import { formatGitHubCopilotPlan } from "@t3tools/shared/copilotPlan";
@@ -52,6 +53,7 @@ import {
   useVirtualizer,
 } from "@tanstack/react-virtual";
 import { gitBranchesQueryOptions, gitCreateWorktreeMutationOptions } from "~/lib/gitReactQuery";
+import { openRouterFreeModelsQueryOptions } from "~/lib/openRouterReactQuery";
 import { projectSearchEntriesQueryOptions } from "~/lib/projectReactQuery";
 import {
   serverConfigQueryOptions,
@@ -60,7 +62,16 @@ import {
   serverQueryKeys,
 } from "~/lib/serverReactQuery";
 import { formatCopilotRequestCost } from "~/lib/copilotBilling";
-import { describeContextWindowState, formatCompactTokenCount } from "~/lib/contextWindow";
+import {
+  describeContextWindowState,
+  formatCompactTokenCount,
+  shouldHideContextWindowForModel,
+} from "~/lib/contextWindow";
+import {
+  isCut3CompatibleOpenRouterModelOption,
+  isOpenRouterGuaranteedFreeSlug,
+  supportsOpenRouterReasoningEffortControl,
+} from "~/lib/openRouterModels";
 import { buildComposerMcpServerItems, providerSupportsMcp } from "../mcpServers";
 
 import { isElectron } from "../env";
@@ -78,13 +89,18 @@ import {
 } from "../composer-logic";
 import {
   deriveConfiguredModelOptions,
+  deriveLatestModelRerouteNotice,
   derivePendingApprovals,
   derivePendingUserInputs,
   derivePhase,
   deriveTimelineEntries,
   deriveActiveWorkStartedAt,
   deriveActivePlanState,
+  getProviderPickerBackingProvider,
+  getProviderPickerKindForSelection,
   findLatestProposedPlan,
+  type AvailableProviderPickerKind,
+  type LatestModelRerouteNotice,
   type PendingApproval,
   type PendingUserInput,
   type ProviderPickerKind,
@@ -191,6 +207,7 @@ import {
   KimiIcon,
   Icon,
   OpenAI,
+  OpenRouterIcon,
   OpenCodeIcon,
   VisualStudioCode,
   VisualStudioCodeInsiders,
@@ -308,6 +325,7 @@ function buildProviderOptionsForDispatch(input: {
   readonly settings: {
     readonly codexBinaryPath: string;
     readonly codexHomePath: string;
+    readonly openRouterApiKey: string;
     readonly copilotBinaryPath: string;
     readonly kimiBinaryPath: string;
     readonly kimiApiKey: string;
@@ -315,17 +333,19 @@ function buildProviderOptionsForDispatch(input: {
 }) {
   const codexBinaryPath = input.settings.codexBinaryPath.trim();
   const codexHomePath = input.settings.codexHomePath.trim();
+  const openRouterApiKey = input.settings.openRouterApiKey.trim();
   const copilotBinaryPath = input.settings.copilotBinaryPath.trim();
   const kimiBinaryPath = input.settings.kimiBinaryPath.trim();
   const kimiApiKey = input.settings.kimiApiKey.trim();
 
   switch (input.provider) {
     case "codex":
-      return codexBinaryPath || codexHomePath
+      return codexBinaryPath || codexHomePath || openRouterApiKey
         ? {
             codex: {
               ...(codexBinaryPath ? { binaryPath: codexBinaryPath } : {}),
               ...(codexHomePath ? { homePath: codexHomePath } : {}),
+              ...(openRouterApiKey ? { openRouterApiKey } : {}),
             },
           }
         : undefined;
@@ -805,6 +825,9 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [terminalFocusRequestId, setTerminalFocusRequestId] = useState(0);
   const [composerHighlightedItemId, setComposerHighlightedItemId] = useState<string | null>(null);
+  const [isOpenRouterApiKeyDialogOpen, setIsOpenRouterApiKeyDialogOpen] = useState(false);
+  const [openRouterApiKeyDraft, setOpenRouterApiKeyDraft] = useState("");
+  const [openRouterApiKeyError, setOpenRouterApiKeyError] = useState<string | null>(null);
   const [isKimiApiKeyDialogOpen, setIsKimiApiKeyDialogOpen] = useState(false);
   const [kimiApiKeyDraft, setKimiApiKeyDraft] = useState("");
   const [kimiApiKeyError, setKimiApiKeyError] = useState<string | null>(null);
@@ -839,6 +862,9 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const pendingInteractionAnchorFrameRef = useRef<number | null>(null);
   const composerEditorRef = useRef<ComposerPromptEditorHandle>(null);
   const composerFormRef = useRef<HTMLFormElement>(null);
+  const pendingOpenRouterContinuationRef = useRef<
+    "submit-form" | "implement-plan-in-new-thread" | null
+  >(null);
   const pendingKimiContinuationRef = useRef<"submit-form" | "implement-plan-in-new-thread" | null>(
     null,
   );
@@ -1083,6 +1109,38 @@ export default function ChatView({ threadId }: ChatViewProps) {
     () => getCustomModelOptionsByProvider(settings, configuredModelOptionsByProvider),
     [configuredModelOptionsByProvider, settings],
   );
+  const openRouterCatalogQuery = useQuery(openRouterFreeModelsQueryOptions());
+  const openRouterModels = useMemo(
+    () => openRouterCatalogQuery.data?.models ?? [],
+    [openRouterCatalogQuery.data?.models],
+  );
+  const openRouterModelsBySlug = useMemo(
+    () => new Map(openRouterModels.map((model) => [model.slug, model])),
+    [openRouterModels],
+  );
+  const openRouterPickerOptions = useMemo(
+    () =>
+      openRouterModels.filter(isCut3CompatibleOpenRouterModelOption).map(({ slug, name }) => ({
+        slug,
+        name,
+      })),
+    [openRouterModels],
+  );
+  const openRouterContextLengthsBySlug = useMemo(
+    () => new Map(openRouterModels.map((model) => [model.slug, model.contextLength])),
+    [openRouterModels],
+  );
+  const openRouterModelOptions = useMemo(
+    () =>
+      mergeModelOptions(
+        modelOptionsByProvider.codex.filter(
+          (option) =>
+            isCodexOpenRouterModel(option.slug) && isOpenRouterGuaranteedFreeSlug(option.slug),
+        ),
+        openRouterPickerOptions,
+      ),
+    [modelOptionsByProvider.codex, openRouterPickerOptions],
+  );
   const customModelsForSelectedProvider = useMemo(
     () => modelOptionsByProvider[selectedProvider].map((option) => option.slug),
     [modelOptionsByProvider, selectedProvider],
@@ -1103,6 +1161,17 @@ export default function ChatView({ threadId }: ChatViewProps) {
       draftModel,
     ) as ModelSlug;
   }, [baseThreadModel, composerDraft.model, customModelsForSelectedProvider, selectedProvider]);
+  const selectedProviderPickerKind = useMemo(
+    () => getProviderPickerKindForSelection(selectedProvider, selectedModel),
+    [selectedModel, selectedProvider],
+  );
+  const selectedModelUsesOpenRouter =
+    selectedProvider === "codex" && isCodexOpenRouterModel(selectedModel);
+  const selectedOpenRouterModel = selectedModelUsesOpenRouter
+    ? (openRouterModelsBySlug.get(selectedModel) ?? null)
+    : null;
+  const selectedCodexSupportsFastMode =
+    selectedProvider === "codex" && !selectedModelUsesOpenRouter;
   const copilotReasoningProbeQuery = useQuery(
     serverCopilotReasoningProbeQueryOptions(
       {
@@ -1127,8 +1196,18 @@ export default function ChatView({ threadId }: ChatViewProps) {
     () =>
       selectedProvider === "copilot"
         ? (probedCopilotReasoningOptions ?? [])
-        : getReasoningEffortOptions(selectedProvider),
-    [probedCopilotReasoningOptions, selectedProvider],
+        : selectedModelUsesOpenRouter
+          ? supportsOpenRouterReasoningEffortControl(selectedOpenRouterModel) &&
+            selectedOpenRouterModel?.supportsReasoning
+            ? getReasoningEffortOptions("codex")
+            : []
+          : getReasoningEffortOptions(selectedProvider),
+    [
+      probedCopilotReasoningOptions,
+      selectedOpenRouterModel,
+      selectedModelUsesOpenRouter,
+      selectedProvider,
+    ],
   );
   const supportsReasoningEffort = reasoningOptions.length > 0;
   const selectedEffort = useMemo(() => {
@@ -1153,7 +1232,9 @@ export default function ChatView({ threadId }: ChatViewProps) {
     if (selectedProvider === "codex") {
       const codexOptions = {
         ...(supportsReasoningEffort && selectedEffort ? { reasoningEffort: selectedEffort } : {}),
-        ...(selectedCodexFastModeEnabled ? { fastMode: true } : {}),
+        ...(selectedCodexSupportsFastMode && selectedCodexFastModeEnabled
+          ? { fastMode: true }
+          : {}),
       };
       return Object.keys(codexOptions).length > 0 ? { codex: codexOptions } : undefined;
     }
@@ -1169,7 +1250,13 @@ export default function ChatView({ threadId }: ChatViewProps) {
     }
 
     return undefined;
-  }, [selectedCodexFastModeEnabled, selectedEffort, selectedProvider, supportsReasoningEffort]);
+  }, [
+    selectedCodexFastModeEnabled,
+    selectedCodexSupportsFastMode,
+    selectedEffort,
+    selectedProvider,
+    supportsReasoningEffort,
+  ]);
   const providerOptionsForDispatch = useMemo(
     () =>
       buildProviderOptionsForDispatch({
@@ -1177,6 +1264,28 @@ export default function ChatView({ threadId }: ChatViewProps) {
         settings,
       }),
     [selectedProvider, settings],
+  );
+  const openOpenRouterApiKeyDialog = useCallback(
+    (continuation: "submit-form" | "implement-plan-in-new-thread") => {
+      pendingOpenRouterContinuationRef.current = continuation;
+      setOpenRouterApiKeyDraft(settings.openRouterApiKey);
+      setOpenRouterApiKeyError(null);
+      setIsOpenRouterApiKeyDialogOpen(true);
+    },
+    [settings.openRouterApiKey],
+  );
+  const ensureOpenRouterApiKeyConfigured = useCallback(
+    (continuation: "submit-form" | "implement-plan-in-new-thread") => {
+      if (!selectedModelUsesOpenRouter) {
+        return true;
+      }
+      if (settings.openRouterApiKey.trim().length > 0) {
+        return true;
+      }
+      openOpenRouterApiKeyDialog(continuation);
+      return false;
+    },
+    [openOpenRouterApiKeyDialog, selectedModelUsesOpenRouter, settings.openRouterApiKey],
   );
   const openKimiApiKeyDialog = useCallback(
     (continuation: "submit-form" | "implement-plan-in-new-thread") => {
@@ -1200,20 +1309,65 @@ export default function ChatView({ threadId }: ChatViewProps) {
     },
     [openKimiApiKeyDialog, selectedProvider, settings.kimiApiKey],
   );
+  const ensureProviderCredentialsConfigured = useCallback(
+    (continuation: "submit-form" | "implement-plan-in-new-thread") => {
+      if (!ensureOpenRouterApiKeyConfigured(continuation)) {
+        return false;
+      }
+      return ensureKimiApiKeyConfigured(continuation);
+    },
+    [ensureKimiApiKeyConfigured, ensureOpenRouterApiKeyConfigured],
+  );
+  const ensureSelectedOpenRouterModelSupportsTools = useCallback(
+    (threadId?: ThreadId) => {
+      if (!selectedModelUsesOpenRouter || selectedOpenRouterModel?.supportsTools !== false) {
+        return true;
+      }
+
+      const message = `${selectedOpenRouterModel.name} does not advertise OpenRouter tool support, and CUT3 requires tool use for agent turns. Switch to another OpenRouter free model or use \`openrouter/free\`.`;
+      if (threadId) {
+        setStoreThreadError(threadId, message);
+      } else {
+        toastManager.add({
+          type: "error",
+          title: "OpenRouter model unavailable",
+          description: message,
+        });
+      }
+      return false;
+    },
+    [selectedModelUsesOpenRouter, selectedOpenRouterModel, setStoreThreadError],
+  );
   const selectedModelForPicker = selectedModel;
   const selectedModelForPickerWithCustomFallback = useMemo(() => {
-    const currentOptions = modelOptionsByProvider[selectedProvider];
+    const currentOptions = getModelOptionsForProviderPicker(
+      selectedProviderPickerKind,
+      modelOptionsByProvider,
+      openRouterModelOptions,
+    );
     return currentOptions.some((option) => option.slug === selectedModelForPicker)
       ? selectedModelForPicker
       : (normalizeModelSlug(selectedModelForPicker, selectedProvider) ?? selectedModelForPicker);
-  }, [modelOptionsByProvider, selectedModelForPicker, selectedProvider]);
+  }, [
+    modelOptionsByProvider,
+    openRouterModelOptions,
+    selectedModelForPicker,
+    selectedProvider,
+    selectedProviderPickerKind,
+  ]);
   const searchableModelOptions = useMemo(
     () =>
       AVAILABLE_PROVIDER_OPTIONS.filter(
-        (option) => lockedProvider === null || option.value === lockedProvider,
+        (option) =>
+          lockedProvider === null ||
+          getProviderPickerBackingProvider(option.value) === lockedProvider,
       ).flatMap((option) =>
-        modelOptionsByProvider[option.value].map(({ slug, name }) => ({
-          provider: option.value,
+        getModelOptionsForProviderPicker(
+          option.value,
+          modelOptionsByProvider,
+          openRouterModelOptions,
+        ).map(({ slug, name }) => ({
+          provider: getProviderPickerBackingProvider(option.value) ?? "codex",
           providerLabel: option.label,
           slug,
           name,
@@ -1222,7 +1376,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
           searchProvider: option.label.toLowerCase(),
         })),
       ),
-    [lockedProvider, modelOptionsByProvider],
+    [lockedProvider, modelOptionsByProvider, openRouterModelOptions],
   );
   const phase = derivePhase(activeThread?.session ?? null);
   const isConnecting = phase === "connecting";
@@ -1236,6 +1390,14 @@ export default function ChatView({ threadId }: ChatViewProps) {
     sendStartedAt,
   );
   const threadActivities = activeThread?.activities ?? EMPTY_ACTIVITIES;
+  const activeModelRerouteNotice = useMemo(
+    () =>
+      deriveLatestModelRerouteNotice(
+        threadActivities,
+        activeLatestTurn?.turnId ?? activeThread?.session?.activeTurnId ?? undefined,
+      ),
+    [activeLatestTurn?.turnId, activeThread?.session?.activeTurnId, threadActivities],
+  );
   const workLogEntries = useMemo(
     () => deriveWorkLogEntries(threadActivities, activeLatestTurn?.turnId ?? undefined),
     [activeLatestTurn?.turnId, threadActivities],
@@ -1709,21 +1871,24 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const keybindings = serverConfigQuery.data?.keybindings ?? EMPTY_KEYBINDINGS;
   const availableEditors = serverConfigQuery.data?.availableEditors ?? EMPTY_AVAILABLE_EDITORS;
   const providerStatuses = serverConfigQuery.data?.providers ?? EMPTY_PROVIDER_STATUSES;
-  const activeProviderStatus = useMemo(
-    () =>
-      resolveVisibleProviderStatusForChat({
-        providerStatuses,
-        selectedProvider,
-        sessionProvider,
-        sessionStatus: activeThread?.session?.orchestrationStatus ?? null,
-      }),
-    [
-      activeThread?.session?.orchestrationStatus,
+  const activeProviderStatus = useMemo(() => {
+    const status = resolveVisibleProviderStatusForChat({
       providerStatuses,
       selectedProvider,
       sessionProvider,
-    ],
-  );
+      sessionStatus: activeThread?.session?.orchestrationStatus ?? null,
+    });
+    if (status?.provider === "codex" && selectedModelUsesOpenRouter) {
+      return null;
+    }
+    return status;
+  }, [
+    activeThread?.session?.orchestrationStatus,
+    providerStatuses,
+    selectedProvider,
+    selectedModelUsesOpenRouter,
+    sessionProvider,
+  ]);
   const activeProjectCwd = activeProject?.cwd ?? null;
   const activeThreadWorktreePath = activeThread?.worktreePath ?? null;
   const threadTerminalRuntimeEnv = useMemo(() => {
@@ -2956,7 +3121,10 @@ export default function ChatView({ threadId }: ChatViewProps) {
       return;
     }
     if (!trimmed && composerImages.length === 0) return;
-    if (!ensureKimiApiKeyConfigured("submit-form")) {
+    if (!ensureProviderCredentialsConfigured("submit-form")) {
+      return;
+    }
+    if (!ensureSelectedOpenRouterModelSupportsTools(activeThread.id)) {
       return;
     }
     if (!activeProject) return;
@@ -3382,7 +3550,10 @@ export default function ChatView({ threadId }: ChatViewProps) {
       if (!trimmed) {
         return;
       }
-      if (!ensureKimiApiKeyConfigured("submit-form")) {
+      if (!ensureProviderCredentialsConfigured("submit-form")) {
+        return;
+      }
+      if (!ensureSelectedOpenRouterModelSupportsTools(activeThread.id)) {
         return;
       }
 
@@ -3464,7 +3635,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
     [
       activeThread,
       beginSendPhase,
-      ensureKimiApiKeyConfigured,
+      ensureProviderCredentialsConfigured,
+      ensureSelectedOpenRouterModelSupportsTools,
       forceStickToBottom,
       isConnecting,
       isSendBusy,
@@ -3498,7 +3670,10 @@ export default function ChatView({ threadId }: ChatViewProps) {
     ) {
       return;
     }
-    if (!ensureKimiApiKeyConfigured("implement-plan-in-new-thread")) {
+    if (!ensureProviderCredentialsConfigured("implement-plan-in-new-thread")) {
+      return;
+    }
+    if (!ensureSelectedOpenRouterModelSupportsTools(activeThread.id)) {
       return;
     }
 
@@ -3594,7 +3769,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
     activeProposedPlan,
     activeThread,
     beginSendPhase,
-    ensureKimiApiKeyConfigured,
+    ensureProviderCredentialsConfigured,
+    ensureSelectedOpenRouterModelSupportsTools,
     isConnecting,
     isSendBusy,
     isThreadSendInFlight,
@@ -3610,6 +3786,29 @@ export default function ChatView({ threadId }: ChatViewProps) {
     settings.enableAssistantStreaming,
     syncServerReadModel,
   ]);
+  const saveOpenRouterApiKey = useCallback(() => {
+    const trimmed = openRouterApiKeyDraft.trim();
+    if (!trimmed) {
+      setOpenRouterApiKeyError("Enter an OpenRouter API key.");
+      return;
+    }
+
+    const continuation = pendingOpenRouterContinuationRef.current;
+    pendingOpenRouterContinuationRef.current = null;
+    updateSettings({ openRouterApiKey: trimmed });
+    setOpenRouterApiKeyError(null);
+    setIsOpenRouterApiKeyDialogOpen(false);
+
+    window.setTimeout(() => {
+      if (continuation === "submit-form") {
+        composerFormRef.current?.requestSubmit();
+        return;
+      }
+      if (continuation === "implement-plan-in-new-thread") {
+        void onImplementPlanInNewThread();
+      }
+    }, 0);
+  }, [onImplementPlanInNewThread, openRouterApiKeyDraft, updateSettings]);
   const saveKimiApiKey = useCallback(() => {
     const trimmed = kimiApiKeyDraft.trim();
     if (!trimmed) {
@@ -3633,6 +3832,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
       }
     }, 0);
   }, [kimiApiKeyDraft, onImplementPlanInNewThread, updateSettings]);
+  const openRouterApiKeyDialogInputId = useId();
   const kimiApiKeyDialogInputId = useId();
   const providerCustomModelSettings = useMemo<ProviderCustomModelSettings>(
     () => ({
@@ -3669,6 +3869,16 @@ export default function ChatView({ threadId }: ChatViewProps) {
       setComposerDraftModel,
       setComposerDraftProvider,
     ],
+  );
+  const onProviderModelSelectFromPicker = useCallback(
+    (providerPickerKind: AvailableProviderPickerKind, model: ModelSlug) => {
+      const backingProvider = getProviderPickerBackingProvider(providerPickerKind);
+      if (!backingProvider) {
+        return;
+      }
+      onProviderModelSelect(backingProvider, model);
+    },
+    [onProviderModelSelect],
   );
   const onEffortSelect = useCallback(
     (effort: CodexReasoningEffort) => {
@@ -4044,6 +4254,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
 
       {/* Error banner */}
       <ProviderHealthBanner status={activeProviderStatus} />
+      <ThreadModelRerouteBanner notice={activeModelRerouteNotice} />
       <ThreadErrorBanner
         error={activeThread.error}
         onDismiss={() => setThreadError(activeThread.id, null)}
@@ -4323,11 +4534,14 @@ export default function ChatView({ threadId }: ChatViewProps) {
                         activeThread={activeThread ?? null}
                         compact={isComposerFooterCompact}
                         provider={selectedProvider}
+                        providerPickerKind={selectedProviderPickerKind}
                         model={selectedModelForPickerWithCustomFallback}
                         lockedProvider={lockedProvider}
                         modelOptionsByProvider={modelOptionsByProvider}
+                        openRouterModelOptions={openRouterModelOptions}
+                        openRouterContextLengthsBySlug={openRouterContextLengthsBySlug}
                         serviceTierSetting={selectedServiceTierSetting}
-                        onProviderModelChange={onProviderModelSelect}
+                        onProviderModelChange={onProviderModelSelectFromPicker}
                       />
 
                       <ComposerContextWindowStatus
@@ -4346,6 +4560,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                           selectedEffort={selectedEffort}
                           selectedProvider={selectedProvider}
                           selectedCodexFastModeEnabled={selectedCodexFastModeEnabled}
+                          showCodexFastModeControls={selectedCodexSupportsFastMode}
                           reasoningOptions={reasoningOptions}
                           onEffortSelect={onEffortSelect}
                           onCodexFastModeChange={onCodexFastModeChange}
@@ -4365,6 +4580,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                                 <CodexTraitsPicker
                                   effort={selectedEffort}
                                   fastModeEnabled={selectedCodexFastModeEnabled}
+                                  showFastModeControls={selectedCodexSupportsFastMode}
                                   options={reasoningOptions}
                                   onEffortChange={onEffortSelect}
                                   onFastModeChange={onCodexFastModeChange}
@@ -4775,6 +4991,74 @@ export default function ChatView({ threadId }: ChatViewProps) {
       )}
 
       <Dialog
+        open={isOpenRouterApiKeyDialogOpen}
+        onOpenChange={(open) => {
+          setIsOpenRouterApiKeyDialogOpen(open);
+          if (!open) {
+            pendingOpenRouterContinuationRef.current = null;
+            setOpenRouterApiKeyDraft(settings.openRouterApiKey);
+            setOpenRouterApiKeyError(null);
+          }
+        }}
+      >
+        <DialogPopup className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Enter your OpenRouter API key</DialogTitle>
+            <DialogDescription>
+              CUT3 needs an OpenRouter API key before it can start Codex sessions that use
+              OpenRouter-routed models such as <code>openrouter/free</code> or specific{" "}
+              <code>:free</code> model ids.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel className="space-y-3">
+            <label htmlFor={openRouterApiKeyDialogInputId} className="grid gap-1.5">
+              <span className="text-xs font-medium text-foreground">OpenRouter API key</span>
+              <Input
+                id={openRouterApiKeyDialogInputId}
+                type="password"
+                value={openRouterApiKeyDraft}
+                onChange={(event) => {
+                  setOpenRouterApiKeyDraft(event.target.value);
+                  if (openRouterApiKeyError) {
+                    setOpenRouterApiKeyError(null);
+                  }
+                }}
+                placeholder="sk-or-..."
+                autoComplete="new-password"
+                spellCheck={false}
+              />
+            </label>
+            <p className="text-xs text-muted-foreground">
+              {isElectron
+                ? "The key stays in the desktop session and is persisted in your OS credential store when secure storage is available."
+                : "The key stays only in memory for the current browser session."}{" "}
+              It is only used when launching Codex sessions that route through OpenRouter.
+            </p>
+            {openRouterApiKeyError ? (
+              <p className="text-xs text-destructive">{openRouterApiKeyError}</p>
+            ) : null}
+          </DialogPanel>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                pendingOpenRouterContinuationRef.current = null;
+                setIsOpenRouterApiKeyDialogOpen(false);
+                setOpenRouterApiKeyDraft(settings.openRouterApiKey);
+                setOpenRouterApiKeyError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button size="sm" onClick={saveOpenRouterApiKey}>
+              Save key
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+
+      <Dialog
         open={isKimiApiKeyDialogOpen}
         onOpenChange={(open) => {
           setIsKimiApiKeyDialogOpen(open);
@@ -4979,6 +5263,41 @@ const ThreadErrorBanner = memo(function ThreadErrorBanner({
             </button>
           </AlertAction>
         )}
+      </Alert>
+    </div>
+  );
+});
+
+const ThreadModelRerouteBanner = memo(function ThreadModelRerouteBanner({
+  notice,
+}: {
+  notice: LatestModelRerouteNotice | null;
+}) {
+  if (!notice) return null;
+
+  const fromModelLabel = getModelDisplayName(notice.fromModel, "codex");
+  const toModelLabel =
+    notice.toModel === "openrouter/free"
+      ? "OpenRouter Free Router"
+      : getModelDisplayName(notice.toModel, "codex");
+  const message =
+    notice.toModel === "openrouter/free"
+      ? `CUT3 retried this turn through ${toModelLabel} after ${fromModelLabel} could not be served. OpenRouter may answer with a different free model for this turn.`
+      : `CUT3 retried this turn from ${fromModelLabel} to ${toModelLabel}.`;
+
+  return (
+    <div className="mx-auto max-w-3xl pt-3">
+      <Alert variant="warning">
+        <CircleAlertIcon />
+        <AlertTitle>OpenRouter fell back to a different free model</AlertTitle>
+        <AlertDescription className="space-y-1">
+          <div className="line-clamp-3" title={message}>
+            {message}
+          </div>
+          <div className="line-clamp-2 text-xs text-muted-foreground" title={notice.reason}>
+            {notice.reason}
+          </div>
+        </AlertDescription>
       </Alert>
     </div>
   );
@@ -6237,7 +6556,7 @@ const MessagesTimeline = memo(function MessagesTimeline({
 });
 
 function isAvailableProviderOption(option: (typeof PROVIDER_OPTIONS)[number]): option is {
-  value: ProviderKind;
+  value: AvailableProviderPickerKind;
   label: string;
   available: true;
 } {
@@ -6269,6 +6588,28 @@ function mergeModelOptions(
   return merged;
 }
 
+function getModelOptionContextLabel(
+  provider: ProviderKind,
+  modelOption: { slug: string; name: string },
+  openRouterContextLengthsBySlug?: ReadonlyMap<string, number | null>,
+): string {
+  const contextInfo = getModelContextWindowInfo(modelOption.slug, provider);
+  const catalogContextLength = openRouterContextLengthsBySlug?.get(modelOption.slug) ?? null;
+  const contextLabel =
+    contextInfo?.totalTokens !== undefined
+      ? formatCompactTokenCount(contextInfo.totalTokens)
+      : catalogContextLength !== null
+        ? formatCompactTokenCount(catalogContextLength)
+        : "Unknown";
+
+  if (provider !== "copilot") {
+    return contextLabel;
+  }
+
+  const requestCost = formatCopilotRequestCost(modelOption.slug);
+  return [contextLabel, requestCost].filter(Boolean).join(" · ");
+}
+
 function getCustomModelOptionsByProvider(
   settings: {
     customCodexModels: readonly string[];
@@ -6292,11 +6633,31 @@ function getCustomModelOptionsByProvider(
 
 const PROVIDER_ICON_BY_PROVIDER: Record<ProviderPickerKind, Icon> = {
   codex: OpenAI,
+  openrouter: OpenRouterIcon,
   copilot: GitHubIcon,
   kimi: KimiIcon,
   claudeCode: ClaudeAI,
   cursor: CursorIcon,
 };
+
+function getModelOptionsForProviderPicker(
+  providerPickerKind: AvailableProviderPickerKind,
+  modelOptionsByProvider: Record<ProviderKind, ReadonlyArray<{ slug: string; name: string }>>,
+  openRouterModelOptions: ReadonlyArray<{ slug: string; name: string }>,
+): ReadonlyArray<{ slug: string; name: string }> {
+  switch (providerPickerKind) {
+    case "openrouter":
+      return openRouterModelOptions;
+    case "codex":
+      return modelOptionsByProvider.codex.filter((option) => !isCodexOpenRouterModel(option.slug));
+    case "copilot":
+      return modelOptionsByProvider.copilot;
+    case "kimi":
+      return modelOptionsByProvider.kimi;
+    default:
+      return modelOptionsByProvider.codex;
+  }
+}
 
 function resolveModelForProviderPicker(
   provider: ProviderKind,
@@ -6434,6 +6795,10 @@ function renderProviderContextWindowSummary(input: {
   model: string | null | undefined;
   tokenUsage?: unknown;
 }) {
+  if (shouldHideContextWindowForModel(input.provider, input.model)) {
+    return null;
+  }
+
   const state = describeContextWindowState({
     provider: input.provider,
     model: input.model,
@@ -6511,6 +6876,10 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
   tokenUsage?: unknown;
   compact?: boolean;
 }) {
+  if (shouldHideContextWindowForModel(props.provider, props.model)) {
+    return null;
+  }
+
   const state = describeContextWindowState({
     provider: props.provider,
     model: props.model,
@@ -6598,21 +6967,52 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
 const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   activeThread: Thread | null;
   provider: ProviderKind;
+  providerPickerKind: AvailableProviderPickerKind;
   model: ModelSlug;
   lockedProvider: ProviderKind | null;
   modelOptionsByProvider: Record<ProviderKind, ReadonlyArray<{ slug: string; name: string }>>;
+  openRouterModelOptions: ReadonlyArray<{ slug: string; name: string }>;
+  openRouterContextLengthsBySlug: ReadonlyMap<string, number | null>;
   serviceTierSetting: AppServiceTier;
   compact?: boolean;
   disabled?: boolean;
-  onProviderModelChange: (provider: ProviderKind, model: ModelSlug) => void;
+  onProviderModelChange: (provider: AvailableProviderPickerKind, model: ModelSlug) => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const copilotUsageQuery = useQuery(serverCopilotUsageQueryOptions(isMenuOpen));
-  const selectedProviderOptions = props.modelOptionsByProvider[props.provider];
+  const selectedProviderOptions = useMemo(
+    () =>
+      getModelOptionsForProviderPicker(
+        props.providerPickerKind,
+        props.modelOptionsByProvider,
+        props.openRouterModelOptions,
+      ),
+    [props.modelOptionsByProvider, props.openRouterModelOptions, props.providerPickerKind],
+  );
   const selectedModelLabel =
     selectedProviderOptions.find((option) => option.slug === props.model)?.name ??
     getModelDisplayName(props.model, props.provider);
-  const ProviderIcon = PROVIDER_ICON_BY_PROVIDER[props.provider];
+  const ProviderIcon = PROVIDER_ICON_BY_PROVIDER[props.providerPickerKind];
+  const { disabled, onProviderModelChange } = props;
+  const handleModelChange = useCallback(
+    (
+      providerPickerKind: AvailableProviderPickerKind,
+      value: string,
+      options: ReadonlyArray<{ slug: string; name: string }>,
+      isDisabledByProviderLock: boolean,
+    ) => {
+      if (disabled) return;
+      if (isDisabledByProviderLock) return;
+      if (!value) return;
+      const backingProvider = getProviderPickerBackingProvider(providerPickerKind);
+      if (!backingProvider) return;
+      const resolvedModel = resolveModelForProviderPicker(backingProvider, value, options);
+      if (!resolvedModel) return;
+      onProviderModelChange(providerPickerKind, resolvedModel);
+      setIsMenuOpen(false);
+    },
+    [disabled, onProviderModelChange],
+  );
 
   return (
     <Menu
@@ -6656,8 +7056,31 @@ const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       <MenuPopup align="start">
         {AVAILABLE_PROVIDER_OPTIONS.map((option) => {
           const OptionIcon = PROVIDER_ICON_BY_PROVIDER[option.value];
+          const backingProvider = getProviderPickerBackingProvider(option.value);
+          if (!backingProvider) {
+            return null;
+          }
+          const optionModelOptions = getModelOptionsForProviderPicker(
+            option.value,
+            props.modelOptionsByProvider,
+            props.openRouterModelOptions,
+          );
           const isDisabledByProviderLock =
-            props.lockedProvider !== null && props.lockedProvider !== option.value;
+            props.lockedProvider !== null && props.lockedProvider !== backingProvider;
+          const providerContextSummary =
+            option.value === props.providerPickerKind
+              ? renderProviderContextWindowSummary({
+                  provider: backingProvider,
+                  model:
+                    props.activeThread?.session?.provider === backingProvider
+                      ? (props.activeThread.model ?? props.model)
+                      : props.model,
+                  tokenUsage:
+                    props.activeThread?.session?.provider === backingProvider
+                      ? props.activeThread.session.tokenUsage
+                      : undefined,
+                })
+              : null;
           return (
             <MenuSub key={option.value}>
               <MenuSubTrigger disabled={isDisabledByProviderLock}>
@@ -6673,19 +7096,9 @@ const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                   option.value === "copilot" && "w-80",
                 )}
               >
-                {option.value === props.provider ? (
+                {providerContextSummary ? (
                   <>
-                    {renderProviderContextWindowSummary({
-                      provider: option.value,
-                      model:
-                        props.activeThread?.session?.provider === option.value
-                          ? (props.activeThread.model ?? props.model)
-                          : props.model,
-                      tokenUsage:
-                        props.activeThread?.session?.provider === option.value
-                          ? props.activeThread.session.tokenUsage
-                          : undefined,
-                    })}
+                    {providerContextSummary}
                     <MenuDivider />
                   </>
                 ) : null}
@@ -6700,51 +7113,34 @@ const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                 ) : null}
                 <MenuGroup>
                   <MenuRadioGroup
-                    value={props.provider === option.value ? props.model : ""}
-                    onValueChange={(value) => {
-                      if (props.disabled) return;
-                      if (isDisabledByProviderLock) return;
-                      if (!value) return;
-                      const resolvedModel = resolveModelForProviderPicker(
+                    value={props.providerPickerKind === option.value ? props.model : ""}
+                    onValueChange={(value) =>
+                      handleModelChange(
                         option.value,
                         value,
-                        props.modelOptionsByProvider[option.value],
-                      );
-                      if (!resolvedModel) return;
-                      props.onProviderModelChange(option.value, resolvedModel);
-                      setIsMenuOpen(false);
-                    }}
+                        optionModelOptions,
+                        isDisabledByProviderLock,
+                      )
+                    }
                   >
-                    {props.modelOptionsByProvider[option.value].map((modelOption) => (
+                    {optionModelOptions.map((modelOption) => (
                       <MenuRadioItem
                         key={`${option.value}:${modelOption.slug}`}
                         value={modelOption.slug}
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <span className="flex min-w-0 items-center gap-2">
-                          {option.value === "codex" &&
+                          {backingProvider === "codex" &&
                           shouldShowFastTierIcon(modelOption.slug, props.serviceTierSetting) ? (
                             <ZapIcon className="size-3.5 shrink-0 text-amber-500" />
                           ) : null}
                           <span className="truncate">{modelOption.name}</span>
                           <span className="ms-auto shrink-0 text-muted-foreground/80 text-[11px]">
-                            {(() => {
-                              const contextInfo = getModelContextWindowInfo(
-                                modelOption.slug,
-                                option.value,
-                              );
-                              const contextLabel =
-                                contextInfo?.totalTokens !== undefined
-                                  ? formatCompactTokenCount(contextInfo.totalTokens)
-                                  : "Unknown";
-
-                              if (option.value !== "copilot") {
-                                return contextLabel;
-                              }
-
-                              const requestCost = formatCopilotRequestCost(modelOption.slug);
-                              return [contextLabel, requestCost].filter(Boolean).join(" · ");
-                            })()}
+                            {getModelOptionContextLabel(
+                              backingProvider,
+                              modelOption,
+                              props.openRouterContextLengthsBySlug,
+                            )}
                           </span>
                         </span>
                       </MenuRadioItem>
@@ -6800,6 +7196,7 @@ const CompactComposerControlsMenu = memo(function CompactComposerControlsMenu(pr
   selectedEffort: CodexReasoningEffort | null;
   selectedProvider: ProviderKind;
   selectedCodexFastModeEnabled: boolean;
+  showCodexFastModeControls: boolean;
   reasoningOptions: ReadonlyArray<CodexReasoningEffort>;
   onEffortSelect: (effort: CodexReasoningEffort) => void;
   onCodexFastModeChange: (enabled: boolean) => void;
@@ -6851,7 +7248,7 @@ const CompactComposerControlsMenu = memo(function CompactComposerControlsMenu(pr
                 ))}
               </MenuRadioGroup>
             </MenuGroup>
-            {props.selectedProvider === "codex" ? (
+            {props.selectedProvider === "codex" && props.showCodexFastModeControls ? (
               <>
                 <MenuDivider />
                 <MenuGroup>
@@ -7000,6 +7397,7 @@ const ReasoningTraitsPicker = memo(function ReasoningTraitsPicker(props: {
 const CodexTraitsPicker = memo(function CodexTraitsPicker(props: {
   effort: CodexReasoningEffort;
   fastModeEnabled: boolean;
+  showFastModeControls: boolean;
   options: ReadonlyArray<CodexReasoningEffort>;
   onEffortChange: (effort: CodexReasoningEffort) => void;
   onFastModeChange: (enabled: boolean) => void;
@@ -7014,7 +7412,7 @@ const CodexTraitsPicker = memo(function CodexTraitsPicker(props: {
   };
   const triggerLabel = [
     reasoningLabelByOption[props.effort],
-    ...(props.fastModeEnabled ? ["Fast"] : []),
+    ...(props.showFastModeControls && props.fastModeEnabled ? ["Fast"] : []),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -7058,19 +7456,23 @@ const CodexTraitsPicker = memo(function CodexTraitsPicker(props: {
             ))}
           </MenuRadioGroup>
         </MenuGroup>
-        <MenuDivider />
-        <MenuGroup>
-          <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">Fast Mode</div>
-          <MenuRadioGroup
-            value={props.fastModeEnabled ? "on" : "off"}
-            onValueChange={(value) => {
-              props.onFastModeChange(value === "on");
-            }}
-          >
-            <MenuRadioItem value="off">off</MenuRadioItem>
-            <MenuRadioItem value="on">on</MenuRadioItem>
-          </MenuRadioGroup>
-        </MenuGroup>
+        {props.showFastModeControls ? (
+          <>
+            <MenuDivider />
+            <MenuGroup>
+              <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">Fast Mode</div>
+              <MenuRadioGroup
+                value={props.fastModeEnabled ? "on" : "off"}
+                onValueChange={(value) => {
+                  props.onFastModeChange(value === "on");
+                }}
+              >
+                <MenuRadioItem value="off">off</MenuRadioItem>
+                <MenuRadioItem value="on">on</MenuRadioItem>
+              </MenuRadioGroup>
+            </MenuGroup>
+          </>
+        ) : null}
       </MenuPopup>
     </Menu>
   );

@@ -327,6 +327,26 @@ function runtimeEventToActivities(
       ];
     }
 
+    case "model.rerouted": {
+      return [
+        {
+          id: event.eventId,
+          createdAt: event.createdAt,
+          tone: "info",
+          kind: "model.rerouted",
+          summary: "Model rerouted",
+          payload: {
+            fromModel: event.payload.fromModel,
+            toModel: event.payload.toModel,
+            reason: truncateDetail(event.payload.reason),
+            detail: truncateDetail(event.payload.reason),
+          },
+          turnId: toTurnId(event.turnId) ?? null,
+          ...maybeSequence,
+        },
+      ];
+    }
+
     case "session.configured": {
       return [
         {

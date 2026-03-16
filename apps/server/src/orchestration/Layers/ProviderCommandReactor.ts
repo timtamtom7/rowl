@@ -13,12 +13,14 @@ import {
   type RuntimeMode,
   type TurnId,
 } from "@t3tools/contracts";
+import { isCodexOpenRouterModel } from "@t3tools/shared/model";
 import { Cache, Cause, Duration, Effect, Layer, Option, Schema, Stream } from "effect";
 import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 
 import { resolveThreadWorkspaceCwd } from "../../checkpointing/Utils.ts";
 import { GitCore } from "../../git/Services/GitCore.ts";
 import { ProviderAdapterRequestError, ProviderServiceError } from "../../provider/Errors.ts";
+import { takeTransientTurnStartProviderOptions } from "../../provider/transientProviderOptions.ts";
 import { TextGeneration } from "../../git/Services/TextGeneration.ts";
 import { ProviderService } from "../../provider/Services/ProviderService.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
@@ -61,6 +63,10 @@ function mapProviderSessionStatusToOrchestrationStatus(
     default:
       return "ready";
   }
+}
+
+function usesCodexOpenRouterRouting(model: string | undefined): boolean {
+  return isCodexOpenRouterModel(model);
 }
 
 const turnStartKeyForEvent = (event: ProviderIntentEvent): string =>
@@ -333,7 +339,13 @@ const make = Effect.gen(function* () {
           ? "in-session"
           : (yield* providerService.getCapabilities(currentProvider)).sessionModelSwitch;
       const modelChanged = options?.model !== undefined && options.model !== activeSession?.model;
-      const shouldRestartForModelChange = modelChanged && sessionModelSwitch === "restart-session";
+      const codexRoutingChanged =
+        currentProvider === "codex" &&
+        modelChanged &&
+        usesCodexOpenRouterRouting(options?.model) !==
+          usesCodexOpenRouterRouting(activeSession?.model);
+      const shouldRestartForModelChange =
+        modelChanged && (sessionModelSwitch === "restart-session" || codexRoutingChanged);
 
       if (!runtimeModeChanged && !providerChanged && !shouldRestartForModelChange) {
         return existingSessionThreadId;
@@ -353,6 +365,7 @@ const make = Effect.gen(function* () {
         runtimeModeChanged,
         providerChanged,
         modelChanged,
+        codexRoutingChanged,
         shouldRestartForModelChange,
         hasResumeCursor: resumeCursor !== undefined,
       });
@@ -431,6 +444,34 @@ const make = Effect.gen(function* () {
       ...(input.serviceTier !== undefined ? { serviceTier: input.serviceTier } : {}),
       ...(input.modelOptions !== undefined ? { modelOptions: input.modelOptions } : {}),
       ...(input.interactionMode !== undefined ? { interactionMode: input.interactionMode } : {}),
+    });
+
+    const updatedThread = yield* resolveThread(input.threadId);
+    const sessionProvider =
+      (updatedThread?.session?.providerName === "codex" ||
+      updatedThread?.session?.providerName === "copilot" ||
+      updatedThread?.session?.providerName === "kimi"
+        ? updatedThread.session.providerName
+        : undefined) ??
+      input.provider ??
+      activeSession?.provider ??
+      null;
+    yield* setThreadSession({
+      threadId: input.threadId,
+      session: {
+        threadId: input.threadId,
+        status: "running",
+        providerName: sessionProvider,
+        runtimeMode: updatedThread?.runtimeMode ?? thread.runtimeMode,
+        // Provider turn ids are tracked on the provider session directory/runtime side.
+        activeTurnId: null,
+        lastError: null,
+        ...(updatedThread?.session?.startedAt !== undefined
+          ? { startedAt: updatedThread.session.startedAt }
+          : {}),
+        updatedAt: input.createdAt,
+      },
+      createdAt: input.createdAt,
     });
   });
 
@@ -551,6 +592,11 @@ const make = Effect.gen(function* () {
       ...(message.attachments !== undefined ? { attachments: message.attachments } : {}),
     }).pipe(Effect.forkScoped);
 
+    const providerOptions =
+      event.commandId !== null
+        ? (takeTransientTurnStartProviderOptions(event.commandId) ?? event.payload.providerOptions)
+        : event.payload.providerOptions;
+
     yield* sendTurnForThread({
       threadId: event.payload.threadId,
       messageText: message.text,
@@ -560,9 +606,7 @@ const make = Effect.gen(function* () {
       ...(event.payload.modelOptions !== undefined
         ? { modelOptions: event.payload.modelOptions }
         : {}),
-      ...(event.payload.providerOptions !== undefined
-        ? { providerOptions: event.payload.providerOptions }
-        : {}),
+      ...(providerOptions !== undefined ? { providerOptions } : {}),
       interactionMode: event.payload.interactionMode,
       createdAt: event.payload.createdAt,
     }).pipe(
@@ -732,6 +776,7 @@ const make = Effect.gen(function* () {
     if (thread.session && thread.session.status !== "stopped") {
       yield* providerService.stopSession({ threadId: thread.id });
     }
+    threadProviderOptions.delete(thread.id);
 
     yield* setThreadSession({
       threadId: thread.id,

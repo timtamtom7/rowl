@@ -6,6 +6,7 @@ import readline from "node:readline";
 import {
   ApprovalRequestId,
   EventId,
+  OPENROUTER_FREE_ROUTER_MODEL,
   ProviderItemId,
   ProviderRequestKind,
   type ProviderUserInputAnswers,
@@ -19,7 +20,7 @@ import {
   RuntimeMode,
   ProviderInteractionMode,
 } from "@t3tools/contracts";
-import { normalizeModelSlug } from "@t3tools/shared/model";
+import { isCodexOpenRouterModel, normalizeModelSlug } from "@t3tools/shared/model";
 import { Effect, ServiceMap } from "effect";
 
 import {
@@ -62,6 +63,19 @@ interface CodexUserInputAnswer {
   answers: string[];
 }
 
+type CodexTurnInputItem =
+  | { type: "text"; text: string; text_elements: [] }
+  | { type: "image"; url: string };
+
+interface PendingOpenRouterTurnRetry {
+  providerThreadId: string;
+  input: ReadonlyArray<CodexTurnInputItem>;
+  model: string;
+  currentTurnId?: TurnId;
+  fallbackAttempted: boolean;
+  retryReason?: string;
+}
+
 interface CodexSessionContext {
   session: ProviderSession;
   account: CodexAccountSnapshot;
@@ -70,7 +84,9 @@ interface CodexSessionContext {
   pending: Map<PendingRequestKey, PendingRequest>;
   pendingApprovals: Map<ApprovalRequestId, PendingApprovalRequest>;
   pendingUserInputs: Map<ApprovalRequestId, PendingUserInputRequest>;
+  pendingOpenRouterTurnRetry?: PendingOpenRouterTurnRetry;
   nextRequestId: number;
+  lastProcessError?: string;
   stopping: boolean;
 }
 
@@ -164,6 +180,21 @@ const RECOVERABLE_THREAD_RESUME_ERROR_SNIPPETS = [
 const CODEX_DEFAULT_MODEL = "gpt-5.3-codex";
 const CODEX_SPARK_MODEL = "gpt-5.3-codex-spark";
 const CODEX_SPARK_DISABLED_PLAN_TYPES = new Set<CodexPlanType>(["free", "go", "plus"]);
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENROUTER_ENV_KEY = "OPENROUTER_API_KEY";
+const OPENROUTER_NO_ELIGIBLE_ENDPOINT_SNIPPETS = [
+  "no endpoints available",
+  "no endpoints found",
+  "guardrails",
+  "settings/privacy",
+  "data policy",
+  "zero data retention",
+  "zdr",
+  "require parameters",
+  "require_parameters",
+  "allow_fallbacks",
+  "allow fallbacks",
+] as const;
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
   if (!value || typeof value !== "object") {
@@ -414,6 +445,105 @@ export function buildCodexInitializeParams() {
   } as const;
 }
 
+export function formatCodexRpcErrorMessage(input: {
+  readonly method: string;
+  readonly message: string;
+  readonly model?: string | null;
+}): string {
+  const raw = `${input.method} failed: ${input.message}`;
+  const openRouterMessage = formatCodexProviderErrorMessage({
+    message: input.message,
+    ...(input.model !== undefined ? { model: input.model } : {}),
+  });
+  if (openRouterMessage !== input.message) {
+    return `${input.method} failed: ${openRouterMessage}`;
+  }
+  return raw;
+}
+
+export function formatCodexProviderErrorMessage(input: {
+  readonly message: string;
+  readonly model?: string | null;
+}): string {
+  const lower = input.message.toLowerCase();
+  const looksLikeOpenRouterContext =
+    isCodexOpenRouterModel(input.model) ||
+    lower.includes("openrouter") ||
+    lower.includes("openrouter.ai") ||
+    lower.includes("settings/privacy");
+  const looksLikeOpenRouterRoutingFailure =
+    looksLikeOpenRouterContext &&
+    (OPENROUTER_NO_ELIGIBLE_ENDPOINT_SNIPPETS.some((snippet) => lower.includes(snippet)) ||
+      (lower.includes("404") &&
+        (lower.includes("endpoint") ||
+          lower.includes("provider") ||
+          lower.includes("openrouter"))));
+  const looksLikeOpenRouterRateLimit =
+    looksLikeOpenRouterContext &&
+    ((lower.includes("429") && lower.includes("too many requests")) ||
+      lower.includes("rate limit") ||
+      lower.includes("retry limit"));
+
+  const modelLabel = input.model ?? "the selected OpenRouter model";
+
+  if (looksLikeOpenRouterRateLimit) {
+    return `OpenRouter rate-limited ${modelLabel}. Free OpenRouter endpoints for specific models can run out of capacity or hit shared quotas. Wait and retry, switch to another free model, or use ${OPENROUTER_FREE_ROUTER_MODEL} so OpenRouter can route to any currently available free endpoint. Original error: ${input.message}`;
+  }
+
+  if (!looksLikeOpenRouterRoutingFailure) {
+    return input.message;
+  }
+
+  return `OpenRouter could not find an eligible endpoint for ${modelLabel}. This usually means your OpenRouter privacy/provider settings or guardrails, or the request's required capabilities (for example tools, reasoning, images, or token limits), filtered out every available endpoint. If the original error mentions data policy, guardrails, or ZDR, check https://openrouter.ai/settings/privacy. Try another free model, remove unsupported parameters, or relax the matching OpenRouter privacy/provider filters. Original error: ${input.message}`;
+}
+
+function readOptionalOpenRouterApiKey(input: {
+  readonly providerOptions?: ProviderSessionStartInput["providerOptions"];
+}): string | undefined {
+  const apiKey = input.providerOptions?.codex?.openRouterApiKey?.trim();
+  return apiKey && apiKey.length > 0 ? apiKey : undefined;
+}
+
+export function buildCodexAppServerArgs(input: { readonly model?: string }): ReadonlyArray<string> {
+  const normalizedModel = normalizeCodexModelSlug(input.model);
+  const usesOpenRouter = isCodexOpenRouterModel(normalizedModel ?? input.model);
+  return [
+    "app-server",
+    ...(usesOpenRouter
+      ? [
+          "--config",
+          `model_providers.openrouter={ name = "OpenRouter", base_url = "${OPENROUTER_BASE_URL}", env_key = "${OPENROUTER_ENV_KEY}", wire_api = "responses" }`,
+          "--config",
+          'model_provider="openrouter"',
+          "--config",
+          `model="${normalizedModel ?? OPENROUTER_FREE_ROUTER_MODEL}"`,
+        ]
+      : []),
+  ];
+}
+
+export function buildCodexAppServerEnv(input: {
+  readonly homePath?: string;
+  readonly model?: string;
+  readonly openRouterApiKey?: string;
+  readonly baseEnv?: NodeJS.ProcessEnv;
+}): NodeJS.ProcessEnv {
+  const env = { ...(input.baseEnv ?? process.env) };
+  if (input.homePath) {
+    env.CODEX_HOME = input.homePath;
+  }
+  delete env[OPENROUTER_ENV_KEY];
+
+  const openRouterApiKey = input.openRouterApiKey?.trim();
+  const usesOpenRouter = isCodexOpenRouterModel(
+    normalizeCodexModelSlug(input.model) ?? input.model,
+  );
+  if (usesOpenRouter && openRouterApiKey !== undefined && openRouterApiKey.length > 0) {
+    env[OPENROUTER_ENV_KEY] = openRouterApiKey;
+  }
+  return env;
+}
+
 function buildCodexCollaborationMode(input: {
   readonly interactionMode?: "default" | "plan";
   readonly model?: string;
@@ -423,7 +553,7 @@ function buildCodexCollaborationMode(input: {
       mode: "default" | "plan";
       settings: {
         model: string;
-        reasoning_effort: string;
+        reasoning_effort: string | null;
         developer_instructions: string;
       };
     }
@@ -432,17 +562,55 @@ function buildCodexCollaborationMode(input: {
     return undefined;
   }
   const model = normalizeCodexModelSlug(input.model) ?? "gpt-5.3-codex";
+  if (isCodexOpenRouterModel(model)) {
+    return undefined;
+  }
   return {
     mode: input.interactionMode,
     settings: {
       model,
-      reasoning_effort: input.effort ?? "medium",
+      reasoning_effort: input.effort ?? null,
       developer_instructions:
         input.interactionMode === "plan"
           ? CODEX_PLAN_MODE_DEVELOPER_INSTRUCTIONS
           : CODEX_DEFAULT_MODE_DEVELOPER_INSTRUCTIONS,
     },
   };
+}
+
+function shouldRetryOpenRouterViaFreeRouter(input: {
+  readonly model?: string;
+  readonly message: string;
+}): boolean {
+  const normalizedModel = normalizeCodexModelSlug(input.model);
+  if (
+    !normalizedModel ||
+    normalizedModel === OPENROUTER_FREE_ROUTER_MODEL ||
+    !isCodexOpenRouterModel(normalizedModel) ||
+    !normalizedModel.endsWith(":free")
+  ) {
+    return false;
+  }
+
+  const lower = input.message.toLowerCase();
+  return (
+    OPENROUTER_NO_ELIGIBLE_ENDPOINT_SNIPPETS.some((snippet) => lower.includes(snippet)) ||
+    (lower.includes("404") &&
+      (lower.includes("endpoint") || lower.includes("provider") || lower.includes("openrouter"))) ||
+    (lower.includes("429") && lower.includes("too many requests")) ||
+    lower.includes("rate limit") ||
+    lower.includes("retry limit")
+  );
+}
+
+function isSpecificOpenRouterFreeModel(model: string | undefined): model is string {
+  const normalizedModel = normalizeCodexModelSlug(model);
+  return (
+    normalizedModel !== undefined &&
+    normalizedModel !== OPENROUTER_FREE_ROUTER_MODEL &&
+    isCodexOpenRouterModel(normalizedModel) &&
+    normalizedModel.endsWith(":free")
+  );
 }
 
 function toCodexUserInputAnswer(value: unknown): CodexUserInputAnswer {
@@ -545,17 +713,26 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       const codexOptions = readCodexProviderOptions(input);
       const codexBinaryPath = codexOptions.binaryPath ?? "codex";
       const codexHomePath = codexOptions.homePath;
+      const openRouterApiKey = readOptionalOpenRouterApiKey({
+        providerOptions: input.providerOptions,
+      });
       this.assertSupportedCodexCliVersion({
         binaryPath: codexBinaryPath,
         cwd: resolvedCwd,
         ...(codexHomePath ? { homePath: codexHomePath } : {}),
       });
-      const child = spawn(codexBinaryPath, ["app-server"], {
+      const appServerArgs =
+        input.model !== undefined
+          ? buildCodexAppServerArgs({ model: input.model })
+          : ["app-server"];
+      const child = spawn(codexBinaryPath, appServerArgs, {
         cwd: resolvedCwd,
-        env: {
-          ...process.env,
-          ...(codexHomePath ? { CODEX_HOME: codexHomePath } : {}),
-        },
+        env: buildCodexAppServerEnv({
+          baseEnv: process.env,
+          ...(codexHomePath !== undefined ? { homePath: codexHomePath } : {}),
+          ...(input.model !== undefined ? { model: input.model } : {}),
+          ...(openRouterApiKey !== undefined ? { openRouterApiKey } : {}),
+        }),
         stdio: ["pipe", "pipe", "pipe"],
         shell: process.platform === "win32",
       });
@@ -714,7 +891,11 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       this.emitLifecycleEvent(context, "session/ready", `Connected to thread ${providerThreadId}`);
       return { ...context.session };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to start Codex session.";
+      const rawMessage = error instanceof Error ? error.message : "Failed to start Codex session.";
+      const message = formatCodexProviderErrorMessage({
+        message: rawMessage,
+        ...(input.model !== undefined ? { model: input.model } : {}),
+      });
       if (context) {
         this.startingSessions.delete(threadId);
         this.updateSession(context, {
@@ -741,9 +922,7 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
   async sendTurn(input: CodexAppServerSendTurnInput): Promise<ProviderTurnStartResult> {
     const context = this.requireSession(input.threadId);
 
-    const turnInput: Array<
-      { type: "text"; text: string; text_elements: [] } | { type: "image"; url: string }
-    > = [];
+    const turnInput: Array<CodexTurnInputItem> = [];
     if (input.input) {
       turnInput.push({
         type: "text",
@@ -783,7 +962,7 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
         mode: "default" | "plan";
         settings: {
           model: string;
-          reasoning_effort: string;
+          reasoning_effort: string | null;
           developer_instructions: string;
         };
       };
@@ -795,6 +974,16 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       normalizeCodexModelSlug(input.model ?? context.session.model),
       context.account,
     );
+    if (isSpecificOpenRouterFreeModel(normalizedModel)) {
+      context.pendingOpenRouterTurnRetry = {
+        providerThreadId,
+        input: turnInput,
+        model: normalizedModel,
+        fallbackAttempted: false,
+      };
+    } else {
+      delete context.pendingOpenRouterTurnRetry;
+    }
     if (normalizedModel) {
       turnStartParams.model = normalizedModel;
     }
@@ -816,14 +1005,49 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       turnStartParams.collaborationMode = collaborationMode;
     }
 
-    const response = await this.sendRequest(context, "turn/start", turnStartParams);
+    let response: unknown;
+    let usedOpenRouterFreeFallback = false;
+    let openRouterFallbackReason: string | undefined;
+    try {
+      response = await this.sendRequest(context, "turn/start", turnStartParams);
+    } catch (error) {
+      const retryMessage = error instanceof Error ? error.message : String(error);
+      if (
+        !shouldRetryOpenRouterViaFreeRouter({
+          ...(normalizedModel !== undefined ? { model: normalizedModel } : {}),
+          message: retryMessage,
+        })
+      ) {
+        delete context.pendingOpenRouterTurnRetry;
+        throw error;
+      }
 
-    const turn = this.readObject(this.readObject(response), "turn");
-    const turnIdRaw = this.readString(turn, "id");
-    if (!turnIdRaw) {
-      throw new Error("turn/start response did not include a turn id.");
+      usedOpenRouterFreeFallback = true;
+      openRouterFallbackReason = retryMessage;
+      const fallbackTurnStartParams = this.buildOpenRouterFreeRouterFallbackTurnStartParams({
+        providerThreadId,
+        input: turnInput,
+      });
+      response = await this.sendRequest(context, "turn/start", fallbackTurnStartParams);
     }
-    const turnId = TurnId.makeUnsafe(turnIdRaw);
+
+    const turnId = this.parseTurnStartResponse(response);
+    if (usedOpenRouterFreeFallback) {
+      if (normalizedModel) {
+        this.emitOpenRouterModelRerouted({
+          context,
+          fromModel: normalizedModel,
+          toModel: OPENROUTER_FREE_ROUTER_MODEL,
+          reason:
+            openRouterFallbackReason ??
+            "OpenRouter could not serve the pinned free model and CUT3 retried through the free router.",
+          turnId,
+        });
+      }
+      delete context.pendingOpenRouterTurnRetry;
+    } else if (context.pendingOpenRouterTurnRetry) {
+      context.pendingOpenRouterTurnRetry.currentTurnId = turnId;
+    }
 
     this.updateSession(context, {
       status: "running",
@@ -1011,11 +1235,7 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
   private stopContext(context: CodexSessionContext, message: string): void {
     context.stopping = true;
 
-    for (const pending of context.pending.values()) {
-      clearTimeout(pending.timeout);
-      pending.reject(new Error("Session stopped before request completed."));
-    }
-    context.pending.clear();
+    this.rejectPendingRequests(context, "Session stopped before request completed.");
     context.pendingApprovals.clear();
     context.pendingUserInputs.clear();
 
@@ -1081,8 +1301,25 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
           continue;
         }
 
+        if (classified.message.toLowerCase().startsWith("error:")) {
+          context.lastProcessError = classified.message;
+        }
+
         this.emitErrorEvent(context, "process/stderr", classified.message);
       }
+    });
+
+    context.child.stdin.on("error", (error) => {
+      if (!this.isTrackedContext(context) && !context.stopping) {
+        return;
+      }
+
+      const message = error.message || "codex app-server stdin errored.";
+      if (!context.lastProcessError) {
+        context.lastProcessError = message;
+      }
+      this.rejectPendingRequests(context, context.lastProcessError ?? message);
+      this.emitErrorEvent(context, "process/stdinError", message);
     });
 
     context.child.on("error", (error) => {
@@ -1090,6 +1327,7 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
         return;
       }
       const message = error.message || "codex app-server process errored.";
+      this.rejectPendingRequests(context, context.lastProcessError ?? message);
       this.updateSession(context, {
         status: "error",
         lastError: message,
@@ -1106,6 +1344,7 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
       }
 
       const message = `codex app-server exited (code=${code ?? "null"}, signal=${signal ?? "null"}).`;
+      this.rejectPendingRequests(context, context.lastProcessError ?? message);
       this.updateSession(context, {
         status: "closed",
         activeTurnId: undefined,
@@ -1195,6 +1434,9 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
 
     if (notification.method === "turn/started") {
       const turnId = toTurnId(this.readString(this.readObject(notification.params)?.turn, "id"));
+      if (turnId && context.pendingOpenRouterTurnRetry) {
+        context.pendingOpenRouterTurnRetry.currentTurnId = turnId;
+      }
       this.updateSession(context, {
         status: "running",
         activeTurnId: turnId,
@@ -1204,12 +1446,53 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
 
     if (notification.method === "turn/completed") {
       const turn = this.readObject(notification.params, "turn");
+      const completedTurnId = toTurnId(this.readString(turn, "id"));
       const status = this.readString(turn, "status");
       const errorMessage = this.readString(this.readObject(turn, "error"), "message");
+      const pendingOpenRouterRetry = context.pendingOpenRouterTurnRetry;
+      if (
+        status === "failed" &&
+        errorMessage &&
+        pendingOpenRouterRetry &&
+        pendingOpenRouterRetry.currentTurnId === completedTurnId &&
+        !pendingOpenRouterRetry.fallbackAttempted &&
+        shouldRetryOpenRouterViaFreeRouter({
+          model: pendingOpenRouterRetry.model,
+          message: errorMessage,
+        })
+      ) {
+        context.pendingOpenRouterTurnRetry = {
+          ...pendingOpenRouterRetry,
+          fallbackAttempted: true,
+          retryReason: errorMessage,
+        };
+        this.updateSession(context, {
+          status: "running",
+          activeTurnId: undefined,
+          lastError: undefined,
+        });
+        void this.retryPendingOpenRouterTurnViaFreeRouter(context);
+        return;
+      }
+
+      if (
+        pendingOpenRouterRetry &&
+        pendingOpenRouterRetry.currentTurnId !== undefined &&
+        pendingOpenRouterRetry.currentTurnId === completedTurnId
+      ) {
+        delete context.pendingOpenRouterTurnRetry;
+      }
+      const lastError =
+        status === "failed" && errorMessage
+          ? formatCodexProviderErrorMessage({
+              message: errorMessage,
+              ...(context.session.model !== undefined ? { model: context.session.model } : {}),
+            })
+          : context.session.lastError;
       this.updateSession(context, {
         status: status === "failed" ? "error" : "ready",
         activeTurnId: undefined,
-        lastError: errorMessage ?? context.session.lastError,
+        lastError,
       });
       return;
     }
@@ -1217,10 +1500,37 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     if (notification.method === "error") {
       const message = this.readString(this.readObject(notification.params)?.error, "message");
       const willRetry = this.readBoolean(notification.params, "willRetry");
+      const notificationTurnId = route.turnId ?? context.session.activeTurnId;
+      const pendingOpenRouterRetry = context.pendingOpenRouterTurnRetry;
+      if (
+        !willRetry &&
+        message &&
+        notificationTurnId &&
+        pendingOpenRouterRetry &&
+        !pendingOpenRouterRetry.fallbackAttempted &&
+        pendingOpenRouterRetry.currentTurnId === notificationTurnId &&
+        shouldRetryOpenRouterViaFreeRouter({
+          model: pendingOpenRouterRetry.model,
+          message,
+        })
+      ) {
+        this.updateSession(context, {
+          status: "running",
+          lastError: undefined,
+        });
+        return;
+      }
+      const lastError =
+        message === undefined
+          ? context.session.lastError
+          : formatCodexProviderErrorMessage({
+              message,
+              ...(context.session.model !== undefined ? { model: context.session.model } : {}),
+            });
 
       this.updateSession(context, {
         status: willRetry ? "running" : "error",
-        lastError: message ?? context.session.lastError,
+        lastError,
       });
     }
   }
@@ -1301,11 +1611,27 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     context.pending.delete(key);
 
     if (response.error?.message) {
-      pending.reject(new Error(`${pending.method} failed: ${String(response.error.message)}`));
+      pending.reject(
+        new Error(
+          formatCodexRpcErrorMessage({
+            method: pending.method,
+            message: String(response.error.message),
+            ...(context.session.model !== undefined ? { model: context.session.model } : {}),
+          }),
+        ),
+      );
       return;
     }
 
     pending.resolve(response.result);
+  }
+
+  private rejectPendingRequests(context: CodexSessionContext, message: string): void {
+    for (const pending of context.pending.values()) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error(message));
+    }
+    context.pending.clear();
   }
 
   private async sendRequest<TResponse>(
@@ -1382,6 +1708,100 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
     readonly homePath?: string;
   }): void {
     assertSupportedCodexCliVersion(input);
+  }
+
+  private parseTurnStartResponse(response: unknown): TurnId {
+    const turn = this.readObject(this.readObject(response), "turn");
+    const turnIdRaw = this.readString(turn, "id");
+    if (!turnIdRaw) {
+      throw new Error("turn/start response did not include a turn id.");
+    }
+    return TurnId.makeUnsafe(turnIdRaw);
+  }
+
+  private buildOpenRouterFreeRouterFallbackTurnStartParams(input: {
+    readonly providerThreadId: string;
+    readonly input: ReadonlyArray<CodexTurnInputItem>;
+  }) {
+    return {
+      threadId: input.providerThreadId,
+      input: input.input,
+      model: OPENROUTER_FREE_ROUTER_MODEL,
+    } as const;
+  }
+
+  private emitOpenRouterModelRerouted(input: {
+    readonly context: CodexSessionContext;
+    readonly fromModel: string;
+    readonly toModel: string;
+    readonly reason: string;
+    readonly turnId?: TurnId;
+  }): void {
+    this.emitEvent({
+      id: EventId.makeUnsafe(randomUUID()),
+      kind: "notification",
+      provider: "codex",
+      threadId: input.context.session.threadId,
+      createdAt: new Date().toISOString(),
+      method: "model/rerouted",
+      ...(input.turnId ? { turnId: input.turnId } : {}),
+      payload: {
+        fromModel: input.fromModel,
+        toModel: input.toModel,
+        reason: input.reason,
+      },
+    });
+  }
+
+  private async retryPendingOpenRouterTurnViaFreeRouter(
+    context: CodexSessionContext,
+  ): Promise<void> {
+    const pendingRetry = context.pendingOpenRouterTurnRetry;
+    if (!pendingRetry || !pendingRetry.fallbackAttempted) {
+      return;
+    }
+
+    try {
+      const response = await this.sendRequest(
+        context,
+        "turn/start",
+        this.buildOpenRouterFreeRouterFallbackTurnStartParams({
+          providerThreadId: pendingRetry.providerThreadId,
+          input: pendingRetry.input,
+        }),
+      );
+      const turnId = this.parseTurnStartResponse(response);
+      context.pendingOpenRouterTurnRetry = {
+        ...pendingRetry,
+        currentTurnId: turnId,
+      };
+      this.emitOpenRouterModelRerouted({
+        context,
+        fromModel: pendingRetry.model,
+        toModel: OPENROUTER_FREE_ROUTER_MODEL,
+        reason:
+          pendingRetry.retryReason ??
+          "OpenRouter could not serve the pinned free model and CUT3 retried through the free router.",
+        turnId,
+      });
+      this.updateSession(context, {
+        status: "running",
+        activeTurnId: turnId,
+        lastError: undefined,
+      });
+    } catch (error) {
+      const message = formatCodexProviderErrorMessage({
+        message: error instanceof Error ? error.message : String(error),
+        model: pendingRetry.model,
+      });
+      delete context.pendingOpenRouterTurnRetry;
+      this.updateSession(context, {
+        status: "error",
+        activeTurnId: undefined,
+        lastError: message,
+      });
+      this.emitErrorEvent(context, "turn/openRouterFallbackFailed", message);
+    }
   }
 
   private updateSession(context: CodexSessionContext, updates: Partial<ProviderSession>): void {
@@ -1553,6 +1973,7 @@ function normalizeProviderThreadId(value: string | undefined): string | undefine
 function readCodexProviderOptions(input: CodexAppServerStartSessionInput): {
   readonly binaryPath?: string;
   readonly homePath?: string;
+  readonly openRouterApiKey?: string;
 } {
   const options = input.providerOptions?.codex;
   if (!options) {
@@ -1561,6 +1982,7 @@ function readCodexProviderOptions(input: CodexAppServerStartSessionInput): {
   return {
     ...(options.binaryPath ? { binaryPath: options.binaryPath } : {}),
     ...(options.homePath ? { homePath: options.homePath } : {}),
+    ...(options.openRouterApiKey ? { openRouterApiKey: options.openRouterApiKey } : {}),
   };
 }
 

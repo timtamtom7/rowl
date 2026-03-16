@@ -1,6 +1,7 @@
 import {
   ApprovalRequestId,
   isToolLifecycleItemType,
+  type ModelSlug,
   type OrchestrationLatestTurn,
   type OrchestrationThreadActivity,
   type OrchestrationProposedPlanId,
@@ -9,7 +10,7 @@ import {
   type UserInputQuestion,
   type TurnId,
 } from "@t3tools/contracts";
-import { getModelDisplayName } from "@t3tools/shared/model";
+import { getModelDisplayName, isCodexOpenRouterModel } from "@t3tools/shared/model";
 
 import type {
   ChatMessage,
@@ -19,7 +20,8 @@ import type {
   TurnDiffSummary,
 } from "./types";
 
-export type ProviderPickerKind = ProviderKind | "claudeCode" | "cursor";
+export type ProviderPickerKind = ProviderKind | "openrouter" | "claudeCode" | "cursor";
+export type AvailableProviderPickerKind = Exclude<ProviderPickerKind, "claudeCode" | "cursor">;
 
 export const PROVIDER_OPTIONS: Array<{
   value: ProviderPickerKind;
@@ -27,11 +29,42 @@ export const PROVIDER_OPTIONS: Array<{
   available: boolean;
 }> = [
   { value: "codex", label: "Codex", available: true },
+  { value: "openrouter", label: "OpenRouter", available: true },
   { value: "copilot", label: "GitHub Copilot", available: true },
   { value: "kimi", label: "Kimi Code", available: true },
   { value: "claudeCode", label: "Claude Code", available: false },
   { value: "cursor", label: "Cursor", available: false },
 ];
+
+export function getProviderPickerBackingProvider(
+  providerPickerKind: ProviderPickerKind,
+): ProviderKind | null {
+  switch (providerPickerKind) {
+    case "codex":
+    case "openrouter":
+      return "codex";
+    case "copilot":
+      return "copilot";
+    case "kimi":
+      return "kimi";
+    case "claudeCode":
+    case "cursor":
+      return null;
+    default:
+      return null;
+  }
+}
+
+export function getProviderPickerKindForSelection(
+  provider: ProviderKind,
+  model: ModelSlug,
+): AvailableProviderPickerKind {
+  if (provider === "codex" && isCodexOpenRouterModel(model)) {
+    return "openrouter";
+  }
+
+  return provider;
+}
 
 export interface WorkLogEntry {
   id: string;
@@ -80,6 +113,14 @@ export interface LatestProposedPlanState {
   updatedAt: string;
   turnId: TurnId | null;
   planMarkdown: string;
+}
+
+export interface LatestModelRerouteNotice {
+  createdAt: string;
+  turnId: TurnId | null;
+  fromModel: string;
+  toModel: string;
+  reason: string;
 }
 
 export type TimelineEntry =
@@ -498,6 +539,39 @@ export function findLatestProposedPlan(
     turnId: latestPlan.turnId,
     planMarkdown: latestPlan.planMarkdown,
   };
+}
+
+export function deriveLatestModelRerouteNotice(
+  activities: ReadonlyArray<OrchestrationThreadActivity>,
+  latestTurnId: TurnId | undefined,
+): LatestModelRerouteNotice | null {
+  const ordered = [...activities].toSorted(compareActivitiesByOrder).toReversed();
+  for (const activity of ordered) {
+    if (activity.kind !== "model.rerouted") {
+      continue;
+    }
+    if (latestTurnId && activity.turnId !== latestTurnId) {
+      continue;
+    }
+    const payload =
+      activity.payload && typeof activity.payload === "object"
+        ? (activity.payload as Record<string, unknown>)
+        : null;
+    const fromModel = asTrimmedString(payload?.fromModel);
+    const toModel = asTrimmedString(payload?.toModel);
+    const reason = asTrimmedString(payload?.reason) ?? asTrimmedString(payload?.detail);
+    if (!fromModel || !toModel || !reason) {
+      continue;
+    }
+    return {
+      createdAt: activity.createdAt,
+      turnId: activity.turnId,
+      fromModel,
+      toModel,
+      reason,
+    };
+  }
+  return null;
 }
 
 export function deriveWorkLogEntries(

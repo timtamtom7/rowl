@@ -1,16 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ApprovalRequestId, ThreadId } from "@t3tools/contracts";
+import { ApprovalRequestId, ThreadId, TurnId } from "@t3tools/contracts";
 
 import {
+  buildCodexAppServerArgs,
+  buildCodexAppServerEnv,
   buildCodexInitializeParams,
   CODEX_DEFAULT_MODE_DEVELOPER_INSTRUCTIONS,
   CODEX_PLAN_MODE_DEVELOPER_INSTRUCTIONS,
   CodexAppServerManager,
   classifyCodexStderrLine,
+  formatCodexRpcErrorMessage,
   isRecoverableThreadResumeError,
   normalizeCodexModelSlug,
   readCodexAccountSnapshot,
@@ -135,6 +138,32 @@ function createPendingUserInputHarness() {
   return { manager, context, requireSession, writeMessage, emitEvent };
 }
 
+type NotificationHarnessContext = {
+  session: {
+    provider: "codex";
+    status: "running" | "error" | "ready";
+    threadId: ThreadId;
+    runtimeMode: "full-access";
+    model: string;
+    createdAt: string;
+    updatedAt: string;
+    activeTurnId?: string;
+    lastError?: string;
+  };
+  pending: Map<unknown, unknown>;
+  pendingApprovals: Map<unknown, unknown>;
+  pendingUserInputs: Map<unknown, unknown>;
+  pendingOpenRouterTurnRetry?: {
+    providerThreadId: string;
+    input: ReadonlyArray<unknown>;
+    model: string;
+    currentTurnId?: TurnId;
+    fallbackAttempted: boolean;
+  };
+  nextRequestId: number;
+  stopping: boolean;
+};
+
 describe("classifyCodexStderrLine", () => {
   it("ignores empty lines", () => {
     expect(classifyCodexStderrLine("   ")).toBeNull();
@@ -180,6 +209,336 @@ describe("normalizeCodexModelSlug", () => {
   it("keeps non-aliased models as-is", () => {
     expect(normalizeCodexModelSlug("gpt-5.2-codex")).toBe("gpt-5.2-codex");
     expect(normalizeCodexModelSlug("gpt-5.2")).toBe("gpt-5.2");
+  });
+});
+
+describe("formatCodexRpcErrorMessage", () => {
+  it("keeps native Codex errors unchanged", () => {
+    expect(
+      formatCodexRpcErrorMessage({
+        method: "turn/start",
+        message: "404 Not Found",
+        model: "gpt-5.3-codex",
+      }),
+    ).toBe("turn/start failed: 404 Not Found");
+  });
+
+  it("rewrites OpenRouter routing failures with actionable guidance", () => {
+    const message = formatCodexRpcErrorMessage({
+      method: "turn/start",
+      message: "404 Not Found: No endpoints available matching your data policy.",
+      model: "google/gemma-3n-e4b-it:free",
+    });
+
+    expect(message).toContain("OpenRouter could not find an eligible endpoint");
+    expect(message).toContain("privacy/provider settings");
+    expect(message).toContain(
+      "Original error: 404 Not Found: No endpoints available matching your data policy.",
+    );
+  });
+
+  it("rewrites OpenRouter privacy failures even when the runtime event omits the model", () => {
+    const message = formatCodexRpcErrorMessage({
+      method: "runtime error",
+      message:
+        "unexpected status 404 Not Found: No endpoints available matching your guardrails restrictions and data policy. Configure: https://openrouter.ai/settings/privacy",
+    });
+
+    expect(message).toContain("the selected OpenRouter model");
+    expect(message).toContain("https://openrouter.ai/settings/privacy");
+    expect(message).toContain("guardrails");
+  });
+
+  it("rewrites OpenRouter rate limits into actionable guidance", () => {
+    const message = formatCodexRpcErrorMessage({
+      method: "runtime error",
+      message:
+        "exceeded retry limit, last status: 429 Too Many Requests, request id: 9dd38c21dc8dc25f-YVR",
+      model: "qwen/qwen3-4b:free",
+    });
+
+    expect(message).toContain("OpenRouter rate-limited qwen/qwen3-4b:free");
+    expect(message).toContain("openrouter/free");
+    expect(message).toContain("Original error: exceeded retry limit");
+  });
+});
+
+describe("handleServerNotification", () => {
+  it("formats OpenRouter runtime error notifications before persisting session lastError", () => {
+    const manager = new CodexAppServerManager();
+    const context: NotificationHarnessContext = {
+      session: {
+        provider: "codex",
+        status: "running",
+        threadId: asThreadId("thread-1"),
+        runtimeMode: "full-access",
+        model: "google/gemma-3-27b-it:free",
+        createdAt: "2026-03-16T00:00:00.000Z",
+        updatedAt: "2026-03-16T00:00:00.000Z",
+      },
+      pending: new Map(),
+      pendingApprovals: new Map(),
+      pendingUserInputs: new Map(),
+      nextRequestId: 1,
+      stopping: false,
+    };
+
+    (
+      manager as unknown as {
+        handleServerNotification: (
+          context: NotificationHarnessContext,
+          notification: { method: string; params?: unknown },
+        ) => void;
+      }
+    ).handleServerNotification(context, {
+      method: "error",
+      params: {
+        error: {
+          message:
+            "unexpected status 404 Not Found: No endpoints available matching your guardrails restrictions and data policy. Configure: https://openrouter.ai/settings/privacy",
+        },
+        willRetry: false,
+      },
+    });
+
+    expect(context.session.status).toBe("error");
+    expect(context.session.lastError).toContain("OpenRouter could not find an eligible endpoint");
+    expect(context.session.lastError).toContain("https://openrouter.ai/settings/privacy");
+    expect(context.session.lastError).toContain("Original error:");
+  });
+
+  it("formats failed turn completion errors before persisting session lastError", () => {
+    const manager = new CodexAppServerManager();
+    const context: NotificationHarnessContext = {
+      session: {
+        provider: "codex",
+        status: "running",
+        threadId: asThreadId("thread-1"),
+        runtimeMode: "full-access",
+        model: "google/gemma-3-27b-it:free",
+        createdAt: "2026-03-16T00:00:00.000Z",
+        updatedAt: "2026-03-16T00:00:00.000Z",
+      },
+      pending: new Map(),
+      pendingApprovals: new Map(),
+      pendingUserInputs: new Map(),
+      nextRequestId: 1,
+      stopping: false,
+    };
+
+    (
+      manager as unknown as {
+        handleServerNotification: (
+          context: NotificationHarnessContext,
+          notification: { method: string; params?: unknown },
+        ) => void;
+      }
+    ).handleServerNotification(context, {
+      method: "turn/completed",
+      params: {
+        turn: {
+          status: "failed",
+          error: {
+            message:
+              "unexpected status 404 Not Found: No endpoints available matching your guardrails restrictions and data policy. Configure: https://openrouter.ai/settings/privacy",
+          },
+        },
+      },
+    });
+
+    expect(context.session.status).toBe("error");
+    expect(context.session.activeTurnId).toBeUndefined();
+    expect(context.session.lastError).toContain("OpenRouter could not find an eligible endpoint");
+    expect(context.session.lastError).toContain("https://openrouter.ai/settings/privacy");
+  });
+
+  it("suppresses retryable OpenRouter runtime errors while a free-router fallback remains available", () => {
+    const manager = new CodexAppServerManager();
+    const context: NotificationHarnessContext = {
+      session: {
+        provider: "codex",
+        status: "running",
+        threadId: asThreadId("thread-1"),
+        runtimeMode: "full-access",
+        model: "openai/gpt-oss-120b:free",
+        activeTurnId: TurnId.makeUnsafe("turn-1"),
+        createdAt: "2026-03-16T00:00:00.000Z",
+        updatedAt: "2026-03-16T00:00:00.000Z",
+      },
+      pending: new Map(),
+      pendingApprovals: new Map(),
+      pendingUserInputs: new Map(),
+      pendingOpenRouterTurnRetry: {
+        providerThreadId: asThreadId("thread-1"),
+        input: [{ type: "text", text: "hello", text_elements: [] }],
+        model: "openai/gpt-oss-120b:free",
+        currentTurnId: TurnId.makeUnsafe("turn-1"),
+        fallbackAttempted: false,
+      },
+      nextRequestId: 1,
+      stopping: false,
+    };
+
+    (
+      manager as unknown as {
+        handleServerNotification: (
+          context: NotificationHarnessContext,
+          notification: { method: string; params?: unknown },
+        ) => void;
+      }
+    ).handleServerNotification(context, {
+      method: "error",
+      params: {
+        turn: { id: "turn-1" },
+        error: {
+          message:
+            "unexpected status 404 Not Found: No endpoints available matching your guardrails restrictions and data policy. Configure: https://openrouter.ai/settings/privacy",
+        },
+        willRetry: false,
+      },
+    });
+
+    expect(context.session.status).toBe("running");
+    expect(context.session.lastError).toBeUndefined();
+  });
+
+  it("retries failed OpenRouter free-model turns via openrouter/free after turn completion", async () => {
+    const manager = new CodexAppServerManager();
+    const context: NotificationHarnessContext = {
+      session: {
+        provider: "codex",
+        status: "running",
+        threadId: asThreadId("thread-1"),
+        runtimeMode: "full-access",
+        model: "openai/gpt-oss-120b:free",
+        activeTurnId: TurnId.makeUnsafe("turn-1"),
+        createdAt: "2026-03-16T00:00:00.000Z",
+        updatedAt: "2026-03-16T00:00:00.000Z",
+      },
+      pending: new Map(),
+      pendingApprovals: new Map(),
+      pendingUserInputs: new Map(),
+      pendingOpenRouterTurnRetry: {
+        providerThreadId: asThreadId("thread-1"),
+        input: [{ type: "text", text: "hello", text_elements: [] }],
+        model: "openai/gpt-oss-120b:free",
+        currentTurnId: TurnId.makeUnsafe("turn-1"),
+        fallbackAttempted: false,
+      },
+      nextRequestId: 1,
+      stopping: false,
+    };
+    const sendRequest = vi
+      .spyOn(
+        manager as unknown as { sendRequest: (...args: unknown[]) => Promise<unknown> },
+        "sendRequest",
+      )
+      .mockResolvedValue({
+        turn: {
+          id: "turn-2",
+        },
+      });
+
+    (
+      manager as unknown as {
+        handleServerNotification: (
+          context: NotificationHarnessContext,
+          notification: { method: string; params?: unknown },
+        ) => void;
+      }
+    ).handleServerNotification(context, {
+      method: "turn/completed",
+      params: {
+        turn: {
+          id: "turn-1",
+          status: "failed",
+          error: {
+            message:
+              "unexpected status 404 Not Found: No endpoints available matching your guardrails restrictions and data policy. Configure: https://openrouter.ai/settings/privacy",
+          },
+        },
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(sendRequest).toHaveBeenCalledWith(context, "turn/start", {
+        threadId: "thread-1",
+        input: [{ type: "text", text: "hello", text_elements: [] }],
+        model: "openrouter/free",
+      });
+      expect(context.session.status).toBe("running");
+      expect(context.session.activeTurnId).toBe("turn-2");
+      expect(context.session.lastError).toBeUndefined();
+      expect(context.pendingOpenRouterTurnRetry?.fallbackAttempted).toBe(true);
+      expect(context.pendingOpenRouterTurnRetry?.currentTurnId).toBe("turn-2");
+    });
+  });
+});
+
+describe("buildCodexAppServerArgs", () => {
+  it("keeps plain Codex sessions on the default app-server launch path", () => {
+    expect(buildCodexAppServerArgs({ model: "gpt-5.3-codex" })).toEqual(["app-server"]);
+  });
+
+  it("injects OpenRouter config overrides for OpenRouter-routed models", () => {
+    expect(
+      buildCodexAppServerArgs({
+        model: "openrouter/free",
+      }),
+    ).toEqual([
+      "app-server",
+      "--config",
+      'model_providers.openrouter={ name = "OpenRouter", base_url = "https://openrouter.ai/api/v1", env_key = "OPENROUTER_API_KEY", wire_api = "responses" }',
+      "--config",
+      'model_provider="openrouter"',
+      "--config",
+      'model="openrouter/free"',
+    ]);
+  });
+
+  it("respects specific OpenRouter free-model slugs", () => {
+    expect(
+      buildCodexAppServerArgs({
+        model: "google/gemma-3n-e4b-it:free",
+      }),
+    ).toEqual([
+      "app-server",
+      "--config",
+      'model_providers.openrouter={ name = "OpenRouter", base_url = "https://openrouter.ai/api/v1", env_key = "OPENROUTER_API_KEY", wire_api = "responses" }',
+      "--config",
+      'model_provider="openrouter"',
+      "--config",
+      'model="google/gemma-3n-e4b-it:free"',
+    ]);
+  });
+});
+
+describe("buildCodexAppServerEnv", () => {
+  it("sets CODEX_HOME without leaking OpenRouter config for native Codex models", () => {
+    expect(
+      buildCodexAppServerEnv({
+        baseEnv: { PATH: "/usr/bin", OPENROUTER_API_KEY: "ambient-secret" },
+        homePath: "/tmp/codex-home",
+        model: "gpt-5.3-codex",
+        openRouterApiKey: "sk-or-secret",
+      }),
+    ).toEqual({
+      PATH: "/usr/bin",
+      CODEX_HOME: "/tmp/codex-home",
+    });
+  });
+
+  it("injects OPENROUTER_API_KEY only for OpenRouter-routed Codex sessions", () => {
+    expect(
+      buildCodexAppServerEnv({
+        baseEnv: { PATH: "/usr/bin" },
+        model: "openrouter/free",
+        openRouterApiKey: "sk-or-secret",
+      }),
+    ).toEqual({
+      PATH: "/usr/bin",
+      OPENROUTER_API_KEY: "sk-or-secret",
+    });
   });
 });
 
@@ -369,6 +728,85 @@ describe("startSession", () => {
       manager.stopAll();
     }
   });
+
+  it("fails fast with the underlying stderr when codex exits during initialize", async () => {
+    const manager = new CodexAppServerManager();
+    const events: Array<{ method: string; kind: string; message?: string }> = [];
+    manager.on("event", (event) => {
+      events.push({
+        method: event.method,
+        kind: event.kind,
+        ...(event.message ? { message: event.message } : {}),
+      });
+    });
+
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), "cut3-codex-failfast-"));
+    const fakeBinaryPath = path.join(tempDir, "fake-codex");
+    writeFileSync(
+      fakeBinaryPath,
+      "#!/usr/bin/env bash\nprintf 'error: fake cli failure\\n' >&2\nsleep 0.1\nexit 2\n",
+      "utf8",
+    );
+    chmodSync(fakeBinaryPath, 0o755);
+
+    const versionCheck = vi
+      .spyOn(
+        manager as unknown as {
+          assertSupportedCodexCliVersion: (input: {
+            binaryPath: string;
+            cwd: string;
+            homePath?: string;
+          }) => void;
+        },
+        "assertSupportedCodexCliVersion",
+      )
+      .mockImplementation(() => undefined);
+
+    const startedAt = Date.now();
+    try {
+      await expect(
+        manager.startSession({
+          threadId: asThreadId("thread-fail-fast"),
+          provider: "codex",
+          runtimeMode: "full-access",
+          providerOptions: {
+            codex: {
+              binaryPath: fakeBinaryPath,
+            },
+          },
+        }),
+      ).rejects.toThrow("error: fake cli failure");
+      expect(Date.now() - startedAt).toBeLessThan(2_000);
+      expect(events).toEqual(
+        expect.arrayContaining([
+          {
+            method: "session/connecting",
+            kind: "session",
+            message: "Starting codex app-server",
+          },
+          {
+            method: "process/stderr",
+            kind: "error",
+            message: "error: fake cli failure",
+          },
+          {
+            method: "session/exited",
+            kind: "session",
+            message: "codex app-server exited (code=2, signal=null).",
+          },
+          {
+            method: "session/startFailed",
+            kind: "error",
+            message: "error: fake cli failure",
+          },
+        ]),
+      );
+    } finally {
+      versionCheck.mockRestore();
+      manager.stopAll();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("sendTurn", () => {
@@ -468,7 +906,7 @@ describe("sendTurn", () => {
         mode: "plan",
         settings: {
           model: "gpt-5.3-codex",
-          reasoning_effort: "medium",
+          reasoning_effort: null,
           developer_instructions: CODEX_PLAN_MODE_DEVELOPER_INSTRUCTIONS,
         },
       },
@@ -498,11 +936,113 @@ describe("sendTurn", () => {
         mode: "default",
         settings: {
           model: "gpt-5.3-codex",
-          reasoning_effort: "medium",
+          reasoning_effort: null,
           developer_instructions: CODEX_DEFAULT_MODE_DEVELOPER_INSTRUCTIONS,
         },
       },
     });
+  });
+
+  it("does not send Codex collaboration presets for OpenRouter models", async () => {
+    const { manager, context, sendRequest } = createSendTurnHarness();
+    context.session.model = "openai/gpt-oss-120b:free";
+
+    await manager.sendTurn({
+      threadId: asThreadId("thread_1"),
+      input: "PLEASE IMPLEMENT THIS PLAN:\n- step 1",
+      interactionMode: "default",
+    });
+
+    expect(sendRequest).toHaveBeenCalledWith(context, "turn/start", {
+      threadId: "thread_1",
+      input: [
+        {
+          type: "text",
+          text: "PLEASE IMPLEMENT THIS PLAN:\n- step 1",
+          text_elements: [],
+        },
+      ],
+      model: "openai/gpt-oss-120b:free",
+    });
+  });
+
+  it("retries specific free OpenRouter models via openrouter/free on routing failures", async () => {
+    const { manager, context, sendRequest, updateSession } = createSendTurnHarness();
+    context.session.model = "openai/gpt-oss-120b:free";
+    const events: Array<{ method: string; payload?: unknown; turnId?: string }> = [];
+    manager.on("event", (event) => {
+      events.push({
+        method: event.method,
+        ...(event.payload !== undefined ? { payload: event.payload } : {}),
+        ...(event.turnId ? { turnId: event.turnId } : {}),
+      });
+    });
+    sendRequest
+      .mockRejectedValueOnce(
+        new Error(
+          "unexpected status 404 Not Found: No endpoints available matching your guardrail restrictions and data policy",
+        ),
+      )
+      .mockResolvedValueOnce({
+        turn: {
+          id: "turn_1",
+        },
+      });
+
+    const result = await manager.sendTurn({
+      threadId: asThreadId("thread_1"),
+      input: "hello",
+      interactionMode: "default",
+      effort: "high",
+    });
+
+    expect(result).toEqual({
+      threadId: "thread_1",
+      turnId: "turn_1",
+      resumeCursor: { threadId: "thread_1" },
+    });
+    expect(sendRequest).toHaveBeenNthCalledWith(1, context, "turn/start", {
+      threadId: "thread_1",
+      input: [
+        {
+          type: "text",
+          text: "hello",
+          text_elements: [],
+        },
+      ],
+      model: "openai/gpt-oss-120b:free",
+      effort: "high",
+    });
+    expect(sendRequest).toHaveBeenNthCalledWith(2, context, "turn/start", {
+      threadId: "thread_1",
+      input: [
+        {
+          type: "text",
+          text: "hello",
+          text_elements: [],
+        },
+      ],
+      model: "openrouter/free",
+    });
+    expect(updateSession).toHaveBeenCalledWith(context, {
+      status: "running",
+      activeTurnId: "turn_1",
+      resumeCursor: { threadId: "thread_1" },
+    });
+    expect(events).toEqual(
+      expect.arrayContaining([
+        {
+          method: "model/rerouted",
+          turnId: "turn_1",
+          payload: {
+            fromModel: "openai/gpt-oss-120b:free",
+            toModel: "openrouter/free",
+            reason:
+              "unexpected status 404 Not Found: No endpoints available matching your guardrail restrictions and data policy",
+          },
+        },
+      ]),
+    );
   });
 
   it("keeps the session model when interaction mode is set without an explicit model", async () => {
@@ -529,7 +1069,7 @@ describe("sendTurn", () => {
         mode: "plan",
         settings: {
           model: "gpt-5.2-codex",
-          reasoning_effort: "medium",
+          reasoning_effort: null,
           developer_instructions: CODEX_PLAN_MODE_DEVELOPER_INSTRUCTIONS,
         },
       },

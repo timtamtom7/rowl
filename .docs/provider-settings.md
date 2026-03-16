@@ -30,6 +30,7 @@ The **Providers** section supports local overrides for each provider runtime:
 - **Codex**
   - Custom binary path
   - Custom Codex home path
+  - Optional OpenRouter API key used only for Codex sessions that route through OpenRouter
 - **GitHub Copilot**
   - Custom binary path
 - **Kimi Code**
@@ -40,7 +41,7 @@ Leave a binary field blank to use the provider executable from your `PATH`.
 
 ## Models
 
-The **Models** section currently exposes two kinds of model-related settings.
+The **Models** section currently exposes three kinds of model-related settings.
 
 ### Codex service tier
 
@@ -52,21 +53,33 @@ Codex has a default service-tier preference for new turns:
 
 This is an app-level default. It applies when starting new Codex turns from the composer.
 
+### OpenRouter free models
+
+CUT3 now shows OpenRouter free models in their own settings card and their own top-level section inside the model picker.
+
+- CUT3 always includes the built-in `openrouter/free` router.
+- The settings page fetches OpenRouter's live model catalog, but CUT3 only lists models that are explicitly free-locked (`openrouter/free` or `:free`) and advertise tool use.
+- You can pin any listed OpenRouter free model into the picker and `/model` suggestions with one click.
+- If the live catalog cannot be fetched, CUT3 surfaces that state in Settings instead of silently hiding it.
+- If a pinned OpenRouter `:free` model cannot be served and CUT3 retries through `openrouter/free`, the chat UI now shows a warning banner so the turn does not silently drift onto a different free model.
+
 ### Custom model slugs
 
 CUT3 supports saved custom model ids for:
 
 - **GitHub Copilot**
 - **Kimi Code**
+- Additional Codex model ids you want to save manually
+- Additional OpenRouter `:free` model ids from the current live catalog
 
 Saved custom model ids appear in:
 
 - the main model picker
 - `/model` command suggestions
 
-The app normalizes entries before saving them and ignores built-in duplicates.
+The app normalizes entries before saving them, ignores built-in duplicates, and refuses OpenRouter slugs that are not explicit free variants.
 
-Codex currently uses the built-in catalog only. CUT3 still normalizes common Codex aliases such as `5.4` and `5.3-spark` to their canonical built-in model ids.
+If you add an OpenRouter API key in Settings, CUT3 launches Codex with per-session OpenRouter overrides whenever you pick `openrouter/free` or another saved OpenRouter `:free` slug such as `google/gemma-3n-e4b-it:free`. Native Codex models still use your normal Codex authentication.
 
 ## Composer controls
 
@@ -78,7 +91,7 @@ The composer exposes provider-aware turn controls.
 - **GitHub Copilot**: provider-supported reasoning values, currently surfaced as `Low`, `Medium`, or `High`
 - **Kimi Code**: no reasoning-effort picker is shown
 
-Reasoning choices are scoped by provider, so switching providers updates the available options.
+Reasoning choices are scoped by provider. CUT3 still shows a Reasoning badge for OpenRouter models that advertise reasoning support, but it does not expose Codex-style reasoning-effort levels for OpenRouter models because the OpenRouter catalog does not currently describe which effort values are valid per model.
 
 ### Codex fast mode
 
@@ -86,6 +99,12 @@ Codex also has a per-turn `Fast Mode` toggle in the composer controls. This is s
 
 - **Service tier** is your default preference for new Codex turns.
 - **Fast Mode** is an explicit per-turn Codex model option.
+
+`Fast Mode` is only shown for native Codex models, not OpenRouter-routed models.
+
+### Context window UI
+
+CUT3 hides the "token context left" UI for OpenRouter-routed models because the routed model can change and the remaining-context display is not reliable enough there.
 
 ## Related docs
 

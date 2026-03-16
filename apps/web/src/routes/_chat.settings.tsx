@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
-import { type ProviderKind } from "@t3tools/contracts";
-import { getModelOptions, normalizeModelSlug } from "@t3tools/shared/model";
-import { ImagePlusIcon, LoaderCircleIcon, Trash2Icon, ZapIcon } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { OPENROUTER_FREE_ROUTER_MODEL, type ProviderKind } from "@t3tools/contracts";
+import { getModelOptions, isCodexOpenRouterModel, normalizeModelSlug } from "@t3tools/shared/model";
+import { ImagePlusIcon, LoaderCircleIcon, RefreshCwIcon, Trash2Icon, ZapIcon } from "lucide-react";
 
 import {
   APP_SERVICE_TIER_OPTIONS,
@@ -20,6 +20,13 @@ import { resolveAndPersistPreferredEditor } from "../editorPreferences";
 import { isElectron } from "../env";
 import { useChatBackgroundImage } from "../hooks/useChatBackgroundImage";
 import { removeChatBackgroundBlob, saveChatBackgroundBlob } from "../lib/chatBackgroundStorage";
+import { formatCompactTokenCount } from "../lib/contextWindow";
+import {
+  isCut3CompatibleOpenRouterModelOption,
+  isOpenRouterGuaranteedFreeSlug,
+  OPENROUTER_FREE_ROUTER_OPTION,
+} from "../lib/openRouterModels";
+import { openRouterFreeModelsQueryOptions } from "../lib/openRouterReactQuery";
 import { serverConfigQueryOptions } from "../lib/serverReactQuery";
 import { ensureNativeApi } from "../nativeApi";
 import { AppearanceSettingsSection } from "../components/AppearanceSettingsSection";
@@ -135,9 +142,18 @@ function patchCustomModels(provider: ProviderKind, models: string[]) {
   }
 }
 
+function renderCapabilityBadge(label: string) {
+  return (
+    <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+      {label}
+    </span>
+  );
+}
+
 function SettingsRouteView() {
   const { settings, defaults, updateSettings } = useAppSettings();
   const serverConfigQuery = useQuery(serverConfigQueryOptions());
+  const openRouterCatalogQuery = useQuery(openRouterFreeModelsQueryOptions());
   const [isOpeningKeybindings, setIsOpeningKeybindings] = useState(false);
   const [openKeybindingsError, setOpenKeybindingsError] = useState<string | null>(null);
   const [chatBackgroundError, setChatBackgroundError] = useState<string | null>(null);
@@ -156,10 +172,29 @@ function SettingsRouteView() {
 
   const codexBinaryPath = settings.codexBinaryPath;
   const codexHomePath = settings.codexHomePath;
+  const openRouterApiKey = settings.openRouterApiKey;
   const copilotBinaryPath = settings.copilotBinaryPath;
   const kimiBinaryPath = settings.kimiBinaryPath;
   const kimiApiKey = settings.kimiApiKey;
   const codexServiceTier = settings.codexServiceTier;
+  const openRouterFreeModels = useMemo(
+    () => openRouterCatalogQuery.data?.models ?? [OPENROUTER_FREE_ROUTER_OPTION],
+    [openRouterCatalogQuery.data?.models],
+  );
+  const compatibleOpenRouterFreeModels = useMemo(
+    () => openRouterFreeModels.filter(isCut3CompatibleOpenRouterModelOption),
+    [openRouterFreeModels],
+  );
+  const openRouterModelsBySlug = useMemo(
+    () => new Map(openRouterFreeModels.map((model) => [model.slug, model])),
+    [openRouterFreeModels],
+  );
+  const openRouterCatalogModelCount = compatibleOpenRouterFreeModels.filter(
+    (model) => model.source === "catalog",
+  ).length;
+  const openRouterCustomModelInput = customModelInputByProvider.codex;
+  const openRouterCustomModelError = customModelErrorByProvider.codex ?? null;
+  const savedOpenRouterModels = settings.customCodexModels;
   const keybindingsConfigPath = serverConfigQuery.data?.keybindingsConfigPath ?? null;
   const availableEditors = serverConfigQuery.data?.availableEditors;
   const hasChatBackgroundImage =
@@ -199,52 +234,234 @@ function SettingsRouteView() {
       });
   }, [availableEditors, keybindingsConfigPath]);
 
-  const addCustomModel = useCallback(
-    (provider: ProviderKind) => {
-      const customModelInput = customModelInputByProvider[provider];
+  const saveCustomModel = useCallback(
+    (provider: ProviderKind, value: string) => {
       const customModels = getCustomModelsForProvider(settings, provider);
-      const normalized = normalizeModelSlug(customModelInput, provider);
+      const normalized = normalizeModelSlug(value, provider);
       if (!normalized) {
         setCustomModelErrorByProvider((existing) => ({
           ...existing,
           [provider]: "Enter a model slug.",
         }));
-        return;
+        return false;
       }
       if (getModelOptions(provider).some((option) => option.slug === normalized)) {
         setCustomModelErrorByProvider((existing) => ({
           ...existing,
           [provider]: "That model is already built in.",
         }));
-        return;
+        return false;
       }
       if (normalized.length > MAX_CUSTOM_MODEL_LENGTH) {
         setCustomModelErrorByProvider((existing) => ({
           ...existing,
           [provider]: `Model slugs must be ${MAX_CUSTOM_MODEL_LENGTH} characters or less.`,
         }));
-        return;
+        return false;
       }
       if (customModels.includes(normalized)) {
         setCustomModelErrorByProvider((existing) => ({
           ...existing,
           [provider]: "That custom model is already saved.",
         }));
-        return;
+        return false;
+      }
+
+      if (provider === "codex" && isCodexOpenRouterModel(normalized)) {
+        if (!isOpenRouterGuaranteedFreeSlug(normalized)) {
+          setCustomModelErrorByProvider((existing) => ({
+            ...existing,
+            codex:
+              "OpenRouter model ids must use `openrouter/free` or an explicit `:free` slug so CUT3 cannot drift onto a billed model.",
+          }));
+          return false;
+        }
+
+        if (openRouterCatalogQuery.data?.status === "available") {
+          const catalogEntry = openRouterModelsBySlug.get(normalized) ?? null;
+          if (normalized !== OPENROUTER_FREE_ROUTER_MODEL && catalogEntry === null) {
+            setCustomModelErrorByProvider((existing) => ({
+              ...existing,
+              codex:
+                "That OpenRouter model is not in the current live free catalog. Refresh the list and pick a currently free `:free` model.",
+            }));
+            return false;
+          }
+          if (catalogEntry && !catalogEntry.supportsTools) {
+            setCustomModelErrorByProvider((existing) => ({
+              ...existing,
+              codex:
+                "CUT3 requires OpenRouter models with tool use. Pick a free model that advertises tool support.",
+            }));
+            return false;
+          }
+        }
       }
 
       updateSettings(patchCustomModels(provider, [...customModels, normalized]));
-      setCustomModelInputByProvider((existing) => ({
-        ...existing,
-        [provider]: "",
-      }));
       setCustomModelErrorByProvider((existing) => ({
         ...existing,
         [provider]: null,
       }));
+      return true;
     },
-    [customModelInputByProvider, settings, updateSettings],
+    [openRouterCatalogQuery.data?.status, openRouterModelsBySlug, settings, updateSettings],
   );
+
+  const addCustomModel = useCallback(
+    (provider: ProviderKind) => {
+      const customModelInput = customModelInputByProvider[provider];
+      if (!saveCustomModel(provider, customModelInput)) {
+        return;
+      }
+
+      setCustomModelInputByProvider((existing) => ({
+        ...existing,
+        [provider]: "",
+      }));
+    },
+    [customModelInputByProvider, saveCustomModel],
+  );
+
+  const addOpenRouterCatalogModel = useCallback(
+    (slug: string) => {
+      saveCustomModel("codex", slug);
+    },
+    [saveCustomModel],
+  );
+
+  const resetOpenRouterCustomModels = useCallback(() => {
+    updateSettings(
+      patchCustomModels("codex", [...getDefaultCustomModelsForProvider(defaults, "codex")]),
+    );
+    setCustomModelErrorByProvider((existing) => ({
+      ...existing,
+      codex: null,
+    }));
+  }, [defaults, updateSettings]);
+
+  const lastCheckedOpenRouterCatalogLabel = openRouterCatalogQuery.data
+    ? new Date(openRouterCatalogQuery.data.fetchedAt).toLocaleTimeString()
+    : null;
+
+  const openRouterCatalogStatusMessage = openRouterCatalogQuery.isPending
+    ? "Checking OpenRouter for the current free-model list..."
+    : openRouterCatalogQuery.data?.status === "available"
+      ? `${openRouterCatalogModelCount} live OpenRouter free model${openRouterCatalogModelCount === 1 ? " is" : "s are"} currently safe for CUT3, plus the built-in router.`
+      : "Live OpenRouter free-model discovery is currently unavailable.";
+
+  const openRouterCatalogError =
+    openRouterCatalogQuery.data?.status === "unavailable"
+      ? openRouterCatalogQuery.data.message
+      : null;
+
+  const renderCustomModelsCard = (providerSettings: (typeof MODEL_PROVIDER_SETTINGS)[number]) => {
+    const provider = providerSettings.provider;
+    const customModels = getCustomModelsForProvider(settings, provider);
+    const customModelInput = customModelInputByProvider[provider];
+    const customModelError = customModelErrorByProvider[provider] ?? null;
+    return (
+      <div key={provider} className="rounded-xl border border-border bg-background/50 p-4">
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-foreground">{providerSettings.title}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">{providerSettings.description}</p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <label htmlFor={`custom-model-slug-${provider}`} className="block flex-1 space-y-1">
+              <span className="text-xs font-medium text-foreground">Custom model slug</span>
+              <Input
+                id={`custom-model-slug-${provider}`}
+                value={customModelInput}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setCustomModelInputByProvider((existing) => ({
+                    ...existing,
+                    [provider]: value,
+                  }));
+                  if (customModelError) {
+                    setCustomModelErrorByProvider((existing) => ({
+                      ...existing,
+                      [provider]: null,
+                    }));
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  addCustomModel(provider);
+                }}
+                placeholder={providerSettings.placeholder}
+                spellCheck={false}
+              />
+              <span className="text-xs text-muted-foreground">
+                Example: <code>{providerSettings.example}</code>
+              </span>
+            </label>
+
+            <Button className="sm:mt-6" type="button" onClick={() => addCustomModel(provider)}>
+              Add model
+            </Button>
+          </div>
+
+          {customModelError ? <p className="text-xs text-destructive">{customModelError}</p> : null}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <p>Saved custom models: {customModels.length}</p>
+              {customModels.length > 0 ? (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() =>
+                    updateSettings(
+                      patchCustomModels(provider, [
+                        ...getDefaultCustomModelsForProvider(defaults, provider),
+                      ]),
+                    )
+                  }
+                >
+                  Reset custom models
+                </Button>
+              ) : null}
+            </div>
+
+            {customModels.length > 0 ? (
+              <div className="space-y-2">
+                {customModels.map((slug) => (
+                  <div
+                    key={`${provider}:${slug}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      {provider === "codex" && shouldShowFastTierIcon(slug, codexServiceTier) ? (
+                        <ZapIcon className="size-3.5 shrink-0 text-amber-500" />
+                      ) : null}
+                      <code className="min-w-0 flex-1 truncate text-xs text-foreground">
+                        {slug}
+                      </code>
+                    </div>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => removeCustomModel(provider, slug)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border bg-background px-3 py-4 text-xs text-muted-foreground">
+                No custom models saved yet.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const removeCustomModel = useCallback(
     (provider: ProviderKind, slug: string) => {
@@ -619,6 +836,60 @@ function SettingsRouteView() {
 
             <section className="rounded-2xl border border-border bg-card p-5">
               <div className="mb-4">
+                <h2 className="text-sm font-medium text-foreground">OpenRouter</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  CUT3 exposes OpenRouter as its own top-level UI section and routes those sessions
+                  through Codex under the hood, so you can use the built-in{" "}
+                  <code>openrouter/free</code> router or saved OpenRouter <code>:free</code> model
+                  ids without editing your normal Codex config.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <label htmlFor="openrouter-api-key" className="block space-y-1">
+                  <span className="text-xs font-medium text-foreground">OpenRouter API key</span>
+                  <Input
+                    id="openrouter-api-key"
+                    type="password"
+                    value={openRouterApiKey}
+                    onChange={(event) => updateSettings({ openRouterApiKey: event.target.value })}
+                    placeholder="sk-or-..."
+                    autoComplete="new-password"
+                    spellCheck={false}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    Needed only for Codex models routed through OpenRouter.{" "}
+                    {isElectron
+                      ? "CUT3 keeps it in the desktop session and persists it in your OS credential store when secure storage is available."
+                      : "CUT3 keeps it only in memory for the current browser session."}{" "}
+                    Use <code>openrouter/free</code> for the current free-model pool, or add
+                    specific <code>:free</code> slugs below.
+                  </span>
+                </label>
+
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <p>
+                    {openRouterApiKey.trim().length > 0
+                      ? "OpenRouter key is configured for new Codex sessions."
+                      : "Add a key to use OpenRouter-routed Codex models."}
+                  </p>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() =>
+                      updateSettings({
+                        openRouterApiKey: defaults.openRouterApiKey,
+                      })
+                    }
+                  >
+                    Reset OpenRouter key
+                  </Button>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card p-5">
+              <div className="mb-4">
                 <h2 className="text-sm font-medium text-foreground">GitHub Copilot CLI</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
                   This override applies to new Copilot sessions and lets you use a non-default
@@ -733,9 +1004,9 @@ function SettingsRouteView() {
               <div className="mb-4">
                 <h2 className="text-sm font-medium text-foreground">Models</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Save additional provider model slugs for supported providers so they appear in the
-                  chat model picker and `/model` command suggestions. Codex uses the built-in
-                  catalog only.
+                  Save additional provider model slugs so they appear in the chat model picker and
+                  `/model` command suggestions. OpenRouter free models now have their own section,
+                  while the cards below handle additional provider-specific custom models.
                 </p>
               </div>
 
@@ -777,132 +1048,191 @@ function SettingsRouteView() {
                   </span>
                 </label>
 
-                {MODEL_PROVIDER_SETTINGS.map((providerSettings) => {
-                  const provider = providerSettings.provider;
-                  const customModels = getCustomModelsForProvider(settings, provider);
-                  const customModelInput = customModelInputByProvider[provider];
-                  const customModelError = customModelErrorByProvider[provider] ?? null;
-                  return (
-                    <div
-                      key={provider}
-                      className="rounded-xl border border-border bg-background/50 p-4"
+                <div className="rounded-xl border border-border bg-background/50 p-4">
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium text-foreground">
+                        OpenRouter Free Models
+                      </h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        CUT3 checks OpenRouter&apos;s live catalog and lists the models that are
+                        free right now. The built-in <code>{OPENROUTER_FREE_ROUTER_MODEL}</code>{" "}
+                        router is always available, and you can save any live free model below so it
+                        shows up in the picker and <code>/model</code> suggestions.
+                      </p>
+                    </div>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => void openRouterCatalogQuery.refetch()}
+                      disabled={openRouterCatalogQuery.isFetching}
                     >
-                      <div className="mb-4">
-                        <h3 className="text-sm font-medium text-foreground">
-                          {providerSettings.title}
-                        </h3>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {providerSettings.description}
+                      {openRouterCatalogQuery.isFetching ? (
+                        <LoaderCircleIcon className="size-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCwIcon className="size-3.5" />
+                      )}
+                      Refresh list
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-lg border border-border bg-background px-3 py-3 text-xs text-muted-foreground">
+                      <p>{openRouterCatalogStatusMessage}</p>
+                      {openRouterCatalogQuery.data?.status === "available" ? (
+                        <p className="mt-1">
+                          CUT3 only lists OpenRouter picks that are locked to <code>:free</code> or{" "}
+                          <code>{OPENROUTER_FREE_ROUTER_MODEL}</code> and advertise tool use.
                         </p>
+                      ) : null}
+                      {lastCheckedOpenRouterCatalogLabel ? (
+                        <p className="mt-1">Last checked at {lastCheckedOpenRouterCatalogLabel}.</p>
+                      ) : null}
+                      {openRouterCatalogError ? (
+                        <p className="mt-2 text-destructive">{openRouterCatalogError}</p>
+                      ) : null}
+                    </div>
+
+                    <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg border border-border bg-background p-2">
+                      {compatibleOpenRouterFreeModels.map((model) => {
+                        const isBuiltIn = model.slug === OPENROUTER_FREE_ROUTER_MODEL;
+                        const isSaved = savedOpenRouterModels.includes(model.slug);
+                        return (
+                          <div
+                            key={model.slug}
+                            className="flex flex-col gap-3 rounded-lg border border-border bg-background/70 px-3 py-3 sm:flex-row sm:items-start sm:justify-between"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                <span className="text-sm font-medium text-foreground">
+                                  {model.name}
+                                </span>
+                                {model.source === "router" ? renderCapabilityBadge("Router") : null}
+                                {model.contextLength !== null
+                                  ? renderCapabilityBadge(
+                                      `${formatCompactTokenCount(model.contextLength)} ctx`,
+                                    )
+                                  : null}
+                                {model.supportsTools ? renderCapabilityBadge("Tools") : null}
+                                {model.supportsReasoning
+                                  ? renderCapabilityBadge("Reasoning")
+                                  : null}
+                                {model.supportsImages ? renderCapabilityBadge("Vision") : null}
+                              </div>
+                              <code className="mt-1 block min-w-0 truncate text-xs text-muted-foreground">
+                                {model.slug}
+                              </code>
+                              {model.description ? (
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                  {model.description}
+                                </p>
+                              ) : null}
+                            </div>
+
+                            <Button
+                              size="xs"
+                              variant={isBuiltIn || isSaved ? "outline" : "secondary"}
+                              disabled={isBuiltIn || isSaved}
+                              onClick={() => addOpenRouterCatalogModel(model.slug)}
+                            >
+                              {isBuiltIn ? "Built in" : isSaved ? "Saved" : "Add to picker"}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                      <label
+                        htmlFor="custom-model-slug-openrouter"
+                        className="block flex-1 space-y-1"
+                      >
+                        <span className="text-xs font-medium text-foreground">
+                          Additional Codex or OpenRouter model slug
+                        </span>
+                        <Input
+                          id="custom-model-slug-openrouter"
+                          value={openRouterCustomModelInput}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setCustomModelInputByProvider((existing) => ({
+                              ...existing,
+                              codex: value,
+                            }));
+                            if (openRouterCustomModelError) {
+                              setCustomModelErrorByProvider((existing) => ({
+                                ...existing,
+                                codex: null,
+                              }));
+                            }
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== "Enter") return;
+                            event.preventDefault();
+                            addCustomModel("codex");
+                          }}
+                          placeholder="meta-llama/llama-3.3-70b-instruct:free"
+                          spellCheck={false}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          Save a custom Codex model id, or paste a currently listed OpenRouter{" "}
+                          <code>:free</code> slug if you want to pin it manually.
+                        </span>
+                      </label>
+
+                      <Button
+                        className="sm:mt-6"
+                        type="button"
+                        onClick={() => addCustomModel("codex")}
+                      >
+                        Add model
+                      </Button>
+                    </div>
+
+                    {openRouterCustomModelError ? (
+                      <p className="text-xs text-destructive">{openRouterCustomModelError}</p>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <p>Saved Codex/OpenRouter model ids: {savedOpenRouterModels.length}</p>
+                        {savedOpenRouterModels.length > 0 ? (
+                          <Button size="xs" variant="outline" onClick={resetOpenRouterCustomModels}>
+                            Reset saved Codex/OpenRouter models
+                          </Button>
+                        ) : null}
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                          <label
-                            htmlFor={`custom-model-slug-${provider}`}
-                            className="block flex-1 space-y-1"
-                          >
-                            <span className="text-xs font-medium text-foreground">
-                              Custom model slug
-                            </span>
-                            <Input
-                              id={`custom-model-slug-${provider}`}
-                              value={customModelInput}
-                              onChange={(event) => {
-                                const value = event.target.value;
-                                setCustomModelInputByProvider((existing) => ({
-                                  ...existing,
-                                  [provider]: value,
-                                }));
-                                if (customModelError) {
-                                  setCustomModelErrorByProvider((existing) => ({
-                                    ...existing,
-                                    [provider]: null,
-                                  }));
-                                }
-                              }}
-                              onKeyDown={(event) => {
-                                if (event.key !== "Enter") return;
-                                event.preventDefault();
-                                addCustomModel(provider);
-                              }}
-                              placeholder={providerSettings.placeholder}
-                              spellCheck={false}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              Example: <code>{providerSettings.example}</code>
-                            </span>
-                          </label>
-
-                          <Button
-                            className="sm:mt-6"
-                            type="button"
-                            onClick={() => addCustomModel(provider)}
-                          >
-                            Add model
-                          </Button>
-                        </div>
-
-                        {customModelError ? (
-                          <p className="text-xs text-destructive">{customModelError}</p>
-                        ) : null}
-
+                      {savedOpenRouterModels.length > 0 ? (
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                            <p>Saved custom models: {customModels.length}</p>
-                            {customModels.length > 0 ? (
+                          {savedOpenRouterModels.map((slug) => (
+                            <div
+                              key={`openrouter:${slug}`}
+                              className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
+                            >
+                              <code className="min-w-0 flex-1 truncate text-xs text-foreground">
+                                {slug}
+                              </code>
                               <Button
                                 size="xs"
-                                variant="outline"
-                                onClick={() =>
-                                  updateSettings(
-                                    patchCustomModels(provider, [
-                                      ...getDefaultCustomModelsForProvider(defaults, provider),
-                                    ]),
-                                  )
-                                }
+                                variant="ghost"
+                                onClick={() => removeCustomModel("codex", slug)}
                               >
-                                Reset custom models
+                                Remove
                               </Button>
-                            ) : null}
-                          </div>
-
-                          {customModels.length > 0 ? (
-                            <div className="space-y-2">
-                              {customModels.map((slug) => (
-                                <div
-                                  key={`${provider}:${slug}`}
-                                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
-                                >
-                                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                                    {provider === "codex" &&
-                                    shouldShowFastTierIcon(slug, codexServiceTier) ? (
-                                      <ZapIcon className="size-3.5 shrink-0 text-amber-500" />
-                                    ) : null}
-                                    <code className="min-w-0 flex-1 truncate text-xs text-foreground">
-                                      {slug}
-                                    </code>
-                                  </div>
-                                  <Button
-                                    size="xs"
-                                    variant="ghost"
-                                    onClick={() => removeCustomModel(provider, slug)}
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
-                              ))}
                             </div>
-                          ) : (
-                            <div className="rounded-lg border border-dashed border-border bg-background px-3 py-4 text-xs text-muted-foreground">
-                              No custom models saved yet.
-                            </div>
-                          )}
+                          ))}
                         </div>
-                      </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-border bg-background px-3 py-4 text-xs text-muted-foreground">
+                          No saved Codex/OpenRouter model ids yet.
+                        </div>
+                      )}
                     </div>
-                  );
-                })}
+                  </div>
+                </div>
+
+                {MODEL_PROVIDER_SETTINGS.map(renderCustomModelsCard)}
               </div>
             </section>
 

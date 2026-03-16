@@ -79,10 +79,13 @@ For the full local packaging and release notes, see [docs/release.md](docs/relea
 Open Settings in the app to configure provider-specific behavior on the current device.
 
 - **Appearance**: choose the base light/dark/system mode, switch to integrated presets like Lilac, and configure a custom chat background image with adjustable fade and blur.
-- **Provider overrides**: set custom binary paths for Codex, Copilot, or Kimi, plus an optional Codex home path and Kimi API key.
-- **Custom model slugs**: save extra model ids for GitHub Copilot and Kimi so they appear in the model picker and `/model` suggestions.
+- **Provider overrides**: set custom binary paths for Codex, Copilot, or Kimi, plus an optional Codex home path, an OpenRouter API key for Codex, and a Kimi API key.
+- **OpenRouter free models**: review the current OpenRouter entries that are explicitly free-locked and tool-compatible, keep the built-in `openrouter/free` router handy, and pin any listed model into the picker.
+- **Custom model slugs**: save extra model ids for GitHub Copilot, Kimi, custom Codex models, or current OpenRouter `:free` slugs so they appear in the model picker and `/model` suggestions.
 - **Codex service tier**: choose `Automatic`, `Fast`, or `Flex` as the default service tier for new Codex turns.
 - **Per-turn controls**: the composer exposes provider-aware reasoning controls, and Codex also supports a per-turn `Fast Mode` toggle.
+
+The chat model picker now shows OpenRouter as its own top-level section, with the built-in `openrouter/free` router plus the current OpenRouter `:free` models that CUT3 can safely use.
 
 For the full details, see [.docs/provider-settings.md](.docs/provider-settings.md).
 

@@ -5,6 +5,7 @@ import {
   getDefaultModel,
   getModelDisplayName,
   getModelOptions,
+  isCodexOpenRouterModel,
   normalizeModelSlug,
 } from "@t3tools/shared/model";
 
@@ -17,6 +18,7 @@ import {
   normalizeAppearanceThemeConfig,
 } from "./lib/appearanceTheme";
 import { CUSTOM_THEME_IDS } from "./lib/customThemes";
+import { isOpenRouterGuaranteedFreeSlug } from "./lib/openRouterModels";
 
 const APP_SETTINGS_STORAGE_KEY = "cut3:app-settings:v1";
 const MAX_CUSTOM_MODEL_COUNT = 32;
@@ -50,7 +52,7 @@ export type AppServiceTier = (typeof APP_SERVICE_TIER_OPTIONS)[number]["value"];
 const AppServiceTierSchema = Schema.Literals(["auto", "fast", "flex"]);
 const CustomThemeIdSchema = Schema.Literals(CUSTOM_THEME_IDS);
 const MODELS_WITH_FAST_SUPPORT = new Set(["gpt-5.4"]);
-const PROVIDERS_WITH_CUSTOM_MODEL_SUPPORT = new Set<ProviderKind>(["copilot", "kimi"]);
+const PROVIDERS_WITH_CUSTOM_MODEL_SUPPORT = new Set<ProviderKind>(["codex", "copilot", "kimi"]);
 const AppearanceThemeConfigSchema = Schema.Struct({
   accent: Schema.String.check(Schema.isMaxLength(32)),
   background: Schema.String.check(Schema.isMaxLength(32)),
@@ -71,6 +73,9 @@ const AppSettingsSchema = Schema.Struct({
     Schema.withConstructorDefault(() => Option.some("")),
   ),
   codexHomePath: Schema.String.check(Schema.isMaxLength(4096)).pipe(
+    Schema.withConstructorDefault(() => Option.some("")),
+  ),
+  openRouterApiKey: Schema.String.check(Schema.isMaxLength(4096)).pipe(
     Schema.withConstructorDefault(() => Option.some("")),
   ),
   copilotBinaryPath: Schema.String.check(Schema.isMaxLength(4096)).pipe(
@@ -162,9 +167,11 @@ export function shouldShowFastTierIcon(
 }
 
 const DEFAULT_APP_SETTINGS = AppSettingsSchema.makeUnsafe({});
+type SecretAppSettings = Pick<AppSettings, "openRouterApiKey" | "kimiApiKey">;
 const DEFAULT_SECRET_SETTINGS = {
+  openRouterApiKey: DEFAULT_APP_SETTINGS.openRouterApiKey,
   kimiApiKey: DEFAULT_APP_SETTINGS.kimiApiKey,
-} satisfies Pick<AppSettings, "kimiApiKey">;
+} satisfies SecretAppSettings;
 
 let listeners: Array<() => void> = [];
 let cachedRawSettings: string | null | undefined;
@@ -174,7 +181,7 @@ let cachedPersistedSnapshot: AppSettings = {
 };
 let cachedSnapshot = DEFAULT_APP_SETTINGS;
 let cachedSnapshotKey = "";
-let cachedSecretSettings: Pick<AppSettings, "kimiApiKey"> = DEFAULT_SECRET_SETTINGS;
+let cachedSecretSettings: SecretAppSettings = DEFAULT_SECRET_SETTINGS;
 let hasHydratedDesktopSecrets = false;
 let secretHydrationPromise: Promise<void> | null = null;
 let secretHydrationVersion = 0;
@@ -201,6 +208,16 @@ export function normalizeCustomModelSlugs(
       normalized.length > MAX_CUSTOM_MODEL_LENGTH ||
       builtInModelSlugs.has(normalized) ||
       seen.has(normalized)
+    ) {
+      continue;
+    }
+
+    // CUT3 only persists explicit OpenRouter free slugs so model picks cannot
+    // silently drift onto a billed OpenRouter model later.
+    if (
+      provider === "codex" &&
+      isCodexOpenRouterModel(normalized) &&
+      !isOpenRouterGuaranteedFreeSlug(normalized)
     ) {
       continue;
     }
@@ -371,7 +388,7 @@ function mergeSettingsWithSecrets(settings: AppSettings): AppSettings {
   );
 }
 
-function persistDesktopSecrets(next: Pick<AppSettings, "kimiApiKey">): void {
+function persistDesktopSecrets(next: SecretAppSettings): void {
   secretHydrationVersion += 1;
   cachedSecretSettings = next;
 
@@ -379,6 +396,9 @@ function persistDesktopSecrets(next: Pick<AppSettings, "kimiApiKey">): void {
     return;
   }
 
+  void window.desktopBridge
+    .setSecret("openRouterApiKey", normalizeDesktopSecretValue(next.openRouterApiKey))
+    .catch(() => undefined);
   void window.desktopBridge
     .setSecret("kimiApiKey", normalizeDesktopSecretValue(next.kimiApiKey))
     .catch(() => undefined);
@@ -393,20 +413,29 @@ function hydrateDesktopSecretsOnce(): void {
   }
 
   const hydrationVersion = secretHydrationVersion;
-  secretHydrationPromise = window.desktopBridge
-    .getSecret("kimiApiKey")
-    .then((secret) => {
+  secretHydrationPromise = Promise.all([
+    window.desktopBridge.getSecret("openRouterApiKey"),
+    window.desktopBridge.getSecret("kimiApiKey"),
+  ])
+    .then(([openRouterSecret, kimiSecret]) => {
       hasHydratedDesktopSecrets = true;
       if (secretHydrationVersion !== hydrationVersion) {
         return;
       }
 
-      const nextSecret = normalizeDesktopSecretValue(secret) ?? DEFAULT_SECRET_SETTINGS.kimiApiKey;
-      if (cachedSecretSettings.kimiApiKey === nextSecret) {
+      const nextSecrets: SecretAppSettings = {
+        openRouterApiKey:
+          normalizeDesktopSecretValue(openRouterSecret) ?? DEFAULT_SECRET_SETTINGS.openRouterApiKey,
+        kimiApiKey: normalizeDesktopSecretValue(kimiSecret) ?? DEFAULT_SECRET_SETTINGS.kimiApiKey,
+      };
+      if (
+        cachedSecretSettings.openRouterApiKey === nextSecrets.openRouterApiKey &&
+        cachedSecretSettings.kimiApiKey === nextSecrets.kimiApiKey
+      ) {
         return;
       }
 
-      cachedSecretSettings = { kimiApiKey: nextSecret };
+      cachedSecretSettings = nextSecrets;
       emitChange();
     })
     .catch(() => {
@@ -427,13 +456,21 @@ export function getAppSettingsSnapshot(): AppSettings {
   const raw = window.localStorage.getItem(APP_SETTINGS_STORAGE_KEY);
   if (raw !== cachedRawSettings) {
     const parsedSettings = parsePersistedSettings(raw);
-    const migratedSecret = normalizeDesktopSecretValue(parsedSettings.kimiApiKey);
+    const migratedOpenRouterSecret = normalizeDesktopSecretValue(parsedSettings.openRouterApiKey);
+    const migratedKimiSecret = normalizeDesktopSecretValue(parsedSettings.kimiApiKey);
 
     cachedRawSettings = raw;
     cachedPersistedSnapshot = sanitizePersistedAppSettingsForStorage(parsedSettings);
 
-    if (migratedSecret !== null && cachedSecretSettings.kimiApiKey !== migratedSecret) {
-      persistDesktopSecrets({ kimiApiKey: migratedSecret });
+    if (
+      (migratedOpenRouterSecret !== null &&
+        cachedSecretSettings.openRouterApiKey !== migratedOpenRouterSecret) ||
+      (migratedKimiSecret !== null && cachedSecretSettings.kimiApiKey !== migratedKimiSecret)
+    ) {
+      persistDesktopSecrets({
+        openRouterApiKey: migratedOpenRouterSecret ?? cachedSecretSettings.openRouterApiKey,
+        kimiApiKey: migratedKimiSecret ?? cachedSecretSettings.kimiApiKey,
+      });
       const sanitizedRaw = JSON.stringify(cachedPersistedSnapshot);
       try {
         if (sanitizedRaw !== cachedRawSettings) {
@@ -446,7 +483,7 @@ export function getAppSettingsSnapshot(): AppSettings {
     }
   }
 
-  const snapshotKey = `${cachedRawSettings ?? ""}\u0000${cachedSecretSettings.kimiApiKey}`;
+  const snapshotKey = `${cachedRawSettings ?? ""}\u0000${cachedSecretSettings.openRouterApiKey}\u0000${cachedSecretSettings.kimiApiKey}`;
   if (cachedSnapshotKey === snapshotKey) {
     return cachedSnapshot;
   }
@@ -471,7 +508,10 @@ function persistSettings(next: AppSettings): void {
 
   cachedRawSettings = raw;
   cachedPersistedSnapshot = persistedSettings;
-  persistDesktopSecrets({ kimiApiKey: next.kimiApiKey });
+  persistDesktopSecrets({
+    openRouterApiKey: next.openRouterApiKey,
+    kimiApiKey: next.kimiApiKey,
+  });
 }
 
 export function subscribeAppSettings(listener: () => void): () => void {
