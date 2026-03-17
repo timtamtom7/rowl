@@ -45,6 +45,13 @@ Practical guidance:
 - Unsigned local builds are the normal default.
 - Add `--signed` only when you have the signing credentials configured for that platform.
 
+Recommended local verification before sharing artifacts:
+
+- Run `bun run fmt`, `bun run lint`, `bun run typecheck`, and `bun run test` from the repo root.
+- Run `bun run test:desktop-smoke` after the desktop build so Electron launch, bundled backend bootstrap, and the backend ready marker are all rechecked on the target OS.
+- The desktop smoke test is intentionally narrow: it verifies launch-time startup and the backend readiness handshake, not full renderer interaction or installer behavior.
+- Use `apps/desktop/README.md` together with this release guide when debugging desktop startup or packaging issues.
+
 ## What the workflow does
 
 - Trigger: push tag matching `v*.*.*`.
@@ -120,6 +127,7 @@ Use this first to validate the GitHub release pipeline.
 3. Wait for `.github/workflows/release.yml` to finish.
 4. Verify the GitHub Release contains all platform artifacts.
 5. Download each artifact and sanity-check installation on each OS.
+6. Run `bun run test:desktop-smoke` on each platform-specific build machine before distributing any locally built artifact.
 
 ## 2) Apple signing + notarization setup (macOS)
 
@@ -188,6 +196,7 @@ Checklist:
    - all matrix builds pass
    - release job uploads expected files
 6. Smoke test downloaded artifacts.
+7. Confirm the downloaded app reaches the desktop backend ready state before manual UI checks begin.
 
 ## 5) Troubleshooting
 

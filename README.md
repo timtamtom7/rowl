@@ -4,7 +4,7 @@
   <img src="./CUT3.png" alt="CUT3" width="144" />
 </p>
 
-CUT3 is a minimal web GUI for coding agents. It currently supports Codex, GitHub Copilot, and Kimi Code, with Claude Code coming soon.
+CUT3 is a minimal web GUI for coding agents. It currently supports Codex, GitHub Copilot, and Kimi Code. Claude Code and Cursor remain visible in the provider picker as unavailable placeholders.
 
 ## Screenshot
 
@@ -15,6 +15,8 @@ CUT3 is a minimal web GUI for coding agents. It currently supports Codex, GitHub
 - Codex
 - GitHub Copilot
 - Kimi Code
+
+Claude Code and Cursor are intentionally shown in the provider picker as unavailable placeholders. They are not wired up for sessions yet.
 
 ## How to use
 
@@ -103,6 +105,7 @@ For the full details, see [.docs/runtime-modes.md](.docs/runtime-modes.md).
 ## Additional docs
 
 - [Codex prerequisites](.docs/codex-prerequisites.md)
+- [Desktop architecture and verification](apps/desktop/README.md)
 - [Quick start](.docs/quick-start.md)
 - [Runtime modes](.docs/runtime-modes.md)
 

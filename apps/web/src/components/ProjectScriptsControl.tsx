@@ -14,7 +14,14 @@ import {
   SettingsIcon,
   WrenchIcon,
 } from "lucide-react";
-import React, { type FormEvent, type KeyboardEvent, useCallback, useMemo, useState } from "react";
+import React, {
+  type FormEvent,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   keybindingValueForCommand,
@@ -27,6 +34,12 @@ import {
 } from "~/projectScripts";
 import { shortcutLabelForCommand } from "~/keybindings";
 import { isMacPlatform } from "~/lib/utils";
+import {
+  clearProjectScriptValidationFields,
+  getFirstInvalidProjectScriptField,
+  type ProjectScriptValidationErrors,
+  validateProjectScriptInput,
+} from "./ProjectScriptsControl.logic";
 import {
   AlertDialog,
   AlertDialogClose,
@@ -165,8 +178,14 @@ export default function ProjectScriptsControl({
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [runOnWorktreeCreate, setRunOnWorktreeCreate] = useState(false);
   const [keybinding, setKeybinding] = useState("");
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<ProjectScriptValidationErrors>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const scriptNameId = `${addScriptFormId}-name`;
+  const scriptNameErrorId = `${scriptNameId}-error`;
+  const scriptKeybindingId = `${addScriptFormId}-keybinding`;
+  const scriptCommandId = `${addScriptFormId}-command`;
+  const scriptCommandErrorId = `${scriptCommandId}-error`;
+  const scriptFormErrorId = `${addScriptFormId}-form-error`;
 
   const primaryScript = useMemo(() => {
     if (preferredScriptId) {
@@ -179,32 +198,52 @@ export default function ProjectScriptsControl({
   const dropdownItemClassName =
     "data-highlighted:bg-transparent data-highlighted:text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground data-highlighted:hover:bg-accent data-highlighted:hover:text-accent-foreground data-highlighted:focus-visible:bg-accent data-highlighted:focus-visible:text-accent-foreground";
 
+  useEffect(() => {
+    if (!dialogOpen) {
+      return;
+    }
+
+    const firstInvalidField = getFirstInvalidProjectScriptField(validationErrors);
+    if (!firstInvalidField) {
+      return;
+    }
+
+    const targetId = firstInvalidField === "name" ? scriptNameId : scriptCommandId;
+    const target = document.getElementById(targetId);
+    if (target instanceof HTMLElement) {
+      target.focus();
+    }
+  }, [dialogOpen, scriptCommandId, scriptNameId, validationErrors]);
+
   const captureKeybinding = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Tab") return;
     event.preventDefault();
     if (event.key === "Backspace" || event.key === "Delete") {
       setKeybinding("");
+      setValidationErrors((current) => clearProjectScriptValidationFields(current, ["form"]));
       return;
     }
     const next = keybindingFromEvent(event);
     if (!next) return;
     setKeybinding(next);
+    setValidationErrors((current) => clearProjectScriptValidationFields(current, ["form"]));
   };
 
   const submitAddScript = async (event: FormEvent) => {
     event.preventDefault();
     const trimmedName = name.trim();
     const trimmedCommand = command.trim();
-    if (trimmedName.length === 0) {
-      setValidationError("Name is required.");
-      return;
-    }
-    if (trimmedCommand.length === 0) {
-      setValidationError("Command is required.");
+    const nextValidationErrors = validateProjectScriptInput({
+      name: trimmedName,
+      command: trimmedCommand,
+    });
+
+    if (getFirstInvalidProjectScriptField(nextValidationErrors)) {
+      setValidationErrors(nextValidationErrors);
       return;
     }
 
-    setValidationError(null);
+    setValidationErrors({});
     try {
       const scriptIdForValidation =
         editingScriptId ??
@@ -231,7 +270,9 @@ export default function ProjectScriptsControl({
       setDialogOpen(false);
       setIconPickerOpen(false);
     } catch (error) {
-      setValidationError(error instanceof Error ? error.message : "Failed to save action.");
+      setValidationErrors({
+        form: error instanceof Error ? error.message : "Failed to save action.",
+      });
     }
   };
 
@@ -243,7 +284,7 @@ export default function ProjectScriptsControl({
     setIconPickerOpen(false);
     setRunOnWorktreeCreate(false);
     setKeybinding("");
-    setValidationError(null);
+    setValidationErrors({});
     setDialogOpen(true);
   };
 
@@ -255,7 +296,7 @@ export default function ProjectScriptsControl({
     setIconPickerOpen(false);
     setRunOnWorktreeCreate(script.runOnWorktreeCreate);
     setKeybinding(keybindingValueForCommand(keybindings, commandForProjectScript(script.id)) ?? "");
-    setValidationError(null);
+    setValidationErrors({});
     setDialogOpen(true);
   };
 
@@ -363,7 +404,7 @@ export default function ProjectScriptsControl({
           setIcon("play");
           setRunOnWorktreeCreate(false);
           setKeybinding("");
-          setValidationError(null);
+          setValidationErrors({});
         }}
         open={dialogOpen}
       >
@@ -377,7 +418,7 @@ export default function ProjectScriptsControl({
           <DialogPanel>
             <form id={addScriptFormId} className="space-y-4" onSubmit={submitAddScript}>
               <div className="space-y-1.5">
-                <Label htmlFor="script-name">Name</Label>
+                <Label htmlFor={scriptNameId}>Name</Label>
                 <div className="flex items-center gap-2">
                   <Popover onOpenChange={setIconPickerOpen} open={iconPickerOpen}>
                     <PopoverTrigger
@@ -419,18 +460,30 @@ export default function ProjectScriptsControl({
                     </PopoverPopup>
                   </Popover>
                   <Input
-                    id="script-name"
+                    id={scriptNameId}
                     autoFocus
+                    aria-describedby={validationErrors.name ? scriptNameErrorId : undefined}
+                    aria-invalid={validationErrors.name ? true : undefined}
                     placeholder="Test"
                     value={name}
-                    onChange={(event) => setName(event.target.value)}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      setValidationErrors((current) =>
+                        clearProjectScriptValidationFields(current, ["name", "form"]),
+                      );
+                    }}
                   />
                 </div>
+                {validationErrors.name ? (
+                  <p id={scriptNameErrorId} className="text-xs text-destructive" role="alert">
+                    {validationErrors.name}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="script-keybinding">Keybinding</Label>
+                <Label htmlFor={scriptKeybindingId}>Keybinding</Label>
                 <Input
-                  id="script-keybinding"
+                  id={scriptKeybindingId}
                   placeholder="Press shortcut"
                   value={keybinding}
                   readOnly
@@ -441,13 +494,25 @@ export default function ProjectScriptsControl({
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="script-command">Command</Label>
+                <Label htmlFor={scriptCommandId}>Command</Label>
                 <Textarea
-                  id="script-command"
+                  id={scriptCommandId}
+                  aria-describedby={validationErrors.command ? scriptCommandErrorId : undefined}
+                  aria-invalid={validationErrors.command ? true : undefined}
                   placeholder="bun test"
                   value={command}
-                  onChange={(event) => setCommand(event.target.value)}
+                  onChange={(event) => {
+                    setCommand(event.target.value);
+                    setValidationErrors((current) =>
+                      clearProjectScriptValidationFields(current, ["command", "form"]),
+                    );
+                  }}
                 />
+                {validationErrors.command ? (
+                  <p id={scriptCommandErrorId} className="text-xs text-destructive" role="alert">
+                    {validationErrors.command}
+                  </p>
+                ) : null}
               </div>
               <label className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2 text-sm">
                 <span>Run automatically on worktree creation</span>
@@ -456,7 +521,11 @@ export default function ProjectScriptsControl({
                   onCheckedChange={(checked) => setRunOnWorktreeCreate(Boolean(checked))}
                 />
               </label>
-              {validationError && <p className="text-sm text-destructive">{validationError}</p>}
+              {validationErrors.form ? (
+                <p id={scriptFormErrorId} className="text-sm text-destructive" role="alert">
+                  {validationErrors.form}
+                </p>
+              ) : null}
             </form>
           </DialogPanel>
           <DialogFooter>

@@ -21,6 +21,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { render } from "vitest-browser-react";
 
 import { useComposerDraftStore } from "../composerDraftStore";
+import { getAppSettingsSnapshot, sanitizePersistedAppSettingsForStorage } from "../appSettings";
 import { isMacPlatform } from "../lib/utils";
 import { getRouter } from "../router";
 import { useStore } from "../store";
@@ -32,6 +33,12 @@ const PROJECT_ID = "project-1" as ProjectId;
 const NOW_ISO = "2026-03-04T12:00:00.000Z";
 const BASE_TIME_MS = Date.parse(NOW_ISO);
 const ATTACHMENT_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='300'></svg>";
+const APP_SETTINGS_STORAGE_KEY = "cut3:app-settings:v1";
+const CHAT_BACKGROUND_TEST_DATA_URL =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' fill='%23201b29'/><circle cx='60' cy='60' r='28' fill='%23b657ff'/></svg>",
+  );
 
 interface WsRequestEnvelope {
   id: string;
@@ -247,6 +254,28 @@ function buildFixture(snapshot: OrchestrationReadModel): TestFixture {
       bootstrapProjectId: PROJECT_ID,
       bootstrapThreadId: THREAD_ID,
     },
+  };
+}
+
+function createSnapshotWithThreadError(error: string): OrchestrationReadModel {
+  const snapshot = createSnapshotForTargetUser({
+    targetMessageId: "msg-user-banner-target" as MessageId,
+    targetText: "thread banner background test",
+  });
+  const threads = snapshot.threads.slice();
+  const firstThread = threads[0];
+
+  if (firstThread?.session) {
+    threads[0] = Object.assign({}, firstThread, {
+      session: Object.assign({}, firstThread.session, {
+        lastError: error,
+      }),
+    });
+  }
+
+  return {
+    ...snapshot,
+    threads,
   };
 }
 
@@ -531,6 +560,20 @@ async function waitForComposerEditor(): Promise<HTMLElement> {
   );
 }
 
+async function waitForChatBackgroundLayer(): Promise<HTMLElement> {
+  return waitForElement(
+    () => document.querySelector<HTMLElement>('[data-chat-background-layer="true"]'),
+    "Unable to find the chat background layer.",
+  );
+}
+
+async function waitForChatBannerStack(): Promise<HTMLElement> {
+  return waitForElement(
+    () => document.querySelector<HTMLElement>('[data-chat-banner-stack="true"]'),
+    "Unable to find the chat banner stack.",
+  );
+}
+
 async function waitForInteractionModeButton(
   expectedLabel: "Chat" | "Plan",
 ): Promise<HTMLButtonElement> {
@@ -809,6 +852,39 @@ describe("ChatView timeline estimator parity (full app)", () => {
       expect(narrowest.timelineWidthMeasuredPx).toBeLessThan(widest.timelineWidthMeasuredPx);
       expect(narrowest.measuredRowHeightPx).toBeGreaterThan(widest.measuredRowHeightPx);
       expect(narrowest.estimatedHeightPx).toBeGreaterThan(widest.estimatedHeightPx);
+    } finally {
+      await mounted.cleanup();
+    }
+  });
+
+  it("keeps the chat wallpaper anchored behind thread alerts", async () => {
+    const persistedSettings = sanitizePersistedAppSettingsForStorage({
+      ...getAppSettingsSnapshot(),
+      chatBackgroundImageDataUrl: CHAT_BACKGROUND_TEST_DATA_URL,
+      chatBackgroundImageAssetId: "",
+      chatBackgroundImageName: "test-background.svg",
+      chatBackgroundImageFadePercent: 0,
+      chatBackgroundImageBlurPx: 0,
+    });
+
+    localStorage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(persistedSettings));
+
+    const mounted = await mountChatView({
+      viewport: DEFAULT_VIEWPORT,
+      snapshot: createSnapshotWithThreadError("OpenRouter retry limit reached."),
+    });
+
+    try {
+      const backgroundLayer = await waitForChatBackgroundLayer();
+      const bannerStack = await waitForChatBannerStack();
+
+      await waitForLayout();
+
+      const backgroundRect = backgroundLayer.getBoundingClientRect();
+      const bannerRect = bannerStack.getBoundingClientRect();
+
+      expect(bannerRect.height).toBeGreaterThan(0);
+      expect(backgroundRect.top).toBeLessThanOrEqual(bannerRect.top + 0.5);
     } finally {
       await mounted.cleanup();
     }

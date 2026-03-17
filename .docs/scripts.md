@@ -10,6 +10,7 @@
 - `bun run build` — Builds contracts, web app, and server through Turbo.
 - `bun run typecheck` — Strict TypeScript checks for all packages.
 - `bun run test` — Runs workspace tests.
+- `bun run test:desktop-smoke` — Launches the built Electron app, waits for the desktop backend ready marker, and fails fast on launch-time startup errors.
 - `bun run dist:desktop:artifact -- --platform <mac|linux|win> --target <target> --arch <arch>` — Builds a desktop artifact for a specific platform/target/arch.
 - `bun run dist:desktop:dmg` — Builds a shareable macOS `.dmg` into `./release`.
 - `bun run dist:desktop:dmg:arm64` — Builds an Apple Silicon macOS `.dmg`.
@@ -31,6 +32,13 @@
   `AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME`, and `AZURE_TRUSTED_SIGNING_PUBLISHER_NAME`.
 - Azure authentication env vars are also required (for example service principal with secret):
   `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`.
+
+## Desktop smoke test guarantee
+
+- `bun run test:desktop-smoke` exercises launch-time desktop integration only.
+- The smoke test passes only after Electron reaches the bundled backend readiness marker (`[cut3-desktop-ready]{...}`) and no obvious startup exception appears in stdout or stderr.
+- The smoke test does not validate full renderer interaction, menu flows, or update installation.
+- For the architecture and logging details behind that contract, see `apps/desktop/README.md`.
 
 ## Running multiple dev instances
 

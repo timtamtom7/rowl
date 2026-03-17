@@ -27,6 +27,7 @@ import { useStore } from "../store";
 import { useAppSettings } from "../appSettings";
 import { formatShortTimestamp } from "../timestampFormat";
 import { DiffPanelLoadingState, DiffPanelShell, type DiffPanelMode } from "./DiffPanelShell";
+import { Button } from "./ui/button";
 import { ToggleGroup, Toggle } from "./ui/toggle-group";
 
 type DiffRenderMode = "stacked" | "split";
@@ -152,6 +153,15 @@ function buildFileDiffRenderKey(fileDiff: FileDiffMetadata): string {
   return fileDiff.cacheKey ?? `${fileDiff.prevName ?? "none"}:${fileDiff.name}`;
 }
 
+function getCheckpointDiffErrorDetail(error: unknown): string | null {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+
+  const trimmed = error.message.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 interface DiffPanelProps {
   mode?: DiffPanelMode;
 }
@@ -268,12 +278,11 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
     ? undefined
     : activeCheckpointDiffQuery.data?.diff;
   const isLoadingCheckpointDiff = activeCheckpointDiffQuery.isLoading;
-  const checkpointDiffError =
-    activeCheckpointDiffQuery.error instanceof Error
-      ? activeCheckpointDiffQuery.error.message
-      : activeCheckpointDiffQuery.error
-        ? "Failed to load checkpoint diff."
-        : null;
+  const checkpointDiffError = activeCheckpointDiffQuery.error
+    ? "Could not load this checkpoint diff."
+    : null;
+  const checkpointDiffErrorDetail = getCheckpointDiffErrorDetail(activeCheckpointDiffQuery.error);
+  const isRetryingCheckpointDiff = activeCheckpointDiffQuery.isFetching && !isLoadingCheckpointDiff;
 
   const selectedPatch = selectedTurn ? selectedTurnCheckpointDiff : conversationCheckpointDiff;
   const hasResolvedPatch = typeof selectedPatch === "string";
@@ -533,12 +542,36 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
             ref={patchViewportRef}
             className="diff-panel-viewport min-h-0 min-w-0 flex-1 overflow-hidden"
           >
-            {checkpointDiffError && !renderablePatch && (
-              <div className="px-3">
-                <p className="mb-2 text-[11px] text-red-500/80">{checkpointDiffError}</p>
+            {checkpointDiffError && !renderablePatch ? (
+              <div className="flex h-full items-center justify-center px-3 py-3">
+                <div
+                  className="w-full max-w-md rounded-md border border-destructive/30 bg-destructive/5 p-4"
+                  role="alert"
+                >
+                  <p className="text-sm font-medium text-destructive">{checkpointDiffError}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Retry this diff request or switch to another turn.
+                  </p>
+                  {checkpointDiffErrorDetail ? (
+                    <p className="mt-2 text-xs text-muted-foreground/90">
+                      {checkpointDiffErrorDetail}
+                    </p>
+                  ) : null}
+                  <div className="mt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        void activeCheckpointDiffQuery.refetch();
+                      }}
+                      disabled={isRetryingCheckpointDiff}
+                    >
+                      {isRetryingCheckpointDiff ? "Retrying..." : "Retry diff"}
+                    </Button>
+                  </div>
+                </div>
               </div>
-            )}
-            {!renderablePatch ? (
+            ) : !renderablePatch ? (
               isLoadingCheckpointDiff ? (
                 <DiffPanelLoadingState label="Loading checkpoint diff..." />
               ) : (

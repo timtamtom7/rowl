@@ -6,6 +6,7 @@
 - Always use `bun run test` (runs Vitest), not bare `bun test`.
 - If a change affects user-visible behavior, settings, build steps, release steps, or developer workflows, update the relevant documentation in the same change.
 - Treat stale docs as a bug. Check `README.md`, `.docs/*`, `docs/*`, and any task-specific guides touched by the feature.
+- Keep provider availability claims in docs and onboarding copy aligned with `apps/web/src/session-logic.ts` and its tests.
 
 ## Project Snapshot
 
@@ -72,6 +73,8 @@ Before finalizing:
 - Check formatting and repo conventions.
 - Check whether tests/typecheck/lint relevant to the change should run.
 - Check whether any docs are now stale and update them before finishing.
+- Check that async UI controls expose a visible loading state and actionable error recovery, not only a disabled state.
+- For desktop startup, packaging, or release-flow changes, keep `apps/desktop/README.md`, `.docs/scripts.md`, `docs/release.md`, and the desktop smoke test aligned on what is actually guaranteed.
   </verification_loop>
 
 <missing_context_gating>

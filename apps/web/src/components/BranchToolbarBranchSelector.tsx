@@ -39,6 +39,7 @@ import {
   ComboboxPopup,
   ComboboxTrigger,
 } from "./ui/combobox";
+import { Spinner } from "./ui/spinner";
 import { toastManager } from "./ui/toast";
 
 interface BranchToolbarBranchSelectorProps {
@@ -146,6 +147,9 @@ export function BranchToolbarBranchSelector({
   );
   const [isBranchActionPending, startBranchActionTransition] = useTransition();
   const shouldVirtualizeBranchList = filteredBranchPickerItems.length > 40;
+  const isLoadingBranches = branchesQuery.isLoading && branches.length === 0;
+  const showBranchTriggerPendingState = isLoadingBranches || isBranchActionPending;
+  const branchTriggerPendingLabel = isBranchActionPending ? "Updating branch" : "Loading branches";
 
   const runBranchAction = (action: () => Promise<void>) => {
     startBranchActionTransition(async () => {
@@ -415,11 +419,18 @@ export function BranchToolbarBranchSelector({
     >
       <ComboboxTrigger
         render={<Button variant="ghost" size="xs" />}
+        aria-busy={showBranchTriggerPendingState}
         className="text-muted-foreground/70 hover:text-foreground/80"
-        disabled={(branchesQuery.isLoading && branches.length === 0) || isBranchActionPending}
+        disabled={showBranchTriggerPendingState}
       >
-        <span className="max-w-[240px] truncate">{triggerLabel}</span>
-        <ChevronDownIcon />
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="max-w-[240px] truncate">{triggerLabel}</span>
+          {showBranchTriggerPendingState ? (
+            <Spinner aria-label={branchTriggerPendingLabel} className="size-3.5 shrink-0" />
+          ) : (
+            <ChevronDownIcon className="shrink-0" />
+          )}
+        </span>
       </ComboboxTrigger>
       <ComboboxPopup align="end" side="top" className="w-80">
         <div className="border-b p-1">

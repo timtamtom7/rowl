@@ -139,8 +139,12 @@ function sanitizeLogValue(value: string): string {
 }
 
 function writeDesktopLogHeader(message: string): void {
+  const line = `[${logTimestamp()}] [${logScope("desktop")}] ${message}`;
+  if (!app.isPackaged) {
+    process.stdout.write(`${line}\n`);
+  }
   if (!desktopLogSink) return;
-  desktopLogSink.write(`[${logTimestamp()}] [${logScope("desktop")}] ${message}\n`);
+  desktopLogSink.write(`${line}\n`);
 }
 
 function writeBackendSessionBoundary(phase: "START" | "END", details: string): void {
