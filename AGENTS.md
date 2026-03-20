@@ -16,6 +16,7 @@
 - Keep server-side fallback models aligned with `DEFAULT_MODEL_BY_PROVIDER` in `packages/contracts/src/model.ts`; do not hardcode older Codex defaults in bootstraps, managers, or internal helpers.
 - Do not leave ad-hoc provider `console.log` debugging in runtime managers; provider/account payloads can leak into server logs.
 - Keep provider event logging opt-in. Raw provider prompts, tool payloads, approval answers, and runtime output must not be persisted by default; use `CUT3_ENABLE_PROVIDER_EVENT_LOGS=1` only for deliberate local debugging.
+- Keep provider exit failures visible end-to-end. If a runtime emits `session.exited` with a non-graceful reason, orchestration must preserve that reason in `thread.session.lastError` so OpenCode/Copilot/Kimi/Codex crashes do not look like silent clean stops.
 
 ## Project Snapshot
 

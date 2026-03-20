@@ -186,6 +186,18 @@ function runtimeErrorMessageFromEvent(event: ProviderRuntimeEvent): string | und
   return payloadMessage;
 }
 
+function runtimeSessionExitErrorMessage(event: ProviderRuntimeEvent): string | undefined {
+  const payload = runtimePayloadRecord(event);
+  const exitKind = asString(payload?.exitKind);
+  const reason = asString(payload?.reason);
+
+  if (exitKind === "graceful") {
+    return undefined;
+  }
+
+  return reason;
+}
+
 function orchestrationSessionStatusFromRuntimeState(
   state: "starting" | "running" | "waiting" | "ready" | "interrupted" | "stopped" | "error",
 ): "starting" | "running" | "ready" | "interrupted" | "stopped" | "error" {
@@ -960,11 +972,13 @@ const make = Effect.gen(function* () {
         const lastError =
           event.type === "session.state.changed" && event.payload.state === "error"
             ? (event.payload.reason ?? thread.session?.lastError ?? "Provider session error")
-            : event.type === "turn.completed" && runtimeTurnState(event) === "failed"
-              ? (runtimeTurnErrorMessage(event) ?? thread.session?.lastError ?? "Turn failed")
-              : status === "ready"
-                ? null
-                : (thread.session?.lastError ?? null);
+            : event.type === "session.exited"
+              ? (runtimeSessionExitErrorMessage(event) ?? thread.session?.lastError ?? null)
+              : event.type === "turn.completed" && runtimeTurnState(event) === "failed"
+                ? (runtimeTurnErrorMessage(event) ?? thread.session?.lastError ?? "Turn failed")
+                : status === "ready"
+                  ? null
+                  : (thread.session?.lastError ?? null);
 
         if (shouldApplyThreadLifecycle) {
           yield* orchestrationEngine.dispatch({

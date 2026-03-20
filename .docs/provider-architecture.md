@@ -29,6 +29,8 @@ Provider-native runtime details are hidden behind the server provider layer:
 - **OpenCode**: ACP-backed runtime sessions through `opencode acp`
 - **Kimi Code**: ACP-backed runtime sessions, with optional API-key-backed startup
 
+Unexpected provider exits are reduced into orchestration session state as stopped sessions that still preserve the runtime exit reason in `thread.session.lastError`, so crashes do not render as silent clean stops in the UI.
+
 Codex, GitHub Copilot, OpenCode, and Kimi Code are the currently implemented providers. Gemini is a visible coming-soon entry in the picker, and `claudeCode` plus `cursor` remain unavailable placeholders for future support.
 
 In the first OpenCode phase, CUT3 treats OpenCode auth and MCP configuration as provider-owned concerns. CUT3 launches `opencode acp`, consumes its ACP model/session events, and applies per-session runtime-mode overrides through `OPENCODE_CONFIG_CONTENT`, but it does not yet inspect OpenCode's configured MCP server list or proxy OpenCode's credential flows.

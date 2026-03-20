@@ -1203,6 +1203,59 @@ describe("ProviderRuntimeIngestion", () => {
     expect(thread.session?.lastError).toBe("runtime exploded");
   });
 
+  it("maps session.exited error reasons into stopped session state", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+
+    harness.emit({
+      type: "session.exited",
+      eventId: asEventId("evt-session-exited-error"),
+      provider: "opencode",
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      payload: {
+        reason: "OpenCode exited with code 1.",
+        exitKind: "error",
+      },
+    });
+
+    const thread = await waitForThread(
+      harness.engine,
+      (entry) =>
+        entry.session?.status === "stopped" &&
+        entry.session?.activeTurnId === null &&
+        entry.session?.lastError === "OpenCode exited with code 1.",
+    );
+    expect(thread.session?.status).toBe("stopped");
+    expect(thread.session?.lastError).toBe("OpenCode exited with code 1.");
+  });
+
+  it("treats session.exited reasons without a graceful exitKind as failures", async () => {
+    const harness = await createHarness();
+    const now = new Date().toISOString();
+
+    harness.emit({
+      type: "session.exited",
+      eventId: asEventId("evt-session-exited-codex"),
+      provider: "codex",
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      payload: {
+        reason: "codex app-server exited (code=1, signal=null).",
+      },
+    });
+
+    const thread = await waitForThread(
+      harness.engine,
+      (entry) =>
+        entry.session?.status === "stopped" &&
+        entry.session?.activeTurnId === null &&
+        entry.session?.lastError === "codex app-server exited (code=1, signal=null).",
+    );
+    expect(thread.session?.status).toBe("stopped");
+    expect(thread.session?.lastError).toBe("codex app-server exited (code=1, signal=null).");
+  });
+
   it("keeps the session running when a runtime.warning arrives during an active turn", async () => {
     const harness = await createHarness();
     const now = new Date().toISOString();
