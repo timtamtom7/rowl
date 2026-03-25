@@ -128,6 +128,38 @@ try {
     "Merged manifest is missing the x64 asset.",
   );
 
+  const checksumAssetPath = resolve(
+    tempRoot,
+    "release-assets",
+    "CUT3-linux-9.9.9-smoke.0-x86_64.AppImage",
+  );
+  writeFileSync(checksumAssetPath, "linux-release-asset");
+  execFileSync(
+    process.execPath,
+    [
+      resolve(repoRoot, "scripts/create-release-checksums.ts"),
+      resolve(tempRoot, "release-assets"),
+      "--output",
+      resolve(tempRoot, "release-assets", "SHA256SUMS"),
+    ],
+    {
+      cwd: repoRoot,
+      stdio: "inherit",
+    },
+  );
+
+  const checksumManifest = readFileSync(resolve(tempRoot, "release-assets", "SHA256SUMS"), "utf8");
+  assertContains(
+    checksumManifest,
+    "CUT3-linux-9.9.9-smoke.0-x86_64.AppImage",
+    "Expected SHA256SUMS to include the Linux release asset.",
+  );
+  assertContains(
+    checksumManifest,
+    "latest-mac.yml",
+    "Expected SHA256SUMS to include the merged macOS update manifest.",
+  );
+
   console.log("Release smoke checks passed.");
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });

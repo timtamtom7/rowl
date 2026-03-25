@@ -19,21 +19,24 @@
 - `bun run dist:desktop:dmg:x64` — Builds an Intel macOS `.dmg`.
 - `bun run dist:desktop:linux` — Builds a Linux AppImage into `./release`.
 - `bun run dist:desktop:win` — Builds a Windows NSIS installer into `./release`.
+- `bun run release:checksums` — Generates `./release/SHA256SUMS` for the current release assets.
 
-## Desktop `.dmg` packaging notes
+## Desktop packaging notes
 
-- Default build is unsigned/not notarized for local sharing.
+- Default local builds are unsigned and not notarized.
 - The DMG build uses `assets/prod/black-macos-1024.png` as the production app icon source.
 - Desktop production windows load the bundled UI from `cut3://app/index.html` (not a `127.0.0.1` document URL).
 - Desktop packaging includes `apps/server/dist` (the `t3` backend) and starts it on loopback with an auth token for WebSocket/API traffic.
-- Your tester can still open it on macOS by right-clicking the app and choosing **Open** on first launch.
+- Your tester can still open an unsigned macOS build by right-clicking the app and choosing **Open** on first launch.
 - To keep staging files for debugging package contents, run: `bun run dist:desktop:dmg -- --keep-stage`
+- To reuse existing `apps/desktop/dist-electron` and `apps/server/dist` output without rebuilding, add `--skip-build`.
 - To allow code-signing/notarization when configured in CI/secrets, add: `--signed`.
 - Windows `--signed` uses Azure Trusted Signing and expects:
   `AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT_NAME`,
   `AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME`, and `AZURE_TRUSTED_SIGNING_PUBLISHER_NAME`.
 - Azure authentication env vars are also required (for example service principal with secret):
   `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`.
+- The GitHub release workflow now publishes `SHA256SUMS` for release assets and can be configured to fail macOS/Windows releases when signing is required but secrets are missing.
 
 ## Desktop smoke test guarantee
 

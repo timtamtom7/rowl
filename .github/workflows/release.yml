@@ -15,6 +15,16 @@ on:
         required: false
         default: false
         type: boolean
+      require_signing:
+        description: "Fail macOS/Windows release builds when signing secrets are missing"
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: "Build and validate release assets without publishing a GitHub Release or updating main"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -34,6 +44,8 @@ jobs:
       is_prerelease: ${{ steps.release_meta.outputs.is_prerelease }}
       make_latest: ${{ steps.release_meta.outputs.make_latest }}
       publish_cli: ${{ steps.release_meta.outputs.publish_cli }}
+      require_signing: ${{ steps.release_meta.outputs.require_signing }}
+      dry_run: ${{ steps.release_meta.outputs.dry_run }}
       ref: ${{ github.sha }}
     steps:
       - name: Checkout
@@ -67,14 +79,30 @@ jobs:
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             publish_cli="${{ github.event.inputs.publish_cli }}"
+            require_signing="${{ github.event.inputs.require_signing }}"
+            dry_run="${{ github.event.inputs.dry_run }}"
           else
             publish_cli="${{ vars.CUT3_PUBLISH_CLI || 'false' }}"
+            require_signing="${{ vars.CUT3_REQUIRE_SIGNING || 'false' }}"
+            dry_run="false"
           fi
 
           if [[ "$publish_cli" == "true" ]]; then
             echo "publish_cli=true" >> "$GITHUB_OUTPUT"
           else
             echo "publish_cli=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ "$require_signing" == "true" ]]; then
+            echo "require_signing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "require_signing=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ "$dry_run" == "true" ]]; then
+            echo "dry_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup Bun
@@ -86,6 +114,24 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: package.json
+
+      - name: Cache Bun and Turbo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            .turbo
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}-${{ hashFiles('turbo.json') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -105,6 +151,9 @@ jobs:
       - name: Browser test
         run: bun run --cwd apps/web test:browser
 
+      - name: Align package versions to release version
+        run: node scripts/update-release-package-versions.ts "${{ steps.release_meta.outputs.version }}"
+
       - name: Build desktop pipeline
         run: bun run build:desktop
 
@@ -121,6 +170,17 @@ jobs:
 
       - name: Desktop smoke
         run: xvfb-run -a bun run test:desktop-smoke
+
+      - name: Archive prebuilt desktop bundle
+        run: tar -czf desktop-dist.tgz apps/desktop/dist-electron apps/server/dist
+
+      - name: Upload prebuilt desktop bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-dist
+          path: desktop-dist.tgz
+          if-no-files-found: error
+          compression-level: 0
 
   build:
     name: Build ${{ matrix.label }}
@@ -167,18 +227,123 @@ jobs:
         with:
           node-version-file: package.json
 
+      - name: Cache Bun and Turbo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            .turbo
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}-${{ hashFiles('turbo.json') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}-
+
+      - name: Cache Electron builders
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('apps/desktop/package.json', 'bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Download prebuilt desktop bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-dist
+          path: .
+
+      - name: Extract prebuilt desktop bundle
+        shell: bash
+        run: tar -xzf desktop-dist.tgz
+
       - name: Align package versions to release version
         run: node scripts/update-release-package-versions.ts "${{ needs.preflight.outputs.version }}"
+
+      - id: signing_mode
+        name: Resolve signing mode
+        shell: bash
+        env:
+          REQUIRE_SIGNING: ${{ needs.preflight.outputs.require_signing }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
+          AZURE_TRUSTED_SIGNING_PUBLISHER_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_PUBLISHER_NAME }}
+        run: |
+          signed=false
+          apple_api_key_path=
+          signing_label=unsigned
+
+          has_all() {
+            for value in "$@"; do
+              if [[ -z "$value" ]]; then
+                return 1
+              fi
+            done
+            return 0
+          }
+
+          if [[ "${{ matrix.platform }}" == "mac" ]]; then
+            if has_all "$CSC_LINK" "$CSC_KEY_PASSWORD" "$APPLE_API_KEY" "$APPLE_API_KEY_ID" "$APPLE_API_ISSUER"; then
+              key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+              printf '%s' "$APPLE_API_KEY" > "$key_path"
+              apple_api_key_path="$key_path"
+              signed=true
+              signing_label=signed
+              echo "macOS signing enabled."
+            elif [[ "$REQUIRE_SIGNING" == "true" ]]; then
+              echo "macOS signing is required, but one or more Apple signing secrets are missing." >&2
+              exit 1
+            else
+              echo "macOS signing disabled (missing one or more Apple signing secrets)."
+            fi
+          elif [[ "${{ matrix.platform }}" == "win" ]]; then
+            if has_all \
+              "$AZURE_TENANT_ID" \
+              "$AZURE_CLIENT_ID" \
+              "$AZURE_CLIENT_SECRET" \
+              "$AZURE_TRUSTED_SIGNING_ENDPOINT" \
+              "$AZURE_TRUSTED_SIGNING_ACCOUNT_NAME" \
+              "$AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME" \
+              "$AZURE_TRUSTED_SIGNING_PUBLISHER_NAME"; then
+              signed=true
+              signing_label=signed
+              echo "Windows signing enabled (Azure Trusted Signing)."
+            elif [[ "$REQUIRE_SIGNING" == "true" ]]; then
+              echo "Windows signing is required, but one or more Azure Trusted Signing secrets are missing." >&2
+              exit 1
+            else
+              echo "Windows signing disabled (missing one or more Azure Trusted Signing secrets)."
+            fi
+          else
+            echo "Signing is not configured for ${{ matrix.platform }}; release integrity is covered by SHA256SUMS."
+          fi
+
+          echo "signed=$signed" >> "$GITHUB_OUTPUT"
+          echo "signing_label=$signing_label" >> "$GITHUB_OUTPUT"
+          echo "apple_api_key_path=$apple_api_key_path" >> "$GITHUB_OUTPUT"
 
       - name: Build desktop artifact
         shell: bash
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY: ${{ steps.signing_mode.outputs.apple_api_key_path }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -194,47 +359,62 @@ jobs:
             --target "${{ matrix.target }}"
             --arch "${{ matrix.arch }}"
             --build-version "${{ needs.preflight.outputs.version }}"
+            --skip-build
             --verbose
           )
 
-          has_all() {
-            for value in "$@"; do
-              if [[ -z "$value" ]]; then
-                return 1
-              fi
-            done
-            return 0
-          }
-
-          if [[ "${{ matrix.platform }}" == "mac" ]]; then
-            if has_all "$CSC_LINK" "$CSC_KEY_PASSWORD" "$APPLE_API_KEY" "$APPLE_API_KEY_ID" "$APPLE_API_ISSUER"; then
-              key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
-              printf '%s' "$APPLE_API_KEY" > "$key_path"
-              export APPLE_API_KEY="$key_path"
-              echo "macOS signing enabled."
-              args+=(--signed)
-            else
-              echo "macOS signing disabled (missing one or more Apple signing secrets)."
-            fi
-          elif [[ "${{ matrix.platform }}" == "win" ]]; then
-            if has_all \
-              "$AZURE_TENANT_ID" \
-              "$AZURE_CLIENT_ID" \
-              "$AZURE_CLIENT_SECRET" \
-              "$AZURE_TRUSTED_SIGNING_ENDPOINT" \
-              "$AZURE_TRUSTED_SIGNING_ACCOUNT_NAME" \
-              "$AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME" \
-              "$AZURE_TRUSTED_SIGNING_PUBLISHER_NAME"; then
-              echo "Windows signing enabled (Azure Trusted Signing)."
-              args+=(--signed)
-            else
-              echo "Windows signing disabled (missing one or more Azure Trusted Signing secrets)."
-            fi
-          else
-            echo "Signing disabled for ${{ matrix.platform }}."
+          if [[ "${{ steps.signing_mode.outputs.signed }}" == "true" ]]; then
+            args+=(--signed)
           fi
 
           bun run dist:desktop:artifact -- "${args[@]}"
+
+      - name: Verify signed macOS artifacts
+        if: matrix.platform == 'mac' && steps.signing_mode.outputs.signed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          zip_files=(release/*.zip)
+          dmg_files=(release/*.dmg)
+          if [[ ${#zip_files[@]} -eq 0 || ${#dmg_files[@]} -eq 0 ]]; then
+            echo "Expected signed macOS zip and dmg artifacts in release/." >&2
+            exit 1
+          fi
+
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+
+          unzip -q "${zip_files[0]}" -d "$tmp_dir"
+          app_bundle="$(find "$tmp_dir" -maxdepth 2 -type d -name '*.app' -print -quit)"
+          if [[ -z "$app_bundle" ]]; then
+            echo "Could not find extracted macOS app bundle in ${zip_files[0]}." >&2
+            exit 1
+          fi
+
+          codesign --verify --deep --strict --verbose=2 "$app_bundle"
+          spctl -a -vv --type exec "$app_bundle"
+
+          for dmg in "${dmg_files[@]}"; do
+            xcrun stapler validate "$dmg"
+          done
+
+      - name: Verify signed Windows artifacts
+        if: matrix.platform == 'win' && steps.signing_mode.outputs.signed == 'true'
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path release -Filter *.exe
+          if ($files.Count -eq 0) {
+            throw "Expected a signed Windows installer in release/."
+          }
+
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -FilePath $file.FullName
+            if ($signature.Status -ne 'Valid') {
+              throw "Authenticode verification failed for $($file.Name): $($signature.Status)"
+            }
+          }
 
       - name: Collect release assets
         shell: bash
@@ -267,10 +447,11 @@ jobs:
           name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
           path: release-publish/*
           if-no-files-found: error
+          compression-level: 0
 
   publish_cli:
     name: Publish CLI to npm
-    if: ${{ needs.preflight.outputs.publish_cli == 'true' }}
+    if: ${{ needs.preflight.outputs.publish_cli == 'true' && needs.preflight.outputs.dry_run != 'true' }}
     needs: [preflight, build]
     runs-on: ubuntu-24.04
     steps:
@@ -331,7 +512,36 @@ jobs:
             release-assets/latest-mac-x64.yml
           rm -f release-assets/latest-mac-x64.yml
 
+      - name: Generate SHA256SUMS
+        run: node scripts/create-release-checksums.ts release-assets --output release-assets/SHA256SUMS
+
+      - name: Verify SHA256SUMS
+        run: |
+          cd release-assets
+          sha256sum --check SHA256SUMS
+
+      - name: Upload dry-run release assets
+        if: needs.preflight.outputs.dry_run == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-dry-run-${{ needs.preflight.outputs.version }}
+          path: release-assets/*
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Summarize dry run
+        if: needs.preflight.outputs.dry_run == 'true'
+        run: |
+          {
+            echo "## Release dry run"
+            echo
+            echo "Validated release assets for version ${{ needs.preflight.outputs.version }} without publishing a GitHub Release."
+            echo
+            echo "Workflow artifact: release-dry-run-${{ needs.preflight.outputs.version }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publish release
+        if: needs.preflight.outputs.dry_run != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.preflight.outputs.tag }}
@@ -347,9 +557,11 @@ jobs:
             release-assets/*.exe
             release-assets/*.blockmap
             release-assets/latest*.yml
+            release-assets/SHA256SUMS
           fail_on_unmatched_files: true
 
   finalize:
+    if: ${{ needs.preflight.outputs.dry_run != 'true' }}
     name: Finalize release
     needs: [preflight, release]
     runs-on: ubuntu-24.04

@@ -33,6 +33,14 @@ CUT3 desktop wraps the web UI in Electron and starts a desktop-scoped `t3` backe
 - Packaged builds capture main-process logs in `<state-dir>/logs/desktop-main.log` and backend child logs in `<state-dir>/logs/server-child.log`.
 - Development launches forward main-process bootstrap headers plus backend stdout and stderr to the parent terminal instead of rotating packaged log files.
 
+## Release workflow notes
+
+- The release workflow builds `apps/desktop/dist-electron` plus `apps/server/dist` once in Linux preflight, archives that bundle, and reuses it in each packaging job via `bun run dist:desktop:artifact -- --skip-build`.
+- Release assets are published for all supported desktop targets from one tag: macOS arm64/x64, Linux x64, and Windows x64.
+- The workflow always publishes `SHA256SUMS` for the final release assets.
+- macOS and Windows signing remain secret-driven, and releases can be configured to fail instead of silently shipping unsigned installers by enabling `CUT3_REQUIRE_SIGNING=true` (or the matching manual workflow input).
+- Manual release workflow runs also support `dry_run=true`, which validates packaging/signing/checksum steps and uploads the assembled assets as a workflow artifact without publishing a GitHub Release or updating `main`.
+
 ## Smoke test contract
 
 - Run `bun run test:desktop-smoke` from the repo root or `bun run smoke-test` inside `apps/desktop`.
