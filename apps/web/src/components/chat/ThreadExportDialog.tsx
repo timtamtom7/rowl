@@ -42,12 +42,21 @@ export const ThreadExportDialog = memo(function ThreadExportDialog(props: {
         </DialogHeader>
         <DialogPanel className="space-y-4">
           <div className="space-y-2">
-            <p className="text-xs font-medium text-foreground">Format</p>
-            <div className="flex items-center gap-2">
+            <p className="text-xs font-medium text-foreground" id="export-format-label">
+              Format
+            </p>
+            <div
+              className="flex items-center gap-2"
+              role="radiogroup"
+              aria-labelledby="export-format-label"
+            >
               <button
                 type="button"
+                role="radio"
+                aria-checked={props.format === "markdown"}
+                disabled={props.isSavingToWorkspace}
                 className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm transition-colors",
+                  "rounded-full border px-3 py-1.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
                   props.format === "markdown"
                     ? "border-border bg-accent text-accent-foreground"
                     : "border-border/70 text-muted-foreground hover:text-foreground",
@@ -58,8 +67,11 @@ export const ThreadExportDialog = memo(function ThreadExportDialog(props: {
               </button>
               <button
                 type="button"
+                role="radio"
+                aria-checked={props.format === "json"}
+                disabled={props.isSavingToWorkspace}
                 className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm transition-colors",
+                  "rounded-full border px-3 py-1.5 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
                   props.format === "json"
                     ? "border-border bg-accent text-accent-foreground"
                     : "border-border/70 text-muted-foreground hover:text-foreground",
@@ -88,7 +100,12 @@ export const ThreadExportDialog = memo(function ThreadExportDialog(props: {
           </label>
         </DialogPanel>
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button variant="outline" size="sm" onClick={props.onDownload}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={props.onDownload}
+            disabled={props.isSavingToWorkspace}
+          >
             Download {props.format === "json" ? "JSON" : "Markdown"}
           </Button>
           <div className="flex items-center gap-2">

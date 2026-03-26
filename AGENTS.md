@@ -31,6 +31,10 @@
 - Keep provider event logging opt-in. Raw provider prompts, tool payloads, approval answers, and runtime output must not be persisted by default; use `CUT3_ENABLE_PROVIDER_EVENT_LOGS=1` only for deliberate local debugging.
 - Keep provider exit failures visible end-to-end. If a runtime emits `session.exited` with a non-graceful reason, orchestration must preserve that reason in `thread.session.lastError` so OpenCode/Copilot/Kimi/Codex crashes do not look like silent clean stops.
 - When testing hot orchestration streams backed by PubSub, avoid `fork + sleep` subscription races. Start the collector with an explicit readiness handshake (for example `Effect.forkScoped` plus `Effect.yieldNow`, or another deterministic subscription barrier) before dispatching commands.
+- Keep interactive controls properly disabled during in-flight async operations (e.g. export, share, revoke): users must not be able to trigger conflicting actions while a prior action is still completing. Guard format toggles, download buttons, and secondary actions behind the relevant `isSaving`/`isRevoking` flags.
+- Keep ARIA semantics aligned with visual affordances: disclosure/expand buttons need `aria-expanded`, toggle-style buttons need `aria-pressed` or `role="radio"` with `aria-checked`, icon-only buttons need explicit `aria-label`, tree-like file lists need `role="tree"`, and controls revealed only on hover (e.g. terminal close buttons) must also be revealed on `focus-visible` so keyboard users can reach them.
+- Keep `aria-label` values on interactive groups and their trigger buttons accurate and descriptive of the actual feature. Do not leave placeholder labels from copy-paste (e.g. "Subscription actions" for an editor picker, "Copy options" for an editor menu).
+- When a button visually looks disabled (opacity, cursor-not-allowed), make it actually `disabled` so it is removed from tab order and does not fire click handlers. CSS-only faux-disabled states are a keyboard trap.
 
 ## Project Snapshot
 

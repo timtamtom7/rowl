@@ -224,6 +224,7 @@ const PlanSidebar = memo(function PlanSidebar({
               <button
                 type="button"
                 className="group flex w-full items-center gap-1.5 text-left"
+                aria-expanded={proposedPlanExpanded}
                 onClick={() => setProposedPlanExpanded((v) => !v)}
               >
                 {proposedPlanExpanded ? (

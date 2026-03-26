@@ -457,15 +457,30 @@ interface TerminalActionButtonProps {
   label: string;
   className: string;
   onClick: () => void;
+  disabled?: boolean;
   children: ReactNode;
 }
 
-function TerminalActionButton({ label, className, onClick, children }: TerminalActionButtonProps) {
+function TerminalActionButton({
+  label,
+  className,
+  onClick,
+  disabled,
+  children,
+}: TerminalActionButtonProps) {
   return (
     <Popover>
       <PopoverTrigger
         openOnHover
-        render={<button type="button" className={className} onClick={onClick} aria-label={label} />}
+        render={
+          <button
+            type="button"
+            className={className}
+            onClick={onClick}
+            disabled={disabled}
+            aria-label={label}
+          />
+        }
       >
         {children}
       </PopoverTrigger>
@@ -729,6 +744,9 @@ export default function ThreadTerminalDrawer({
       style={{ height: `${drawerHeight}px` }}
     >
       <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize terminal"
         className="absolute inset-x-0 top-0 z-20 h-1.5 cursor-row-resize"
         onPointerDown={handleResizePointerDown}
         onPointerMove={handleResizePointerMove}
@@ -741,12 +759,11 @@ export default function ThreadTerminalDrawer({
           <div className="pointer-events-auto inline-flex items-center overflow-hidden rounded-md border border-border/80 bg-background/70">
             <TerminalActionButton
               className={`p-1 text-foreground/90 transition-colors ${
-                hasReachedSplitLimit
-                  ? "cursor-not-allowed opacity-45 hover:bg-transparent"
-                  : "hover:bg-accent"
+                hasReachedSplitLimit ? "opacity-45" : "hover:bg-accent"
               }`}
               onClick={onSplitTerminalAction}
               label={splitTerminalActionLabel}
+              disabled={hasReachedSplitLimit}
             >
               <SquareSplitHorizontal className="size-3.25" />
             </TerminalActionButton>
@@ -832,12 +849,11 @@ export default function ThreadTerminalDrawer({
                 <div className="inline-flex h-full items-stretch">
                   <TerminalActionButton
                     className={`inline-flex h-full items-center px-1 text-foreground/90 transition-colors ${
-                      hasReachedSplitLimit
-                        ? "cursor-not-allowed opacity-45 hover:bg-transparent"
-                        : "hover:bg-accent/70"
+                      hasReachedSplitLimit ? "opacity-45" : "hover:bg-accent/70"
                     }`}
                     onClick={onSplitTerminalAction}
                     label={splitTerminalActionLabel}
+                    disabled={hasReachedSplitLimit}
                   >
                     <SquareSplitHorizontal className="size-3.25" />
                   </TerminalActionButton>
@@ -921,7 +937,7 @@ export default function ThreadTerminalDrawer({
                                     render={
                                       <button
                                         type="button"
-                                        className="inline-flex size-3.5 items-center justify-center rounded text-xs font-medium leading-none text-muted-foreground opacity-0 transition hover:bg-accent hover:text-foreground group-hover:opacity-100"
+                                        className="inline-flex size-3.5 items-center justify-center rounded text-xs font-medium leading-none text-muted-foreground opacity-0 transition hover:bg-accent hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring"
                                         onClick={() => onCloseTerminal(terminalId)}
                                         aria-label={closeTerminalLabel}
                                       />

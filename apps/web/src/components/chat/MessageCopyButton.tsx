@@ -17,6 +17,7 @@ export const MessageCopyButton = memo(function MessageCopyButton({ text }: { tex
       size="xs"
       variant="outline"
       onClick={() => copyToClipboard(text)}
+      aria-label={title}
       title={title}
     >
       {isCopied ? <CheckIcon className="size-3 text-success" /> : <CopyIcon className="size-3" />}
