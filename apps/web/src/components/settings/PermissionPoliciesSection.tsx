@@ -184,6 +184,7 @@ export function PermissionPoliciesSection({
                     size="icon-sm"
                     variant="ghost"
                     disabled={isFirst}
+                    aria-label="Move rule up"
                     onClick={() => onChangeRules(moveRule(rules, rule.id, -1))}
                   >
                     <ArrowUpIcon className="size-4" />
@@ -192,6 +193,7 @@ export function PermissionPoliciesSection({
                     size="icon-sm"
                     variant="ghost"
                     disabled={isLast}
+                    aria-label="Move rule down"
                     onClick={() => onChangeRules(moveRule(rules, rule.id, 1))}
                   >
                     <ArrowDownIcon className="size-4" />
@@ -199,6 +201,7 @@ export function PermissionPoliciesSection({
                   <Button
                     size="icon-sm"
                     variant="ghost"
+                    aria-label="Delete rule"
                     onClick={() => onChangeRules(rules.filter((entry) => entry.id !== rule.id))}
                   >
                     <Trash2Icon className="size-4" />
@@ -302,6 +305,7 @@ export function PermissionPoliciesSection({
                         key={option.value}
                         size="xs"
                         variant={selected ? "default" : "outline"}
+                        aria-pressed={selected}
                         onClick={() =>
                           onChangeRules(
                             updateRuleAt(rules, rule.id, (current) =>

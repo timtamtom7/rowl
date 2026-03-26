@@ -151,6 +151,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
               size="sm"
               variant="outline"
               data-scroll-anchor-ignore
+              aria-expanded={expanded}
               onClick={() => setExpanded((value) => !value)}
             >
               {expanded ? "Collapse plan" : "Expand plan"}

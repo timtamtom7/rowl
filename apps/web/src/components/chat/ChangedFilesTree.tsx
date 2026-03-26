@@ -52,6 +52,7 @@ export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
             type="button"
             className="group flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left hover:bg-background/80"
             style={{ paddingLeft: `${leftPadding}px` }}
+            aria-expanded={isExpanded}
             onClick={() => toggleDirectory(node.path, depth === 0)}
           >
             <ChevronRightIcon
@@ -111,7 +112,15 @@ export const ChangedFilesTree = memo(function ChangedFilesTree(props: {
     );
   };
 
-  return <div className="space-y-0.5">{treeNodes.map((node) => renderTreeNode(node, 0))}</div>;
+  return (
+    <div role="tree" aria-label="Changed files" className="space-y-0.5">
+      {treeNodes.length === 0 ? (
+        <p className="px-2 py-3 text-center text-xs text-muted-foreground/60">No changed files.</p>
+      ) : (
+        treeNodes.map((node) => renderTreeNode(node, 0))
+      )}
+    </div>
+  );
 });
 
 function collectDirectoryPaths(nodes: ReadonlyArray<TurnDiffTreeNode>): string[] {

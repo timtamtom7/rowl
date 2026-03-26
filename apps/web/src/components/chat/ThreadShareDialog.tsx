@@ -92,11 +92,15 @@ export const ThreadShareDialog = memo(function ThreadShareDialog(props: {
               variant="outline"
               size="sm"
               onClick={props.onOpenSharedView}
-              disabled={!hasShare || !props.shareUrl}
+              disabled={!hasShare || !props.shareUrl || props.isRevokingShare}
             >
               Open shared view
             </Button>
-            <Button size="sm" onClick={props.onCopyLink} disabled={!hasShare || !props.shareUrl}>
+            <Button
+              size="sm"
+              onClick={props.onCopyLink}
+              disabled={!hasShare || !props.shareUrl || props.isRevokingShare}
+            >
               Copy link
             </Button>
           </div>
