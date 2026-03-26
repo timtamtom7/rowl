@@ -1,6 +1,7 @@
 export type ThemeAppearance = "light" | "dark";
 
 export type SupportedHighlighterThemeName =
+  | "amoled-github"
   | "catppuccin-latte"
   | "catppuccin-mocha"
   | "github-dark"
@@ -12,6 +13,7 @@ export type SupportedHighlighterThemeName =
   | "dark-plus";
 
 export const APPLIED_CUSTOM_THEME_IDS = [
+  "amoled-github",
   "catppuccin-latte",
   "catppuccin-mocha",
   "github-dark",
@@ -30,13 +32,22 @@ export interface AppliedCustomTheme {
   id: AppliedCustomThemeId;
   label: string;
   description: string;
-  family: "catppuccin" | "github" | "lilac" | "nord" | "visual-studio" | "t3";
+  family: "amoled-github" | "catppuccin" | "github" | "lilac" | "nord" | "visual-studio" | "t3";
   appearance: ThemeAppearance;
   dataTheme: AppliedCustomThemeId;
   diffThemeName: SupportedHighlighterThemeName;
 }
 
 export const APPLIED_CUSTOM_THEMES = {
+  "amoled-github": {
+    id: "amoled-github",
+    label: "AMOLED GitHub",
+    description: "Pure-black GitHub palette for OLED/AMOLED displays.",
+    family: "amoled-github",
+    appearance: "dark",
+    dataTheme: "amoled-github",
+    diffThemeName: "amoled-github",
+  },
   "catppuccin-latte": {
     id: "catppuccin-latte",
     label: "Catppuccin Latte",

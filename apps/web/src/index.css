@@ -444,6 +444,35 @@
   }
 }
 
+:root[data-theme="amoled-github"] {
+  color-scheme: dark;
+  --background: #000000;
+  --foreground: #e6edf3;
+  --card: #0d1117;
+  --card-foreground: #e6edf3;
+  --popover: #0d1117;
+  --popover-foreground: #e6edf3;
+  --primary: #1f6feb;
+  --primary-foreground: #ffffff;
+  --secondary: #161b22;
+  --secondary-foreground: #e6edf3;
+  --muted: #161b22;
+  --muted-foreground: #7d8590;
+  --accent: rgba(56, 139, 253, 0.15);
+  --accent-foreground: #e6edf3;
+  --destructive: #da3633;
+  --border: #21262d;
+  --input: #0d1117;
+  --ring: #2f81f7;
+  --destructive-foreground: #f85149;
+  --info: #2f81f7;
+  --info-foreground: #58a6ff;
+  --success: #238636;
+  --success-foreground: #3fb950;
+  --warning: #9e6a03;
+  --warning-foreground: #d29922;
+}
+
 :root[data-theme="catppuccin-latte"] {
   color-scheme: light;
   --background: #eff1f5;

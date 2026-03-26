@@ -41,6 +41,7 @@ describe("resolveDiffThemeName", () => {
     expect(resolveDiffThemeName("dark", "github-dark-dimmed")).toBe("github-dark-dimmed");
     expect(resolveDiffThemeName("dark", "visual-studio-2017-dark")).toBe("dark-plus");
     expect(resolveDiffThemeName("dark", "t3-chat-theme")).toBe("catppuccin-mocha");
+    expect(resolveDiffThemeName("dark", "amoled-github")).toBe("amoled-github");
   });
 });
 
@@ -49,6 +50,7 @@ describe("ALL_DIFF_THEME_NAMES", () => {
     expect(ALL_DIFF_THEME_NAMES).toEqual([
       "pierre-light",
       "pierre-dark",
+      "amoled-github",
       "catppuccin-latte",
       "catppuccin-mocha",
       "github-dark",
