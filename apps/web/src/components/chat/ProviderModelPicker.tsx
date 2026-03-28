@@ -1,5 +1,5 @@
 import { type ModelSlug, type ProviderKind, type ServerCopilotUsage } from "@t3tools/contracts";
-import { getModelDisplayName, normalizeModelSlug } from "@t3tools/shared/model";
+import { getModelDisplayName } from "@t3tools/shared/model";
 import { formatGitHubCopilotPlan } from "@t3tools/shared/copilotPlan";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ import {
 import { getModelPickerOptionDisplayParts } from "../../lib/modelPickerOptionDisplay";
 import {
   describeContextWindowState,
+  getDocumentedContextWindowOverride,
   shouldHideContextWindowForModel,
 } from "../../lib/contextWindow";
 import { serverCopilotUsageQueryOptions } from "../../lib/serverReactQuery";
@@ -30,6 +31,7 @@ import { type AppServiceTier, shouldShowFastTierIcon } from "../../appSettings";
 import { getAppLanguageDetails, type AppLanguage } from "../../appLanguage";
 
 import {
+  BarChart3Icon,
   BotIcon,
   ChevronDownIcon,
   CheckIcon,
@@ -114,31 +116,6 @@ function formatCopilotQuotaDate(iso: string, language: AppLanguage): string {
 // ---------------------------------------------------------------------------
 // Context window summary
 // ---------------------------------------------------------------------------
-
-const OPENCODE_MODELS_DEV_CONTEXT_NOTE =
-  "OpenCode uses provider/model metadata from models.dev and reads limit.context when the selected model publishes it.";
-
-function getDocumentedContextWindowOverride(input: {
-  provider: ProviderKind;
-  model: string | null | undefined;
-  opencodeContextLengthsBySlug?: ReadonlyMap<string, number | null>;
-}) {
-  if (input.provider !== "opencode") {
-    return {};
-  }
-  const normalizedModel = normalizeModelSlug(input.model, "opencode");
-  if (!normalizedModel) {
-    return {};
-  }
-  const documentedTotalTokens = input.opencodeContextLengthsBySlug?.get(normalizedModel) ?? null;
-  if (documentedTotalTokens === null) {
-    return {};
-  }
-  return {
-    documentedTotalTokens,
-    documentedNote: OPENCODE_MODELS_DEV_CONTEXT_NOTE,
-  };
-}
 
 function renderProviderContextWindowSummary(input: {
   provider: ProviderKind;
@@ -299,11 +276,13 @@ function getChatPickerCopy(language: AppLanguage) {
         "نام مدل یا ارائه دهنده دیگری را امتحان کنید یا مدیریت مدل ها را باز کنید.",
       clearSearch: "پاک کردن جستجو",
       manageModels: "مدیریت مدل ها",
-      connectProvider: "اتصال ارائه دهنده",
+      connectProvider: "آماده سازی ارائه دهنده",
       hiddenModelsHint: "برخی مدل ها مخفی هستند. از مدیریت مدل ها برای بازیابی آنها استفاده کنید.",
       pickModelHint: "یک مدل انتخاب کنید تا فوراً این thread تغییر کند.",
       models: (count: number) => `${count} مدل`,
       selected: "انتخاب شده",
+      favorite: "محبوب",
+      recent: "اخیر",
       locked: "قفل شده",
       current: "فعلی",
     };
@@ -316,11 +295,13 @@ function getChatPickerCopy(language: AppLanguage) {
       "Try a different model slug or open Manage models to restore hidden entries.",
     clearSearch: "Clear search",
     manageModels: "Manage models",
-    connectProvider: "Connect provider",
+    connectProvider: "Provider readiness",
     hiddenModelsHint: "Some models are hidden. Use Manage models to restore them.",
     pickModelHint: "Pick a model to switch this thread instantly.",
     models: (count: number) => `${count} model${count === 1 ? "" : "s"}`,
     selected: "Selected",
+    favorite: "Favorite",
+    recent: "Recent",
     locked: "Locked",
     current: "Current",
   };
@@ -335,6 +316,10 @@ const PickerModelRow = memo(function PickerModelRow(props: {
   backingProvider: ProviderKind;
   providerPickerKind: AvailableProviderPickerKind;
   isSelected: boolean;
+  isFavorite: boolean;
+  isRecent: boolean;
+  favoriteLabel: string;
+  recentLabel: string;
   isDisabledByProviderLock: boolean;
   disabled: boolean;
   serviceTierSetting: AppServiceTier;
@@ -398,6 +383,16 @@ const PickerModelRow = memo(function PickerModelRow(props: {
 
       {/* Capability badges + selection mark */}
       <div className="flex shrink-0 items-center gap-1.5">
+        {props.isFavorite ? (
+          <Badge variant="warning" size="sm">
+            <SparklesIcon className="size-3" />
+            {props.favoriteLabel}
+          </Badge>
+        ) : props.isRecent ? (
+          <Badge variant="outline" size="sm">
+            {props.recentLabel}
+          </Badge>
+        ) : null}
         {props.modelOption.supportsReasoning ? (
           <span
             title="Supports reasoning"
@@ -444,11 +439,14 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   opencodeContextLengthsBySlug: ReadonlyMap<string, number | null>;
   serviceTierSetting: AppServiceTier;
   hasHiddenModels: boolean;
+  favoriteModelsByProvider: Record<ProviderKind, ReadonlyArray<string>>;
+  recentModelsByProvider: Record<ProviderKind, ReadonlyArray<string>>;
   modelLabelOverride?: string;
   compact?: boolean;
   disabled?: boolean;
   onOpenProviderSetup: () => void;
   onOpenManageModels: () => void;
+  onOpenUsageDashboard: () => void;
   onProviderModelChange: (provider: AvailableProviderPickerKind, model: ModelSlug) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -530,6 +528,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         visibleModelOptionsByProvider: props.visibleModelOptionsByProvider,
         openRouterModelOptions: props.openRouterModelOptions,
         opencodeModelOptions: props.opencodeModelOptions,
+        favoriteModelsByProvider: props.favoriteModelsByProvider,
+        recentModelsByProvider: props.recentModelsByProvider,
         lockedProvider: props.lockedProvider,
         normalizedQuery,
       }),
@@ -538,6 +538,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       props.openRouterModelOptions,
       props.opencodeModelOptions,
       props.visibleModelOptionsByProvider,
+      props.favoriteModelsByProvider,
+      props.recentModelsByProvider,
       props.lockedProvider,
     ],
   );
@@ -776,6 +778,10 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                             const isSelected =
                               section.option.value === props.providerPickerKind &&
                               modelOption.slug === props.model;
+                            const providerFavorites =
+                              props.favoriteModelsByProvider[section.backingProvider];
+                            const providerRecents =
+                              props.recentModelsByProvider[section.backingProvider];
                             return (
                               <PickerModelRow
                                 key={`${section.option.value}:${modelOption.slug}`}
@@ -783,6 +789,10 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                                 backingProvider={section.backingProvider}
                                 providerPickerKind={section.option.value}
                                 isSelected={isSelected}
+                                isFavorite={providerFavorites.includes(modelOption.slug)}
+                                isRecent={providerRecents.includes(modelOption.slug)}
+                                favoriteLabel={copy.favorite}
+                                recentLabel={copy.recent}
                                 isDisabledByProviderLock={section.isDisabledByProviderLock}
                                 disabled={props.disabled ?? false}
                                 serviceTierSetting={props.serviceTierSetting}
@@ -836,6 +846,17 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
               {props.hasHiddenModels ? copy.hiddenModelsHint : copy.pickModelHint}
             </p>
             <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => {
+                  setIsOpen(false);
+                  props.onOpenUsageDashboard();
+                }}
+              >
+                <BarChart3Icon className="size-3.5" />
+                {props.language === "fa" ? "مصرف" : "Usage"}
+              </Button>
               <Button
                 size="xs"
                 variant="outline"

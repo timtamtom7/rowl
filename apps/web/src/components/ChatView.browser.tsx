@@ -72,18 +72,41 @@ interface ViewportSpec {
   attachmentTolerancePx: number;
 }
 
+// Chromium font metrics for Geist differ noticeably on Linux CI, so the
+// browser parity thresholds need a little more headroom there than on
+// Windows/macOS to avoid false negatives while still catching real drifts.
+const IS_LINUX_BROWSER = typeof navigator !== "undefined" && /linux/i.test(navigator.userAgent);
+
 const DEFAULT_VIEWPORT: ViewportSpec = {
   name: "desktop",
   width: 960,
   height: 1_100,
-  textTolerancePx: 44,
+  textTolerancePx: IS_LINUX_BROWSER ? 96 : 44,
   attachmentTolerancePx: 56,
 };
 const TEXT_VIEWPORT_MATRIX = [
   DEFAULT_VIEWPORT,
-  { name: "tablet", width: 720, height: 1_024, textTolerancePx: 44, attachmentTolerancePx: 56 },
-  { name: "mobile", width: 430, height: 932, textTolerancePx: 56, attachmentTolerancePx: 56 },
-  { name: "narrow", width: 320, height: 700, textTolerancePx: 84, attachmentTolerancePx: 56 },
+  {
+    name: "tablet",
+    width: 720,
+    height: 1_024,
+    textTolerancePx: IS_LINUX_BROWSER ? 96 : 44,
+    attachmentTolerancePx: 56,
+  },
+  {
+    name: "mobile",
+    width: 430,
+    height: 932,
+    textTolerancePx: IS_LINUX_BROWSER ? 160 : 56,
+    attachmentTolerancePx: 56,
+  },
+  {
+    name: "narrow",
+    width: 320,
+    height: 700,
+    textTolerancePx: IS_LINUX_BROWSER ? 160 : 84,
+    attachmentTolerancePx: 56,
+  },
 ] as const satisfies readonly ViewportSpec[];
 const ATTACHMENT_VIEWPORT_MATRIX = [
   DEFAULT_VIEWPORT,
@@ -570,6 +593,23 @@ function resolveWsRpc(body: WsRequestEnvelope["body"]): unknown {
   if (tag === WS_METHODS.serverGetOpenCodeState) {
     return fixture.openCodeState ?? createUnavailableOpenCodeState();
   }
+  if (tag === WS_METHODS.serverGetCopilotUsage) {
+    return {
+      status: "available",
+      source: "copilot_internal_user",
+      fetchedAt: NOW_ISO,
+      login: "octocat",
+      plan: "individual",
+      entitlement: 500,
+      remaining: 320,
+      used: 180,
+      percentRemaining: 64,
+      overagePermitted: true,
+      overageCount: 0,
+      unlimited: false,
+      resetAt: isoAt(86_400),
+    };
+  }
   if (tag === WS_METHODS.gitListBranches) {
     return {
       isRepo: true,
@@ -694,6 +734,21 @@ async function waitForProductionStyles(): Promise<void> {
       interval: 16,
     },
   );
+
+  if ("fonts" in document) {
+    await document.fonts.ready;
+    await vi
+      .waitFor(
+        () => {
+          expect(document.fonts.check('14px "Geist Sans"')).toBe(true);
+        },
+        {
+          timeout: 4_000,
+          interval: 16,
+        },
+      )
+      .catch(() => undefined);
+  }
 }
 
 async function waitForElement<T extends Element>(
@@ -1629,6 +1684,72 @@ describe("ChatView timeline estimator parity (full app)", () => {
     }
   });
 
+  it("opens the usage dashboard with spend and Copilot quota details", async () => {
+    const snapshot = withActiveThreadProvider(
+      createSnapshotForTargetUser({
+        targetMessageId: "msg-user-usage-dashboard" as MessageId,
+        targetText: "usage dashboard target",
+      }),
+      "copilot",
+    );
+    const snapshotWithUsage = {
+      ...snapshot,
+      threads: snapshot.threads.map((thread) => {
+        if (thread.id !== THREAD_ID || !thread.session) {
+          return thread;
+        }
+        return Object.assign({}, thread, {
+          model: "claude-sonnet-4.5",
+          session: {
+            ...thread.session,
+            providerName: "copilot",
+            tokenUsage: {
+              provider: "copilot",
+              kind: "turn",
+              observedAt: NOW_ISO,
+              model: "claude-sonnet-4.5",
+              totalCostUsd: 0.42,
+              usage: {
+                inputTokens: 1_200,
+                outputTokens: 340,
+                thoughtTokens: 56,
+              },
+            },
+          },
+        });
+      }),
+    } satisfies OrchestrationReadModel;
+
+    const mounted = await mountChatView({
+      viewport: DEFAULT_VIEWPORT,
+      snapshot: snapshotWithUsage,
+      configureFixture: (nextFixture) => {
+        nextFixture.serverConfig = {
+          ...nextFixture.serverConfig,
+          providers: [createReadyProviderStatus("codex"), createReadyProviderStatus("copilot")],
+        };
+      },
+    });
+
+    try {
+      const contextStatus = await waitForComposerControl("context-status");
+      contextStatus.click();
+
+      const dashboard = await waitForElement(
+        () => document.querySelector<HTMLElement>("[data-usage-dashboard='true']"),
+        "Unable to find the usage dashboard dialog.",
+      );
+
+      expect(normalizeTextContent(document.body.textContent)).toContain("Usage dashboard");
+      expect(normalizeTextContent(dashboard.textContent)).toContain("$0.4200");
+      expect(normalizeTextContent(dashboard.textContent)).toContain("320 / 500");
+      expect(normalizeTextContent(dashboard.textContent)).toContain("GitHub Copilot billing");
+      expect(normalizeTextContent(dashboard.textContent)).toContain("1,596 tokens");
+    } finally {
+      await mounted.cleanup();
+    }
+  });
+
   it("shows a pointer cursor for the running stop button", async () => {
     const mounted = await mountChatView({
       viewport: DEFAULT_VIEWPORT,
@@ -1689,6 +1810,72 @@ describe("ChatView timeline estimator parity (full app)", () => {
       await expect
         .element(page.getByRole("button", { name: "Stopping generation" }))
         .toBeDisabled();
+    } finally {
+      await mounted.cleanup();
+    }
+  });
+
+  it("dispatches a turn interrupt from the keyboard escape shortcut", async () => {
+    const mounted = await mountChatView({
+      viewport: DEFAULT_VIEWPORT,
+      snapshot: createSnapshotWithInterruptFallbackTurn(TurnId.makeUnsafe("turn-running-escape")),
+      configureFixture: (nextFixture) => {
+        nextFixture.serverConfig = {
+          ...nextFixture.serverConfig,
+          keybindings: [
+            {
+              command: "chat.interrupt",
+              shortcut: {
+                key: "escape",
+                metaKey: false,
+                ctrlKey: false,
+                shiftKey: false,
+                altKey: false,
+                modKey: false,
+              },
+              whenAst: {
+                type: "not",
+                node: { type: "identifier", name: "terminalFocus" },
+              },
+            },
+          ],
+        };
+      },
+    });
+
+    try {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+
+      await vi.waitFor(
+        () => {
+          const interruptRequest = wsRequests.find(
+            (request) =>
+              request._tag === ORCHESTRATION_WS_METHODS.dispatchCommand &&
+              request.command &&
+              typeof request.command === "object" &&
+              !Array.isArray(request.command) &&
+              "type" in request.command &&
+              request.command.type === "thread.turn.interrupt" &&
+              "turnId" in request.command &&
+              request.command.turnId === "turn-running-escape",
+          );
+          expect(interruptRequest).toMatchObject({
+            _tag: ORCHESTRATION_WS_METHODS.dispatchCommand,
+            command: {
+              type: "thread.turn.interrupt",
+              threadId: THREAD_ID,
+              turnId: "turn-running-escape",
+            },
+          });
+        },
+        { timeout: 8_000, interval: 16 },
+      );
     } finally {
       await mounted.cleanup();
     }
