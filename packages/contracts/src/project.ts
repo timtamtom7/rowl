@@ -41,6 +41,15 @@ export const ProjectWriteFileResult = Schema.Struct({
 });
 export type ProjectWriteFileResult = typeof ProjectWriteFileResult.Type;
 
+export const ProjectDeleteFileInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  relativePath: TrimmedNonEmptyString.check(Schema.isMaxLength(PROJECT_WRITE_FILE_PATH_MAX_LENGTH)),
+});
+export type ProjectDeleteFileInput = typeof ProjectDeleteFileInput.Type;
+
+export const ProjectDeleteFileResult = Schema.Struct({});
+export type ProjectDeleteFileResult = typeof ProjectDeleteFileResult.Type;
+
 const ProjectWorkspaceInput = Schema.Struct({
   cwd: TrimmedNonEmptyString,
 });

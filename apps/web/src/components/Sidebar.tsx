@@ -100,6 +100,7 @@ import {
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useSidebarPreferencesStore } from "../sidebarPreferencesStore";
 import { type SidebarArchiveFilterMode } from "../lib/threadOrdering";
+import { ProjectIconDialog } from "./ProjectIconDialog";
 
 const EMPTY_KEYBINDINGS: ResolvedKeybindingsConfig = [];
 const THREAD_PREVIEW_LIMIT = 10;
@@ -521,6 +522,12 @@ export default function Sidebar() {
   const addProjectInputRef = useRef<HTMLInputElement | null>(null);
   const [renamingThreadId, setRenamingThreadId] = useState<ThreadId | null>(null);
   const [renamingTitle, setRenamingTitle] = useState("");
+  const [iconDialogState, setIconDialogState] = useState<{
+    open: boolean;
+    projectId: ProjectId | null;
+    projectName: string;
+    projectCwd: string;
+  }>({ open: false, projectId: null, projectName: "", projectCwd: "" });
   const [expandedThreadListsByProject, setExpandedThreadListsByProject] = useState<
     ReadonlySet<ProjectId>
   >(() => new Set());
@@ -1111,6 +1118,7 @@ export default function Sidebar() {
             id: projectArchived ? "unarchive" : "archive",
             label: projectArchived ? sidebarCopy.unarchiveProject : sidebarCopy.archiveProject,
           },
+          { id: "icon", label: "Project icon" },
           { id: "delete", label: sidebarCopy.removeProject, destructive: true },
         ],
         position,
@@ -1121,6 +1129,10 @@ export default function Sidebar() {
       }
       if (clicked === "archive" || clicked === "unarchive") {
         setProjectArchived(projectId, clicked === "archive");
+        return;
+      }
+      if (clicked === "icon") {
+        setIconDialogState({ open: true, projectId, projectName: project.name, projectCwd: project.cwd });
         return;
       }
       if (clicked !== "delete") return;
@@ -2040,6 +2052,31 @@ export default function Sidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
+      <ProjectIconDialog
+        open={iconDialogState.open}
+        onOpenChange={(open) => setIconDialogState((prev) => ({ ...prev, open }))}
+        projectId={iconDialogState.projectId ?? ""}
+        projectName={iconDialogState.projectName}
+        projectCwd={iconDialogState.projectCwd}
+        onSave={async (iconDataUrl) => {
+          const api = readNativeApi();
+          if (!api || !iconDialogState.projectId) return;
+          await api.projects.writeFile({
+            cwd: iconDialogState.projectCwd,
+            relativePath: ".rowl/icon.png",
+            contents: iconDataUrl,
+          });
+        }}
+        onRemove={async () => {
+          const api = readNativeApi();
+          if (!api || !iconDialogState.projectId) return;
+          await api.projects.deleteFile({
+            cwd: iconDialogState.projectCwd,
+            relativePath: ".rowl/icon.png",
+          });
+        }}
+      />
     </>
   );
 }

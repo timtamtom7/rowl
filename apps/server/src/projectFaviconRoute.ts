@@ -84,6 +84,21 @@ function serveFaviconFile(filePath: string, res: http.ServerResponse): void {
       res.end("Read error");
       return;
     }
+    const dataStr = data.toString("utf8");
+    if (dataStr.startsWith("data:image/") || dataStr.startsWith("data:text/plain")) {
+      const match = dataStr.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        const mimeType = match[1];
+        const base64Data = match[2]!;
+        const buffer = Buffer.from(base64Data, "base64");
+        res.writeHead(200, {
+          "Content-Type": mimeType,
+          "Cache-Control": "public, max-age=3600",
+        });
+        res.end(buffer);
+        return;
+      }
+    }
     res.writeHead(200, {
       "Content-Type": contentType,
       "Cache-Control": "public, max-age=3600",

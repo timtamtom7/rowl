@@ -31,6 +31,8 @@ import type {
   ProjectSearchEntriesResult,
   ProjectWriteFileInput,
   ProjectWriteFileResult,
+  ProjectDeleteFileInput,
+  ProjectDeleteFileResult,
 } from "./project";
 import type {
   ServerConfig,
@@ -176,6 +178,7 @@ export interface NativeApi {
     ) => Promise<ProjectListCommandTemplatesResult>;
     listSkills: (input: ProjectListSkillsInput) => Promise<ProjectListSkillsResult>;
     writeFile: (input: ProjectWriteFileInput) => Promise<ProjectWriteFileResult>;
+    deleteFile: (input: ProjectDeleteFileInput) => Promise<ProjectDeleteFileResult>;
   };
   threads: {
     getShareStatus: (input: ThreadShareStatusInput) => Promise<ThreadShareStatusResult>;

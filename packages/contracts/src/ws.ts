@@ -60,6 +60,8 @@ import {
   ProjectSearchEntriesResult,
   ProjectWriteFileInput,
   ProjectWriteFileResult,
+  ProjectDeleteFileInput,
+  ProjectDeleteFileResult,
 } from "./project";
 import {
   ThreadCompactInput,
@@ -109,6 +111,7 @@ export const WS_METHODS = {
   projectsListCommandTemplates: "projects.listCommandTemplates",
   projectsListSkills: "projects.listSkills",
   projectsWriteFile: "projects.writeFile",
+  projectsDeleteFile: "projects.deleteFile",
 
   // Thread utility methods
   threadsGetShareStatus: "threads.getShareStatus",
@@ -193,6 +196,7 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.projectsListCommandTemplates, ProjectListCommandTemplatesInput),
   tagRequestBody(WS_METHODS.projectsListSkills, ProjectListSkillsInput),
   tagRequestBody(WS_METHODS.projectsWriteFile, ProjectWriteFileInput),
+  tagRequestBody(WS_METHODS.projectsDeleteFile, ProjectDeleteFileInput),
 
   // Thread utility methods
   tagRequestBody(WS_METHODS.threadsGetShareStatus, ThreadShareStatusInput),
@@ -342,6 +346,7 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.projectsListCommandTemplates]: ProjectListCommandTemplatesResult,
   [WS_METHODS.projectsListSkills]: ProjectListSkillsResult,
   [WS_METHODS.projectsWriteFile]: ProjectWriteFileResult,
+  [WS_METHODS.projectsDeleteFile]: ProjectDeleteFileResult,
   [WS_METHODS.threadsGetShareStatus]: ThreadShareStatusResult,
   [WS_METHODS.threadsCreateShare]: ThreadCreateShareResult,
   [WS_METHODS.threadsGetShare]: ThreadGetShareResult,

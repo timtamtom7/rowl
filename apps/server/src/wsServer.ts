@@ -1350,6 +1350,27 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return { relativePath: target.relativePath };
       }
 
+      case WS_METHODS.projectsDeleteFile: {
+        const body = stripRequestTag(request.body);
+        const authorizedWorkspaceRoot = yield* authorizePath({
+          requestedPath: body.cwd,
+          operation: "Project file delete",
+        });
+        const target = yield* resolveWorkspaceWritePath({
+          workspaceRoot: authorizedWorkspaceRoot,
+          relativePath: body.relativePath,
+          path,
+        });
+        yield* Effect.tryPromise({
+          try: () => NodeFs.promises.unlink(target.absolutePath),
+          catch: (cause) =>
+            new RouteRequestError({
+              message: `Failed to delete workspace file: ${String(cause)}`,
+            }),
+        });
+        return {};
+      }
+
       case WS_METHODS.threadsGetShareStatus: {
         const body = stripRequestTag(request.body);
         yield* resolveLiveThreadContext(body.threadId);

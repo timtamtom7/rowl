@@ -21,6 +21,7 @@ import {
   ProjectListSkillsResult,
   ProjectSearchEntriesResult,
   ProjectWriteFileResult,
+  ProjectDeleteFileResult,
   ServerConfigUpdatedPayload,
   ServerConfig,
   ServerCopilotReasoningProbe,
@@ -197,6 +198,8 @@ export function createWsNativeApi(): NativeApi {
         requestWithSchema(WS_METHODS.projectsListSkills, ProjectListSkillsResult, input),
       writeFile: (input) =>
         requestWithSchema(WS_METHODS.projectsWriteFile, ProjectWriteFileResult, input),
+      deleteFile: (input) =>
+        requestWithSchema(WS_METHODS.projectsDeleteFile, ProjectDeleteFileResult, input),
     },
     threads: {
       getShareStatus: (input) =>
