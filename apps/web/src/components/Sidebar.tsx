@@ -413,10 +413,13 @@ function BrandMark() {
   return <img src={src} alt="" className="h-4 w-auto shrink-0 object-contain" />;
 }
 
-function ProjectFavicon({ cwd }: { cwd: string }) {
+function ProjectFavicon({ cwd, refreshKey }: { cwd: string; refreshKey?: number }) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+  const key = refreshKey ?? 0;
 
-  const src = resolveServerHttpUrl(`/api/project-favicon?cwd=${encodeURIComponent(cwd)}`);
+  const src = resolveServerHttpUrl(
+    `/api/project-favicon?cwd=${encodeURIComponent(cwd)}&k=${key}`,
+  );
 
   if (status === "error") {
     return <FolderIcon className="size-3.5 shrink-0 text-sidebar-foreground/70" />;
@@ -424,6 +427,7 @@ function ProjectFavicon({ cwd }: { cwd: string }) {
 
   return (
     <img
+      key={key}
       src={src}
       alt=""
       className={`size-3.5 shrink-0 rounded-sm object-contain ${status === "loading" ? "hidden" : ""}`}
@@ -528,6 +532,7 @@ export default function Sidebar() {
     projectName: string;
     projectCwd: string;
   }>({ open: false, projectId: null, projectName: "", projectCwd: "" });
+  const [projectIconRefreshKeys, setProjectIconRefreshKeys] = useState<Record<string, number>>({});
   const [expandedThreadListsByProject, setExpandedThreadListsByProject] = useState<
     ReadonlySet<ProjectId>
   >(() => new Set());
@@ -1724,7 +1729,7 @@ export default function Sidebar() {
                                   project.expanded ? "rotate-90" : ""
                                 }`}
                               />
-                              <ProjectFavicon cwd={project.cwd} />
+                              <ProjectFavicon cwd={project.cwd} refreshKey={projectIconRefreshKeys[project.id] ?? 0} />
                               <span className="flex-1 truncate text-xs font-medium text-foreground/90">
                                 {project.name}
                               </span>
@@ -2067,6 +2072,10 @@ export default function Sidebar() {
             relativePath: ".rowl/icon.png",
             contents: iconDataUrl,
           });
+          setProjectIconRefreshKeys((prev) => ({
+            ...prev,
+            [iconDialogState.projectId!]: Date.now(),
+          }));
         }}
         onRemove={async () => {
           const api = readNativeApi();
@@ -2075,6 +2084,10 @@ export default function Sidebar() {
             cwd: iconDialogState.projectCwd,
             relativePath: ".rowl/icon.png",
           });
+          setProjectIconRefreshKeys((prev) => ({
+            ...prev,
+            [iconDialogState.projectId!]: Date.now(),
+          }));
         }}
       />
     </>

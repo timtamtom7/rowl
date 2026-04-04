@@ -78,6 +78,8 @@ function isPathWithinProject(projectCwd: string, candidatePath: string): boolean
 function serveFaviconFile(filePath: string, res: http.ServerResponse): void {
   const ext = path.extname(filePath).toLowerCase();
   const contentType = FAVICON_MIME_TYPES[ext] ?? "application/octet-stream";
+  const isProjectIcon = filePath.includes(".rowl");
+  const cacheControl = isProjectIcon ? "private, max-age=60" : "public, max-age=3600";
   fs.readFile(filePath, (readErr, data) => {
     if (readErr) {
       res.writeHead(500, { "Content-Type": "text/plain" });
@@ -93,7 +95,7 @@ function serveFaviconFile(filePath: string, res: http.ServerResponse): void {
         const buffer = Buffer.from(base64Data, "base64");
         res.writeHead(200, {
           "Content-Type": mimeType,
-          "Cache-Control": "public, max-age=3600",
+          "Cache-Control": cacheControl,
         });
         res.end(buffer);
         return;
@@ -101,7 +103,7 @@ function serveFaviconFile(filePath: string, res: http.ServerResponse): void {
     }
     res.writeHead(200, {
       "Content-Type": contentType,
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": cacheControl,
     });
     res.end(data);
   });
