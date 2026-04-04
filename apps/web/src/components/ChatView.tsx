@@ -4261,6 +4261,13 @@ export default function ChatView({ threadId }: ChatViewProps) {
     if (!activeThreadId || files.length === 0) return;
 
     if (!selectedModelSupportsImages) {
+      toastManager.add({
+        type: "error",
+        title:
+          selectedProvider === "opencode"
+            ? "Image attachments not supported with OpenCode"
+            : "Image attachments not supported by current model",
+      });
       return;
     }
 
@@ -7395,7 +7402,9 @@ export default function ChatView({ threadId }: ChatViewProps) {
                           <TooltipPopup side="top">
                             {selectedModelSupportsImages
                               ? chatCopy.attachImagesTooltip
-                              : chatCopy.attachImagesNotSupported}
+                              : selectedProvider === "opencode"
+                                ? "Image attachments not supported with OpenCode provider"
+                                : chatCopy.attachImagesNotSupported}
                           </TooltipPopup>
                         </Tooltip>
                       ) : null}

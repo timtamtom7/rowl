@@ -792,6 +792,15 @@ export class OpenCodeAcpManager extends EventEmitter<OpenCodeAcpManagerEvents> {
       if (requestedModel && requestedModel !== context.session.model) {
         if (isOpenCodeModelAvailable(context.models, requestedModel)) {
           await this.setSessionModel(context, requestedModel);
+        } else {
+          const availableModelIds = readAvailableOpenCodeModelIds(context.models);
+          const modelListInfo =
+            availableModelIds.length > 0
+              ? ` Available models: ${availableModelIds.join(", ")}.`
+              : " No models are currently available from OpenCode.";
+          throw new Error(
+            `OpenCode does not have access to model '${requestedModel}'.${modelListInfo} Select one of the available models or reconfigure your OpenCode provider.`,
+          );
         }
       }
 
