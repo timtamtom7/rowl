@@ -156,7 +156,7 @@ export const CUSTOM_THEME_OPTIONS = [
   {
     id: "none",
     label: "Default theme",
-    description: "Use CUT3's built-in theme tokens.",
+    description: "Use Rowl's built-in theme tokens.",
     family: "default",
     appearance: null,
   },

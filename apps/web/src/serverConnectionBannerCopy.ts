@@ -29,7 +29,7 @@ export function getServerConnectionBannerDescription(args: {
   if (args.language === "fa") {
     if (args.retrying) {
       return args.isElectron
-        ? "برنامه به صورت خودکار دوباره اتصال وب سوکت را امتحان می کند. اگر این وضعیت ادامه داشت، CUT3 را دوباره راه اندازی کنید."
+        ? "برنامه به صورت خودکار دوباره اتصال وب سوکت را امتحان می کند. اگر این وضعیت ادامه داشت، Rowl را دوباره راه اندازی کنید."
         : "برنامه به صورت خودکار دوباره اتصال وب سوکت را امتحان می کند. اگر این وضعیت ادامه داشت، سرور توسعه محلی را دوباره راه اندازی کنید.";
     }
 
@@ -40,7 +40,7 @@ export function getServerConnectionBannerDescription(args: {
 
   if (args.retrying) {
     return args.isElectron
-      ? "The app is retrying the websocket connection automatically. If this keeps happening, restart CUT3."
+      ? "The app is retrying the websocket connection automatically. If this keeps happening, restart Rowl."
       : "The app is retrying the websocket connection automatically. If this keeps happening, restart the local dev server.";
   }
 

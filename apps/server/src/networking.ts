@@ -1,6 +1,6 @@
 const DEFAULT_LOOPBACK_HOST = "127.0.0.1";
 const DEFAULT_LOOPBACK_ORIGIN_HOSTS = ["localhost", "127.0.0.1", "::1"] as const;
-const DESKTOP_APP_ORIGIN = "cut3://app";
+const DESKTOP_APP_ORIGIN = "rowl://app";
 
 function normalizeHost(host: string): string {
   return host.replace(/^\[/, "").replace(/\]$/, "").toLowerCase();

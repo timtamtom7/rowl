@@ -54,17 +54,17 @@ export function getArm64IntelBuildWarningDescription(
   const action = resolveDesktopUpdateButtonAction(state);
   if (action === "download") {
     return language === "fa"
-      ? "این مک Apple Silicon دارد، اما CUT3 هنوز نسخه اینتل را با Rosetta اجرا می کند. برای رفتن به نسخه بومی Apple Silicon، به روزرسانی موجود را دانلود کنید."
-      : "This Mac has Apple Silicon, but CUT3 is still running the Intel build under Rosetta. Download the available update to switch to the native Apple Silicon build.";
+      ? "این مک Apple Silicon دارد، اما Rowl هنوز نسخه اینتل را با Rosetta اجرا می کند. برای رفتن به نسخه بومی Apple Silicon، به روزرسانی موجود را دانلود کنید."
+      : "This Mac has Apple Silicon, but Rowl is still running the Intel build under Rosetta. Download the available update to switch to the native Apple Silicon build.";
   }
   if (action === "install") {
     return language === "fa"
-      ? "این مک Apple Silicon دارد، اما CUT3 هنوز نسخه اینتل را با Rosetta اجرا می کند. برای نصب نسخه دانلودشده Apple Silicon دوباره راه اندازی کنید."
-      : "This Mac has Apple Silicon, but CUT3 is still running the Intel build under Rosetta. Restart to install the downloaded Apple Silicon build.";
+      ? "این مک Apple Silicon دارد، اما Rowl هنوز نسخه اینتل را با Rosetta اجرا می کند. برای نصب نسخه دانلودشده Apple Silicon دوباره راه اندازی کنید."
+      : "This Mac has Apple Silicon, but Rowl is still running the Intel build under Rosetta. Restart to install the downloaded Apple Silicon build.";
   }
   return language === "fa"
-    ? "این مک Apple Silicon دارد، اما CUT3 هنوز نسخه اینتل را با Rosetta اجرا می کند. به روزرسانی بعدی برنامه آن را با نسخه بومی Apple Silicon جایگزین می کند."
-    : "This Mac has Apple Silicon, but CUT3 is still running the Intel build under Rosetta. The next app update will replace it with the native Apple Silicon build.";
+    ? "این مک Apple Silicon دارد، اما Rowl هنوز نسخه اینتل را با Rosetta اجرا می کند. به روزرسانی بعدی برنامه آن را با نسخه بومی Apple Silicon جایگزین می کند."
+    : "This Mac has Apple Silicon, but Rowl is still running the Intel build under Rosetta. The next app update will replace it with the native Apple Silicon build.";
 }
 
 export function getDesktopUpdateButtonTooltip(
