@@ -1455,4 +1455,112 @@ describe("ProviderCommandReactor", () => {
     expect(thread?.session?.threadId).toBe("thread-1");
     expect(thread?.session?.activeTurnId).toBeNull();
   });
+
+  describe("per-thread concurrency", () => {
+    it("control events are not serialized behind turn-start events", async () => {
+      const harness = await createHarness();
+      const now = new Date().toISOString();
+
+      await Effect.runPromise(
+        harness.engine.dispatch({
+          type: "thread.turn.start",
+          commandId: CommandId.makeUnsafe("cmd-concurrent-ctrl-turn"),
+          threadId: ThreadId.makeUnsafe("thread-1"),
+          message: {
+            messageId: asMessageId("user-message-ctrl"),
+            role: "user",
+            text: "turn with interrupt",
+            attachments: [],
+          },
+          interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+          runtimeMode: "approval-required",
+          createdAt: now,
+        }),
+      );
+
+      await waitFor(() => harness.sendTurn.mock.calls.length >= 1);
+
+      const interruptCallCountBefore =
+        harness.interruptTurn.mock.calls.length;
+
+      await Effect.runPromise(
+        harness.engine.dispatch({
+          type: "thread.turn.interrupt",
+          commandId: CommandId.makeUnsafe("cmd-concurrent-ctrl-interrupt"),
+          threadId: ThreadId.makeUnsafe("thread-1"),
+          turnId: undefined,
+          createdAt: now,
+        }),
+      );
+
+      await waitFor(
+        () => harness.interruptTurn.mock.calls.length > interruptCallCountBefore,
+        3000,
+      );
+
+      expect(harness.interruptTurn.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    it("different threads' turn-start events both reach sendTurn", async () => {
+      const harness = await createHarness();
+      const now = new Date().toISOString();
+
+      await Effect.runPromise(
+        harness.engine.dispatch({
+          type: "thread.create",
+          commandId: CommandId.makeUnsafe("cmd-thread-create-2"),
+          threadId: ThreadId.makeUnsafe("thread-2"),
+          projectId: asProjectId("project-1"),
+          title: "Thread 2",
+          model: "gpt-5-codex",
+          interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+          runtimeMode: "approval-required",
+          branch: null,
+          worktreePath: null,
+          createdAt: now,
+        }),
+      );
+
+      await Effect.runPromise(
+        harness.engine.dispatch({
+          type: "thread.turn.start",
+          commandId: CommandId.makeUnsafe("cmd-concurrent-t1"),
+          threadId: ThreadId.makeUnsafe("thread-1"),
+          message: {
+            messageId: asMessageId("user-message-t1"),
+            role: "user",
+            text: "turn thread 1",
+            attachments: [],
+          },
+          interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+          runtimeMode: "approval-required",
+          createdAt: now,
+        }),
+      );
+
+      await Effect.runPromise(
+        harness.engine.dispatch({
+          type: "thread.turn.start",
+          commandId: CommandId.makeUnsafe("cmd-concurrent-t2"),
+          threadId: ThreadId.makeUnsafe("thread-2"),
+          message: {
+            messageId: asMessageId("user-message-t2"),
+            role: "user",
+            text: "turn thread 2",
+            attachments: [],
+          },
+          interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+          runtimeMode: "approval-required",
+          createdAt: now,
+        }),
+      );
+
+      await waitFor(
+        () => harness.sendTurn.mock.calls.length >= 2,
+        5000,
+      );
+
+      expect(harness.sendTurn.mock.calls.length).toBe(2);
+    });
+  });
 });

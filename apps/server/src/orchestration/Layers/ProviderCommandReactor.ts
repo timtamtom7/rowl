@@ -15,8 +15,8 @@ import {
   type TurnId,
 } from "@t3tools/contracts";
 import { isCodexOpenRouterModel } from "@t3tools/shared/model";
-import { Cache, Cause, Duration, Effect, Layer, Option, Schema, Stream } from "effect";
-import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
+import { Cache, Cause, Duration, Effect, Fiber, Layer, Option, Queue, Ref, Schema, Stream } from "effect";
+import * as Semaphore from "effect/Semaphore";
 
 import { resolveThreadWorkspaceCwd } from "../../checkpointing/Utils.ts";
 import { GitCore } from "../../git/Services/GitCore.ts";
@@ -241,6 +241,40 @@ const make = Effect.gen(function* () {
     );
 
   const threadProviderOptions = new Map<string, ProviderStartOptions>();
+  const perThreadSemaphores = new Map<ThreadId, Semaphore.Semaphore>();
+
+  const getSemaphoreForThread = (threadId: ThreadId): Semaphore.Semaphore => {
+    let sem = perThreadSemaphores.get(threadId);
+    if (!sem) {
+      sem = Effect.runSync(Semaphore.make(1));
+      perThreadSemaphores.set(threadId, sem);
+    }
+    return sem;
+  };
+
+  type Lane = {
+    readonly queue: Queue.Queue<ProviderIntentEvent>;
+    readonly fiber: Fiber.Fiber<never, unknown>;
+  };
+
+  const perThreadLanesRef = yield* Ref.make<Map<ThreadId, Lane>>(new Map());
+
+  const getOrCreateLane = (threadId: ThreadId) =>
+    Effect.gen(function* () {
+      const lanes = yield* Ref.get(perThreadLanesRef);
+      const existing = lanes.get(threadId);
+      if (existing) return existing;
+
+      const queue = yield* Queue.unbounded<ProviderIntentEvent>();
+      const fiber = yield* Effect.forkScoped(
+        Effect.forever(
+          Queue.take(queue).pipe(Effect.flatMap(processDomainEventSafely)),
+        ),
+      );
+      const lane: Lane = { queue, fiber };
+      yield* Ref.set(perThreadLanesRef, new Map(lanes).set(threadId, lane));
+      return lane;
+    });
 
   const appendProviderFailureActivity = (input: {
     readonly threadId: ThreadId;
@@ -748,7 +782,8 @@ const make = Effect.gen(function* () {
         .pipe(Effect.catch(() => Effect.void));
     }
 
-    yield* sendTurnForThread({
+    const sem = getSemaphoreForThread(event.payload.threadId);
+    yield* sem.withPermits(1)(sendTurnForThread({
       threadId: event.payload.threadId,
       messageText: message.text,
       ...(message.attachments !== undefined ? { attachments: message.attachments } : {}),
@@ -806,7 +841,7 @@ const make = Effect.gen(function* () {
           });
         }),
       ),
-    );
+    ));
   });
 
   const processTurnInterruptRequested = Effect.fnUntraced(function* (
@@ -999,8 +1034,6 @@ const make = Effect.gen(function* () {
       }),
     );
 
-  const worker = yield* makeDrainableWorker(processDomainEventSafely);
-
   const start: ProviderCommandReactorShape["start"] = Effect.forkScoped(
     Stream.runForEach(orchestrationEngine.streamDomainEvents, (event) => {
       if (
@@ -1014,13 +1047,27 @@ const make = Effect.gen(function* () {
         return Effect.void;
       }
 
-      return worker.enqueue(event);
+      if (event.type === "thread.turn-start-requested") {
+        return getOrCreateLane(event.payload.threadId).pipe(
+          Effect.flatMap((lane) => Queue.offer(lane.queue, event)),
+          Effect.asVoid,
+        );
+      }
+
+      return Effect.forkScoped(processDomainEventSafely(event));
     }),
   ).pipe(Effect.asVoid);
 
+  const drain = Effect.gen(function* () {
+    const lanes = yield* Ref.get(perThreadLanesRef);
+    const laneEntries = Array.from(lanes.entries());
+    yield* Effect.forEach(laneEntries, ([, lane]) => Queue.shutdown(lane.queue));
+    yield* Effect.forEach(laneEntries, ([, lane]) => Fiber.interrupt(lane.fiber));
+  });
+
   return {
     start,
-    drain: worker.drain,
+    drain,
   } satisfies ProviderCommandReactorShape;
 });
 
