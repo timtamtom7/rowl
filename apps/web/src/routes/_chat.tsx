@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { DiffWorkerPoolProvider } from "../components/DiffWorkerPoolProvider";
 import ThreadSidebar from "../components/Sidebar";
-import RightSidebar from "../components/right-sidebar/RightSidebar";
+import RightSidebar, { RightSidebarProvider } from "../components/right-sidebar/RightSidebar";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 import { parseDiffRouteSearch, stripDiffSearchParams } from "../diffRouteSearch";
 import { isTerminalFocused } from "../lib/terminalFocus";
@@ -348,7 +348,7 @@ function ChatRouteLayoutContent() {
   }, [keybindings, toggleSidebar]);
 
   return (
-    <>
+    <RightSidebarProvider>
       <ChatRouteGlobalShortcuts />
       <CommandPalette
         open={commandPaletteOpen}
@@ -366,10 +366,10 @@ function ChatRouteLayoutContent() {
       <DiffWorkerPoolProvider>
         <div className="flex flex-1 min-h-0">
           <Outlet />
-          <RightSidebar className="border-l border-border" />
+          <RightSidebar />
         </div>
       </DiffWorkerPoolProvider>
-    </>
+    </RightSidebarProvider>
   );
 }
 

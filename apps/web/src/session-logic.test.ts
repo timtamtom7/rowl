@@ -1243,6 +1243,7 @@ describe("PROVIDER_OPTIONS", () => {
       { value: "openrouter", label: "OpenRouter", available: true },
       { value: "copilot", label: "GitHub Copilot", available: true },
       { value: "kimi", label: "Kimi Code", available: true },
+      { value: "kilocode", label: "KiloCode", available: true },
       { value: "opencode", label: "OpenCode", available: true },
       { value: "pi", label: "Pi", available: true },
       { value: "claudeCode", label: "Claude Code", available: false },

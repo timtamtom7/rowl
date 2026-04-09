@@ -17,6 +17,7 @@ function isProviderKind(value: string | null | undefined): value is ProviderKind
     value === "codex" ||
     value === "copilot" ||
     value === "kimi" ||
+    value === "kilocode" ||
     value === "opencode" ||
     value === "pi"
   );
@@ -30,6 +31,8 @@ export function getProviderDisplayLabel(provider: ProviderKind): string {
       return "GitHub Copilot";
     case "kimi":
       return "Kimi Code";
+    case "kilocode":
+      return "KiloCode";
     case "opencode":
       return "OpenCode";
     case "pi":
@@ -112,6 +115,12 @@ export function resolveVisibleProviderStatusForChat(input: {
 }): ServerProviderStatus | null {
   const status = resolveProviderStatusForChat(input);
   if (!status) {
+    return null;
+  }
+
+  // Only show provider status when the provider is actively in use
+  // (either as the selected provider or as the running session provider)
+  if (status.provider !== input.selectedProvider && status.provider !== input.sessionProvider) {
     return null;
   }
 
