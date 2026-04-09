@@ -34,9 +34,7 @@ export interface GoalsServiceShape {
     input: CreateGoalInput,
   ) => Effect.Effect<CreateGoalResult, GoalServiceError>;
 
-  readonly getGoal: (
-    input: GetGoalInput,
-  ) => Effect.Effect<GetGoalResult, GoalServiceError>;
+  readonly getGoal: (input: GetGoalInput) => Effect.Effect<GetGoalResult, GoalServiceError>;
 
   readonly listGoalsByProject: (
     input: ListGoalsByProjectInput,
