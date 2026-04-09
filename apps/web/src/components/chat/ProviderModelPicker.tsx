@@ -88,6 +88,7 @@ export const PROVIDER_ICON_BY_PROVIDER: Record<ProviderPickerKind, Icon> = {
   openrouter: OpenRouterIcon,
   copilot: GitHubIcon,
   kimi: KimiIcon,
+  kilocode: BotIcon,
   opencode: OpenCodeIcon,
   pi: BotIcon,
   claudeCode: ClaudeAI,
@@ -329,12 +330,14 @@ const PickerModelRow = memo(function PickerModelRow(props: {
   favoriteLabel: string;
   recentLabel: string;
   defaultLabel: string;
+  setAsDefaultLabel: string;
   isDisabledByProviderLock: boolean;
   disabled: boolean;
   serviceTierSetting: AppServiceTier;
   openRouterContextLengthsBySlug: ReadonlyMap<string, number | null>;
   opencodeContextLengthsBySlug: ReadonlyMap<string, number | null>;
   onSelect: () => void;
+  onSetAsDefault: () => void;
 }) {
   const displayParts = getModelPickerOptionDisplayParts(props.modelOption);
   const contextLabel = getModelOptionContextLabel(
@@ -410,6 +413,17 @@ const PickerModelRow = memo(function PickerModelRow(props: {
           >
             {props.defaultLabel}
           </Badge>
+        ) : !props.isDefault && !props.isDisabledByProviderLock && !props.disabled ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onSetAsDefault();
+            }}
+            className="hidden text-[11px] text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 group-hover/model-row:inline-flex"
+          >
+            {props.setAsDefaultLabel}
+          </button>
         ) : null}
         {props.modelOption.supportsReasoning ? (
           <span
@@ -636,27 +650,6 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const allExpanded =
     providerSections.length > 0 &&
     providerSections.every((s) => !collapsedSections.has(s.option.value));
-
-  const unavailableOptions = useMemo(() => {
-    const placeholderOptions = [
-      ...UNAVAILABLE_PROVIDER_OPTIONS.map((option) => ({
-        id: option.value,
-        label: option.label,
-        icon: PROVIDER_ICON_BY_PROVIDER[option.value],
-      })),
-      ...COMING_SOON_PROVIDER_OPTIONS.map((option) => ({
-        id: option.id,
-        label: option.label,
-        icon: option.icon,
-      })),
-    ];
-    if (!normalizedQuery) {
-      return placeholderOptions;
-    }
-    return placeholderOptions.filter((option) =>
-      option.label.toLowerCase().includes(normalizedQuery),
-    );
-  }, [normalizedQuery]);
 
   // Total model count across visible sections
   const totalVisibleModels = providerSections.reduce((sum, s) => sum + s.modelOptions.length, 0);
@@ -924,6 +917,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                                   favoriteLabel={copy.favorite}
                                   recentLabel={copy.recent}
                                   defaultLabel={copy.default}
+                                  setAsDefaultLabel={copy.setAsDefault}
                                   isDisabledByProviderLock={section.isDisabledByProviderLock}
                                   disabled={props.disabled ?? false}
                                   serviceTierSetting={props.serviceTierSetting}
@@ -939,6 +933,9 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                                       section.isDisabledByProviderLock,
                                     );
                                   }}
+                                  onSetAsDefault={() => {
+                                    props.onSetAsDefault(section.option.value, modelOption.slug);
+                                  }}
                                 />
                               );
                             })}
@@ -950,26 +947,6 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                 );
               })
             )}
-
-            {/* Coming soon / unavailable */}
-            {unavailableOptions.length > 0 ? (
-              <section className="rounded-xl border border-dashed border-border/50 bg-muted/10 px-4 py-3">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
-                  {copy.comingSoon}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {unavailableOptions.map((option) => {
-                    const OptionIcon = option.icon;
-                    return (
-                      <Badge key={option.id} variant="outline" size="sm" className="gap-1.5">
-                        <OptionIcon className="size-3.5 opacity-70" />
-                        {option.label}
-                      </Badge>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
           </div>
 
           {/* Footer toolbar */}

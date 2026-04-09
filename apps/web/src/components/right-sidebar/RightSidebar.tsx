@@ -1,7 +1,6 @@
 import { memo, useState, useCallback } from "react";
 import {
   PanelRightCloseIcon,
-  PanelRightIcon,
   MessageSquareIcon,
   ListIcon,
   LayoutGridIcon,
@@ -9,12 +8,12 @@ import {
   DatabaseIcon,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
+import { useRightSidebar } from "./RightSidebarContext";
+import { ThreadsTab } from "./ThreadsTab";
+
+export { RightSidebarProvider } from "./RightSidebarContext";
 
 export type RightSidebarTab = "pm-chat" | "threads" | "features" | "goals" | "context";
-
-interface RightSidebarProps {
-  className?: string;
-}
 
 interface TabConfig {
   id: RightSidebarTab;
@@ -30,31 +29,41 @@ const TABS: TabConfig[] = [
   { id: "context", label: "Context", icon: <DatabaseIcon className="size-4" /> },
 ];
 
-const RightSidebar = memo(function RightSidebar({ className }: RightSidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+function renderTabContent(activeTab: RightSidebarTab) {
+  switch (activeTab) {
+    case "threads":
+      return <ThreadsTab />;
+    case "pm-chat":
+    case "features":
+    case "goals":
+    case "context":
+      return (
+        <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+          {activeTab} tab coming soon
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
+const RightSidebar = memo(function RightSidebar({ className }: { className?: string }) {
+  const { rightSidebarExpanded, setRightSidebarExpanded } = useRightSidebar();
   const [activeTab, setActiveTab] = useState<RightSidebarTab>("pm-chat");
 
   const toggleExpanded = useCallback(() => {
-    setIsExpanded((prev) => !prev);
-  }, []);
+    setRightSidebarExpanded(!rightSidebarExpanded);
+  }, [rightSidebarExpanded, setRightSidebarExpanded]);
 
   const renderCollapsed = () => (
-    <div className="flex h-full w-12 flex-col items-center border-l border-border/60 bg-card/40 backdrop-blur-xs py-2 gap-1">
-      <button
-        type="button"
-        onClick={toggleExpanded}
-        aria-label="Expand right sidebar"
-        className="flex size-7 items-center justify-center rounded-md text-muted-foreground/50 hover:text-foreground/70 hover:bg-accent/50 transition-colors"
-      >
-        <PanelRightIcon className="size-4" />
-      </button>
-      <div className="flex flex-col items-center gap-1 mt-2">
+    <div className="relative flex h-full w-12 flex-col items-center border-l border-border/60 bg-card/40 backdrop-blur-xs py-2 gap-1">
+      <div className="flex flex-col items-center gap-1 mt-8">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => {
               setActiveTab(tab.id);
-              setIsExpanded(true);
+              setRightSidebarExpanded(true);
             }}
             aria-label={tab.label}
             aria-selected={activeTab === tab.id}
@@ -115,7 +124,7 @@ const RightSidebar = memo(function RightSidebar({ className }: RightSidebarProps
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden" />
+      <div className="min-h-0 flex-1 overflow-hidden">{renderTabContent(activeTab)}</div>
     </div>
   );
 
@@ -123,12 +132,12 @@ const RightSidebar = memo(function RightSidebar({ className }: RightSidebarProps
     <div
       className={cn(
         "relative flex shrink-0 transition-[width] motion-reduce:transition-none",
-        isExpanded ? "w-80" : "w-12",
+        rightSidebarExpanded ? "w-80" : "w-12",
         className,
       )}
-      data-state={isExpanded ? "expanded" : "collapsed"}
+      data-state={rightSidebarExpanded ? "expanded" : "collapsed"}
     >
-      {isExpanded ? renderExpanded() : renderCollapsed()}
+      {rightSidebarExpanded ? renderExpanded() : renderCollapsed()}
     </div>
   );
 });

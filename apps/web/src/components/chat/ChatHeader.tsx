@@ -13,6 +13,7 @@ import ProjectScriptsControl, { type NewProjectScriptInput } from "../ProjectScr
 import { Toggle } from "../ui/toggle";
 import { SidebarTrigger } from "../ui/sidebar";
 import { OpenInPicker } from "./OpenInPicker";
+import RightSidebarToggle from "../RightSidebarToggle";
 
 interface ChatHeaderProps {
   activeThreadId: ThreadId;
@@ -32,6 +33,7 @@ interface ChatHeaderProps {
   onUpdateProjectScript: (scriptId: string, input: NewProjectScriptInput) => Promise<void>;
   onDeleteProjectScript: (scriptId: string) => Promise<void>;
   onToggleDiff: () => void;
+  onToggleRightSidebar?: () => void;
 }
 
 export const ChatHeader = memo(function ChatHeader({
@@ -52,6 +54,7 @@ export const ChatHeader = memo(function ChatHeader({
   onUpdateProjectScript,
   onDeleteProjectScript,
   onToggleDiff,
+  onToggleRightSidebar,
 }: ChatHeaderProps) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -118,6 +121,7 @@ export const ChatHeader = memo(function ChatHeader({
                 : "Toggle diff panel"}
           </TooltipPopup>
         </Tooltip>
+        {onToggleRightSidebar && <RightSidebarToggle />}
       </div>
     </div>
   );
