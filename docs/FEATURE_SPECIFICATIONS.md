@@ -4,679 +4,392 @@ This document contains detailed specifications for all Rowl features. When a use
 
 ---
 
-## Feature Status
+## Feature Status Dashboard
 
-| Feature | Status | What Exists | What Needs Doing |
-|---------|--------|-------------|------------------|
-| Right Sidebar Shell | ✅ Done | Collapsible sidebar with 5 tabs | None - shell works |
-| PM Chat | ❌ Not Done | Mock UI with simulated responses | Real WebSocket integration, service backend |
-| Threads Tab | ❌ Not Done | Mock thread list | Wire to real thread data from server |
-| Features Board | ❌ Not Done | Mock Kanban UI | Wire to FeatureService, persistence |
-| Goals Tab | ❌ Not Done | Mock goals display | Wire to GoalsService, persistence |
-| Context System | ❌ Not Done | Mock node visualizer | Wire to ContextService, compression logic |
-| Thread Goal Statement | ✅ Fully Done | Works, tested, merged | None |
-| Project Brief | 🔲 Not started | Nothing | Full implementation |
-| Settings Reorganization | 🔲 Not started | Nothing | Full implementation |
-| Skills AI Creation | 🔲 Not started | Nothing | Full implementation |
-| Overseer | 🔲 Not started | Nothing | Full implementation |
+**Rule: A feature is NOT done until it's fully wired to real data/APIs. Mock UI = 0%.**
 
----
+| Feature | Backend | Frontend | Overall | Usable? |
+|---------|---------|----------|---------|---------|
+| Right Sidebar Shell | N/A | 10% | 10% | ❌ |
+| PM Chat | 0% | 0% | 0% | ❌ |
+| Threads Tab | 0% | 0% | 0% | ❌ |
+| Features Board | 0% | 0% | 0% | ❌ |
+| Goals Tab | 0% | 0% | 0% | ❌ |
+| Context System | 0% | 0% | 0% | ❌ |
+| Thread Goal Statement | 100% | 100% | 100% | ✅ |
+| Project Brief | 0% | 0% | 0% | ❌ |
+| Settings Reorganization | 0% | 0% | 0% | ❌ |
+| Skills AI Creation | 0% | 0% | 0% | ❌ |
+| Overseer | 0% | 0% | 0% | ❌ |
 
-## Architecture Notes
-
-### What's Actually Working
-
-**Thread Goal Statement** - Fully implemented, uses existing `thread.meta.update` command, saves to orchestration.
-
-### What's Stubbed/Mock
-
-All Right Sidebar tabs (1-5) have UI but use hardcoded mock data:
-- `PMChat.tsx` - Simulated responses with `setTimeout`
-- `ThreadsTab.tsx` - `MOCK_THREADS` constant
-- `FeaturesBoard.tsx` - `MOCK_FEATURES` constant
-- `GoalsTab.tsx` - `MOCK_GOALS` constant
-- `ContextTab.tsx` - `MOCK_NODES` and `MOCK_BUDGET` constants
-
-### Server Services (Stubs Only)
-
-These interfaces exist but have no implementation:
-- `FeatureService.ts` - Interface defined, no concrete class
-- `GoalsService.ts` - Interface defined, no concrete class
-- `ContextService.ts` - Interface defined, no concrete class
-- `PMChatContextService.ts` - Interface defined, no concrete class
-
-### Contracts (Real)
-
-Schemas exist and are wired to WebSocket RPC:
-- `features.ts` - Feature schemas (used in ws.ts)
-- `goals.ts` - Goal schemas (used in ws.ts)
-- `context.ts` - Context schemas (used in ws.ts)
-
-### What's Needed to Complete Right Sidebar
-
-1. **Implement service classes** - Concrete implementations for FeatureService, GoalsService, ContextService, PMChatContextService
-2. **Add persistence** - Database layer (likely Projection patterns like existing codebase)
-3. **Wire WebSocket handlers** - Connect RPC methods to service implementations
-4. **Frontend API integration** - Replace mock data with real WebSocket calls
-5. **State management** - React Query or Zustand for caching
+**Only 1 feature fully done.** Everything else is 0% or mock-only.
 
 ---
 
-## Feature: Right Sidebar with Project Context
+## Completion Percentage Guide
 
-### Summary
+| % | Meaning |
+|---|---------|
+| 0% | Not started, nothing exists |
+| 1-20% | Contracts/schemas exist, nothing works |
+| 21-40% | Backend service interfaces exist, no implementation |
+| 41-60% | Backend implementation done, frontend needs wiring |
+| 61-80% | Frontend wired, needs testing/integration |
+| 81-99% | Testing/fixing, almost there |
+| 100% | Fully working, tested, merged to main |
 
-Collapsible right sidebar showing project context with 5 tabs: PM Chat, Threads, Features, Goals, and Context. This is the central coordination hub for the project.
+---
 
-### Status: ❌ NOT DONE - UI shells with mock data
+## Feature: Right Sidebar Shell
 
-**What exists:**
-- `apps/web/src/components/right-sidebar/RightSidebar.tsx` - Shell with tab bar
-- `apps/web/src/components/right-sidebar/PMChat.tsx` - Mock chat UI
-- `apps/web/src/components/right-sidebar/ThreadsTab.tsx` - Mock thread list
-- `apps/web/src/components/right-sidebar/FeaturesBoard.tsx` - Mock Kanban
-- `apps/web/src/components/right-sidebar/GoalsTab.tsx` - Mock goals
-- `apps/web/src/components/right-sidebar/ContextTab.tsx` - Mock visualizer
+**Overall: 10%** - Just the container shell, no content tabs wired
 
-**What needs building:**
-- Service implementations in `apps/server/src/orchestration/Services/`
-- Persistence layer (Projections)
-- WebSocket route handlers
-- Frontend API integration to replace mock data
+### Backend: N/A
+Just a UI container, no backend needed.
 
-### Detailed Specification
+### Frontend
+- [x] RightSidebar.tsx shell with tab bar (136 lines)
+  - Collapsible (~320px expanded, ~40px collapsed)
+  - 5 tab slots defined (pm-chat, threads, features, goals, context)
+  - Tab icons and labels working
+  - Empty content area (waiting for tab implementations)
 
-**What it does:**
-
-- Right sidebar with tabs: PM Chat, Threads, Features, Goals, Context
-- Each tab shows project-relevant information
-- Sidebar collapses to small (~40px) icon-only sliver when collapsed
-- Clicking sliver or toggle expands sidebar
-
-**Sidebar Dimensions:**
-
-- Expanded width: ~320px
-- Collapsed width: ~40px (icon only, not fully hidden)
-
-**Implementation Location:**
-
-- `apps/web/src/components/right-sidebar/RightSidebar.tsx` (new)
-- `apps/web/src/components/right-sidebar/PMChat.tsx` (new)
-- `apps/web/src/components/right-sidebar/ThreadsTab.tsx` (new)
-- `apps/web/src/components/right-sidebar/FeaturesBoard.tsx` (new)
-- `apps/web/src/components/right-sidebar/GoalsTab.tsx` (new)
-- `apps/web/src/components/right-sidebar/ContextTab.tsx` (new)
+- [ ] Tab content slots (0%) - Nothing rendering in main area
 
 ---
 
 ## Feature: PM Chat (in Right Sidebar)
 
-### Summary
+**Overall: 0%** - Never started
 
+### Summary
 AI Product Manager chat integrated into right sidebar. Has full context of project (threads, features, goals, context) and coordinates all work.
 
-### Detailed Specification
+### What Needs Building
 
-**What it does:**
+#### Backend (0%)
+- [ ] PMChatContextService implementation
+  - Aggregates all project data for PM
+  - Fetches threads, features, goals, context nodes for a project
+  - No persistence needed - reads from existing projections
 
-- AI chat with PM role/persona
-- Sees all project context: threads, features, goals, context nodes
-- Can coordinate work across threads
-- Can spin off new agents to threads
-- Ensures nothing gets messy or duplicated
-- Views git branches and can coordinate which thread works on what
+#### Frontend (0%)
+- [ ] PMChat component (0%)
+  - Chat interface for AI PM
+  - WebSocket connection to backend
+  - Context display (threads, features, goals visible to PM)
+  - Actions: create thread, update feature, assign work
 
-**PM Responsibilities:**
-
-- Knows all threads and their goals
-- Tracks all features and stages
-- Coordinates parallel development streams (max 2)
-- Reviews before merge
-- Prevents branch chaos like before
-
-**UI Behavior:**
-
-- Chat interface in right sidebar
-- Access to project context via tabs
-- Can create new threads from PM chat
-- Can update feature stages
-- Thread-safe coordination
-
-**Connection to other features:**
-
-- Can see all Thread Goal Statements
-- Can see all Features and their stages
-- Can see project Goals
-- Can see Context nodes
-
-**Implementation Location:**
-
-- `apps/web/src/components/right-sidebar/PMChat.tsx`
-- `apps/server/src/orchestration/Services/PMChatService.ts` (new)
+### Implementation Order
+1. Backend: PMChatContextService (reads existing data)
+2. Frontend: PMChat component wired to PMChatContextService
 
 ---
 
 ## Feature: Threads Tab (in Right Sidebar)
 
-### Summary
+**Overall: 0%** - Never started
 
+### Summary
 List of all threads in the current project with their goal statements and status.
 
-### Detailed Specification
+### What Needs Building
 
-**What it does:**
+#### Backend (0%)
+- [ ] Use existing thread projection data
+- [ ] Filter threads by current project
+- [ ] Fetch thread goals (already exists in schema)
 
-- Shows all threads in active project
-- Each thread shows: title, goal statement, status
-- Click to switch to that thread
-- Thread status indicators (Working, Connecting, Completed, Pending Approval, Awaiting Input, Plan Ready)
+#### Frontend (0%)
+- [ ] ThreadsTab component (0%)
+  - List threads from current project
+  - Show thread goal statement
+  - Show status indicator (working, connecting, etc.)
+  - Click to switch threads
+  - Uses existing thread data from orchestrator
 
-**UI Behavior:**
-
-- Scrollable thread list
-- Search/filter threads
-- Visual status indicators
-- Click to navigate
-- Shows thread goal statement inline
-
-**Implementation Location:**
-
-- `apps/web/src/components/right-sidebar/ThreadsTab.tsx`
+### Implementation Order
+1. Backend: Query existing thread projection by projectId
+2. Frontend: ThreadsTab wired to thread data
 
 ---
 
 ## Feature: Features Board (in Right Sidebar)
 
-### Summary
+**Overall: 0%** - Never started (mock UI was deleted)
 
+### Summary
 Kanban-style board with columns: Backlog, In Progress, Done, Wishlist. Each feature has detailed spec.
 
-### Detailed Specification
+### What Needs Building
 
-**What it does:**
+#### Backend (0%)
+- [ ] FeatureService implementation
+  - CRUD for features
+  - Stages: "backlog" | "in_progress" | "done" | "wishlist"
+  - Fields: id, projectId, name, description, stage, threadId, createdAt, updatedAt, createdBy
+  - Needs new projection: ProjectionFeatures
 
-- Kanban board with 4 columns:
-  - **Backlog** - proposed features
-  - **In Progress** - currently being worked on
-  - **Done** - completed
-  - **Wishlist** - nice to have
-- Each feature card shows:
-  - Feature name
-  - Description summary (from detailed spec)
-  - Assigned thread (if any)
-  - Last activity timestamp
-- Drag and drop between columns
-- Click to expand full feature spec
+#### Frontend (0%)
+- [ ] FeaturesBoard component (0%)
+  - Kanban columns with drag-drop
+  - Feature cards (name, description, thread)
+  - Create/edit feature UI
+  - Wire to FeatureService API
 
-**Feature Spec Process (Important):**
+### Contracts (Exist, 100%)
+- `packages/contracts/src/features.ts` - Schemas done
+- `packages/contracts/src/ws.ts` - WebSocket methods defined
 
-1. User proposes simple idea in PM chat or features tab
-2. PM (AI) writes detailed spec in `docs/FEATURE_SPECIFICATIONS.md` format
-3. User reviews spec, can edit/request changes
-4. Once approved, feature moves from "Backlog" to appropriate stage
-5. Feature spec is stored and never forgotten
-
-**Data Model:**
-
-```typescript
-interface Feature {
-  id: string;
-  projectId: string;
-  name: string;
-  description: string; // Full detailed spec
-  stage: "backlog" | "in_progress" | "done" | "wishlist";
-  threadId?: string; // Thread working on this
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: "user" | "pm";
-}
-```
-
-**Implementation Location:**
-
-- `apps/web/src/components/right-sidebar/FeaturesBoard.tsx`
-- `apps/server/src/orchestration/Services/FeatureService.ts` (new)
-- `packages/contracts/src/features.ts` (new)
+### Implementation Order
+1. Backend: ProjectionFeatures + FeatureService
+2. Frontend: FeaturesBoard component with drag-drop
 
 ---
 
 ## Feature: Goals Tab (in Right Sidebar)
 
-### Summary
+**Overall: 0%** - Never started
 
+### Summary
 Project-level goals display with main goal prominent and sub-goals linked to threads.
 
-### Detailed Specification
+### What Needs Building
 
-**What it does:**
+#### Backend (0%)
+- [ ] GoalsService implementation
+  - CRUD for goals
+  - Fields: id, projectId, text, isMain, linkedThreadIds, createdAt
+  - Set/unset main goal
+  - Link/unlink threads to goals
+  - Needs new projection: ProjectionGoals
 
-- Shows main project goal prominently at top
-- Lists sub-goals below
-- Shows which thread is working on which goal
-- Visual progress indicators
+#### Frontend (0%)
+- [ ] GoalsTab component (0%)
+  - Main goal prominently displayed
+  - Sub-goals list
+  - Visual progress indicators
+  - Wire to GoalsService API
 
-**Data Model:**
+### Contracts (Exist, 100%)
+- `packages/contracts/src/goals.ts` - Schemas done
+- `packages/contracts/src/ws.ts` - WebSocket methods defined
 
-```typescript
-interface ProjectGoal {
-  id: string;
-  projectId: string;
-  text: string;
-  isMain: boolean;
-  linkedThreadIds: string[];
-  createdAt: Date;
-}
-```
-
-**Implementation Location:**
-
-- `apps/web/src/components/right-sidebar/GoalsTab.tsx`
+### Implementation Order
+1. Backend: ProjectionGoals + GoalsService
+2. Frontend: GoalsTab component
 
 ---
 
 ## Feature: Context System (in Right Sidebar)
 
+**Overall: 0%** - Never started
+
 ### Summary
+Visual representation of context chunks as nodes that can be managed to achieve context reduction. Called "Context" not "Tombstone".
 
-Visual representation of context chunks as nodes that can be managed to achieve context reduction. No longer called "Tombstones" - just "Context".
+### What Needs Building
 
-### User Description (Original)
+#### Backend (0%)
+- [ ] ContextService implementation
+  - CRUD for context nodes
+  - Fields: id, projectId, threadId, type, summary, size, compressed, createdAt
+  - Types: "messages" | "file" | "artifact" | "memory"
+  - Compress/restore context nodes
+  - Calculate context budget
+  - Needs new projection: ProjectionContextNodes
 
-"Visual representation of context chunks as nodes that can be tombstoned (compressed/archived) to achieve 70-90% context reduction"
+#### Frontend (0%)
+- [ ] ContextTab component (0%)
+  - Node-based visualizer
+  - Show context chunks as nodes
+  - Compression status (active vs compressed)
+  - Compress/restore buttons
+  - Context budget display
+  - Wire to ContextService API
 
-### Detailed Specification
+### Contracts (Exist, 100%)
+- `packages/contracts/src/context.ts` - Schemas done
+- `packages/contracts/src/ws.ts` - WebSocket methods defined
 
-**What it does:**
-
-- Visual graph/nodes showing conversation context chunks
-- Each node represents a chunk of context (message group, file, etc.)
-- Nodes can be "compressed" (not deleted, just optimized/reduced)
-- Shows which context is active vs compressed
-- 70-90% context reduction achieved through smart compression
-
-**UI Behavior:**
-
-- Node-based visualizer (like a graph)
-- Click node to see context details
-- Right-click or button to compress context
-- Compressed context shown differently (greyed, collapsed)
-- Can restore/resurrect compressed context if needed
-
-**Key Concepts:**
-
-- **Active Context** - currently loaded, takes up context window
-- **Compressed Context** - optimized but can be restored
-- **Context Budget** - shows how much context is being used
-- **Compression suggestions** - AI suggests what can be compressed
-
-**Why This Matters:**
-
-- 70-90% context reduction means more room for actual work
-- Visual representation makes it easy to understand what's happening
-- User has control over what gets compressed
-
-**Data Model:**
-
-```typescript
-interface ContextNode {
-  id: string;
-  projectId: string;
-  threadId: string;
-  type: "messages" | "file" | "artifact" | "memory";
-  summary: string;
-  size: number; // tokens
-  compressed: boolean;
-  createdAt: Date;
-}
-
-interface ContextBudget {
-  total: number;
-  used: number;
-  available: number;
-  compressionRatio: number;
-}
-```
-
-**Implementation Location:**
-
-- `apps/web/src/components/right-sidebar/ContextTab.tsx`
-- `apps/server/src/orchestration/Services/ContextService.ts` (new)
-- `packages/contracts/src/context.ts` (new)
+### Implementation Order
+1. Backend: ProjectionContextNodes + ContextService
+2. Frontend: ContextTab component with visualizer
 
 ---
 
 ## Feature: Thread Goal Statement
 
-### Summary
+**Overall: 100%** ✅ DONE
 
-A short, explicit statement at the top of every thread describing what that thread is trying to accomplish.
+### Backend: 100%
+- [x] `goal` field added to `OrchestrationThread` schema
+- [x] `goal` field added to `ThreadMetaUpdateCommand`
+- [x] Uses existing `thread.meta.update` command
 
-### Status: ✅ DONE (merged to main)
+### Frontend: 100%
+- [x] `ThreadGoalStatement` component (`apps/web/src/components/chat/ThreadGoalStatement.tsx`)
+- [x] Displayed above MessagesTimeline in ChatView
+- [x] Click to edit, auto-saves on blur/Enter
+- [x] "Saved" indicator after save
+- [x] All tests updated with `goal: null`
 
-**Implemented:**
-- `apps/web/src/components/chat/ThreadGoalStatement.tsx` - React component
-- `packages/contracts/src/orchestration.ts` - Added `goal` field to `OrchestrationThread` and `ThreadMetaUpdateCommand`
-- `apps/web/src/types.ts` - Added `goal: string | null` to Thread interface
-- `apps/web/src/store.ts` - Sync goal from server read model
-- `apps/web/src/components/ChatView.tsx` - Renders above MessagesTimeline
-
-**What it does:**
-- Displays at the top of each thread's chat view
-- Editable text field (click to edit)
-- Persisted via existing `thread.meta.update` command
-- Used as context for AI to stay on track
-
-**UI Behavior:**
-- Shows below thread title/header
-- Placeholder text when empty: "What is this thread trying to accomplish?"
-- Auto-saves on blur or Enter key
-- Subtle "Saved" indicator briefly shows after save
-
-**Data Model:**
-- `goal: string | null` added to `OrchestrationThread` schema
-- Uses existing `ThreadMetaUpdateCommand` with new `goal` field
+### Implementation Location
+- `packages/contracts/src/orchestration.ts` (lines ~275, ~387)
+- `apps/web/src/components/chat/ThreadGoalStatement.tsx` (new file)
+- `apps/web/src/types.ts` (Thread interface)
+- `apps/web/src/store.ts` (syncServerReadModel)
+- `apps/web/src/components/ChatView.tsx`
 
 ---
 
 ## Feature: Project Brief
 
-### Summary
+**Overall: 0%** - Never started
 
+### Summary
 A detailed description of the project's purpose, goals, and context. Stored in `.rowl/project-brief.md`.
 
-### Detailed Specification
+### What Needs Building
 
-**What it does:**
+#### Backend (0%)
+- [ ] ProjectBriefService implementation
+  - Read/write `.rowl/project-brief.md`
+  - Fields: projectId, brief (markdown), filePath, lastEditedAt, lastEditedByThreadId
+  - File system operations
 
-- Markdown file stored at `.rowl/project-brief.md`
-- Created automatically when project is created
-- Can be edited from project settings or PM chat
-- All threads in project have access to project brief context
+#### Frontend (0%)
+- [ ] ProjectBrief component (0%)
+  - Markdown editor with preview
+  - Accessible from project settings or PM chat
+  - Auto-save to file
 
-**UI Behavior:**
-
-- Accessible from project settings
-- Editable markdown editor
-- Preview mode available
-- Changes persist to `.rowl/project-brief.md`
-
-**Data Model:**
-
-```typescript
-interface ProjectBrief {
-  projectId: string;
-  brief: string; // Markdown content
-  filePath: ".rowl/project-brief.md";
-  lastEditedAt: Date;
-  lastEditedByThreadId: string;
-}
-```
-
-**Implementation Location:**
-
-- `apps/server/src/orchestration/Services/ProjectBriefService.ts` (new)
-- File read/write via existing file system APIs
+### Implementation Order
+1. Backend: ProjectBriefService (file read/write)
+2. Frontend: ProjectBrief editor component
 
 ---
 
-## Feature: Settings Page Reorganization with Tabs
+## Feature: Settings Reorganization
+
+**Overall: 0%** - Never started
 
 ### Summary
-
 Replace long-scrolling settings page with tabbed interface. Unified model management.
 
-### Detailed Specification
+### What Needs Building
 
-**What it does:**
+#### Backend (0%)
+- [ ] Lazy provider health checks
+  - Don't run on startup
+  - Run when user opens Models tab
+  - `serverRefreshProviderHealth` method (already defined in ws.ts)
 
-- Tabbed settings interface with 5 tabs:
-  1. **General** - Language, theme, background
-  2. **Models** - All model/provider settings in one place
-  3. **Providers** - Provider-specific overrides (binary paths, API keys)
-  4. **Keybindings** - Keyboard shortcuts
-  5. **Safety** - Confirmation dialogs, destructive actions
+#### Frontend (0%)
+- [ ] Tabbed settings interface
+  - General, Models, Providers, Keybindings, Safety tabs
+  - Unified Models tab (replaces ManageModelsDialog)
+  - Provider errors shown lazily (not on startup)
 
-**Models Tab includes:**
-
-- OpenRouter free models (with live catalog)
-- Custom model slugs per provider
-- Provider visibility toggles
-- Provider health status (lazy-loaded - only checked when you open this tab)
-- Provider errors shown only when relevant (not on startup)
-
-**Lazy Provider Health:**
-
-- Provider status checks run when:
-  1. User opens the Models tab in settings
-  2. User selects that provider in the picker
-  3. User sends a message with that provider
-- NOT on every app startup
-- Status cached, refresh button available
-
-**Unified Model Management:**
-
-- "Manage Models" from dropdown goes to same page as Settings > Models
-- No more separate dialogs for same functionality
-
-**Implementation Location:**
-
-- `apps/web/src/routes/_chat.settings.tsx` - Refactor to tabs
-- `apps/web/src/components/settings/GeneralSection.tsx` (new)
-- `apps/web/src/components/settings/ModelsSection.tsx` (new - includes ManageModelsDialog content)
-- `apps/web/src/components/settings/ProvidersSection.tsx` (new)
-- `apps/web/src/components/settings/KeybindingsSection.tsx` (new)
-- `apps/web/src/components/settings/SafetySection.tsx` (new)
-- `apps/server/src/provider/Layers/ProviderHealth.ts` - Add lazy mode
-
----
-
-## Feature: Command Palette Search
-
-### Summary
-
-Fix the search action in command palette to actually search projects and threads.
-
-### Detailed Specification
-
-**Current Behavior:**
-
-- Search action in command palette just calls `toggleSidebar()`
-
-**Expected Behavior:**
-
-- Opens/focuses sidebar search
-- Searches across:
-  - Project names
-  - Thread titles
-  - Thread goal statements
-  - Message content (recent)
-- Results grouped by type
-- Selecting result navigates to that item
-
-**UI Behavior:**
-
-- Type to search (debounced 200ms)
-- Results appear in sidebar search
-- Keyboard navigation
-- Enter to select
-- Escape to close
-
-**Implementation Location:**
-
-- `apps/web/src/routes/_chat.tsx` - Update search action
-- Already exists: `sidebarSearchQuery` state in Sidebar.tsx
-
----
-
-## Feature: Overseer (Guardian System)
-
-### Summary
-
-Background AI monitoring system that watches provider output for capability forgetfulness patterns.
-
-### Detailed Specification
-
-**What it does:**
-
-- Background process monitoring AI outputs
-- Detects patterns like:
-  - "I can't do that" when AI actually can
-  - "You need to run this yourself"
-  - "I don't have access to file system"
-  - Loop detection (same output repeated)
-  - Command timeout indicators
-  - Stuck task patterns
-
-**GuardianSuggestion Schema:**
-
-```typescript
-interface GuardianSuggestion {
-  id: string;
-  sessionId: string;
-  patternMatched: string;
-  suggestion: string;
-  capability: string;
-  confidence: number;
-  createdAt: Date;
-  acknowledged: boolean;
-}
-```
-
-**Patterns:**
-
-```typescript
-const GUARDIAN_PATTERNS = [
-  {
-    pattern: /I can't (?:do|run|execute|use)/i,
-    capability: "tool_use",
-    suggestion: "You have access to shell, read, write, and edit tools",
-  },
-  {
-    pattern: /you(?:'ll| will) need to run this yourself/i,
-    capability: "automation",
-    suggestion: "You can execute commands directly",
-  },
-  {
-    pattern: /I don't have access to.*file system/i,
-    capability: "file_access",
-    suggestion: "You have full file system access via tools",
-  },
-];
-```
-
-**Implementation Location:**
-
-- `apps/server/src/guardian/Services/GuardianService.ts` (new)
-- `apps/server/src/guardian/Layers/OutputWatcher.ts` (new)
-- `packages/contracts/src/guardian.ts` (new)
-- UI: Guardian panel in ChatView (collapsible)
+### Implementation Order
+1. Backend: Ensure lazy health checks work
+2. Frontend: Tabbed settings UI
 
 ---
 
 ## Feature: Skills AI Creation
 
-### Summary
+**Overall: 0%** - Never started
 
+### Summary
 AI-assisted creation of SKILL.md files for project-specific instructions.
 
-### Detailed Specification
+### What Needs Building
 
-**What it does:**
+#### Backend (0%)
+- [ ] SkillService implementation
+  - Analyze project structure
+  - Generate skill suggestions
+  - Read/write `.rowl/skills/SKILL-name.md`
 
-- PM can help create SKILL.md files for projects
-- Analyzes project structure and suggests skills
-- User reviews and approves suggestions
-- Skills appear in AI context for relevant threads
+#### Frontend (0%)
+- [ ] Skill creation UI (0%)
+  - Accessible from PM chat or project settings
+  - AI analyzes project, suggests skills
+  - User edits in preview, saves
 
-**UI Behavior:**
-
-- Accessible from PM chat or project settings
-- Shows existing skills
-- "Suggest new skill" button
-- AI analyzes project, suggests skill content
-- User edits/refines in preview
-- Save creates/updates .rowl/skills/SKILL-name.md
-
-**Implementation Location:**
-
-- `apps/server/src/orchestration/Services/SkillService.ts` (new)
-- `apps/web/src/components/right-sidebar/PMChat.tsx` - Skill suggestions
+### Implementation Order
+1. Backend: SkillService
+2. Frontend: Skill creation UI
 
 ---
 
-## Feature: Project Scripts Integration
+## Feature: Overseer (Guardian System)
+
+**Overall: 0%** - Never started
 
 ### Summary
+Background AI monitoring system that watches provider output for capability forgetfulness patterns.
 
-Integration between Project Scripts and the right sidebar for managing automation.
+### What Needs Building
 
-### Detailed Specification
+#### Backend (0%)
+- [ ] GuardianService implementation
+  - Monitor AI outputs for patterns:
+    - "I can't do that" when AI actually can
+    - "You need to run this yourself"
+    - Loop detection
+    - Stuck task detection
+  - GuardianSuggestion schema exists in specs
 
-**What it does:**
+#### Frontend (0%)
+- [ ] Guardian panel (0%)
+  - Collapsible panel in ChatView
+  - Show suggestions when capability forgetfulness detected
+  - User can acknowledge/dismiss
 
-- Project scripts visible in right sidebar
-- PM can trigger/execute scripts
-- Scripts can be assigned to features/threads
-- Execution status tracked
-
----
-
-## Process: Feature Specification Template
-
-When user proposes a feature, expand using this template:
-
-```markdown
-## Feature: [Name]
-
-### Summary
-
-1-2 sentence description
-
-### User Description (Original)
-
-Original user quote or description
-
-### Detailed Specification
-
-**What it does:**
-Detailed description of functionality
-
-**UI Behavior:**
-How it appears and behaves in UI
-
-**Data Model:**
-TypeScript interfaces for data structures
-
-**Implementation Location:**
-File paths where code will live
-
-**Connection to PM:**
-How PM uses or coordinates this feature
-
-### Status
-
-- [ ] Not started
-- [ ] In progress
-- [ ] Done
-```
+### Implementation Order
+1. Backend: GuardianService with pattern matching
+2. Frontend: Guardian panel UI
 
 ---
 
-## Development Process (Important!)
+## Process Rules
 
-1. **User proposes simple idea** in PM chat or anywhere
-2. **AI writes detailed spec** using template above, saves to this file
-3. **User reviews spec** and requests changes if needed
-4. **Feature approved** - moves to backlog or in progress
-5. **PM coordinates** - assigns to thread, ensures no conflicts
-6. **Implementation** - one feature at a time, proper branches
-7. **Commit at every step**, lint/typecheck pass before merge
-8. **PM reviews** before merge to main
+1. **Feature is NOT done until:**
+   - Backend implementation complete and tested
+   - Frontend wired to real APIs (not mock data)
+   - Merged to main branch
+   - Typecheck and lint pass
 
-**No more 8 parallel branches!** Max 2 parallel streams:
+2. **Before starting a feature:**
+   - Read this document
+   - Understand current % completion
+   - Start with backend, then frontend
 
-- Stream A (Backend): Server, contracts
-- Stream B (Frontend): Web, iOS, UI
+3. **When feature reaches 100%:**
+   - Update status table at top
+   - Update implementation location notes
+   - Commit with message: "feat: complete [feature name]"
+
+---
+
+## Development Order (Recommended)
+
+Based on dependencies:
+
+1. **Thread Goal Statement** ✅ Already done
+2. **PM Chat** - Depends on: threads data, features, goals, context (needs all of below)
+3. **Threads Tab** - Uses existing thread data (easy)
+4. **Goals Tab** - Needs GoalsService (medium)
+5. **Features Board** - Needs FeatureService (medium)
+6. **Context System** - Needs ContextService (complex)
+7. **Project Brief** - Independent
+8. **Settings Reorganization** - Independent
+9. **Skills AI Creation** - Independent
+10. **Overseer** - Independent
+
+**Recommended next:** Threads Tab (easiest, uses existing data) or Goals Tab (medium, needs new service)
 
 ---
 
