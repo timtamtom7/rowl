@@ -6,19 +6,59 @@ This document contains detailed specifications for all Rowl features. When a use
 
 ## Feature Status
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Right Sidebar | ✅ UI Done | UI components complete. Services are stubs. |
-| PM Chat | ✅ UI Done | Stub - needs real service implementation |
-| Threads Tab | ✅ UI Done | Stub - needs real service implementation |
-| Features Board | ✅ UI Done | Stub - needs real service implementation |
-| Goals Tab | ✅ UI Done | Stub - needs real service implementation |
-| Context System | ✅ UI Done | Stub - needs real service implementation |
-| Thread Goal Statement | 🔲 Not started | Next feature |
-| Project Brief | 🔲 Not started | |
-| Settings Reorganization | 🔲 Not started | |
-| Skills AI Creation | 🔲 Not started | |
-| Overseer | 🔲 Not started | |
+| Feature | Status | What Exists | What Needs Doing |
+|---------|--------|-------------|------------------|
+| Right Sidebar Shell | ✅ Done | Collapsible sidebar with 5 tabs | None - shell works |
+| PM Chat | ❌ Not Done | Mock UI with simulated responses | Real WebSocket integration, service backend |
+| Threads Tab | ❌ Not Done | Mock thread list | Wire to real thread data from server |
+| Features Board | ❌ Not Done | Mock Kanban UI | Wire to FeatureService, persistence |
+| Goals Tab | ❌ Not Done | Mock goals display | Wire to GoalsService, persistence |
+| Context System | ❌ Not Done | Mock node visualizer | Wire to ContextService, compression logic |
+| Thread Goal Statement | ✅ Fully Done | Works, tested, merged | None |
+| Project Brief | 🔲 Not started | Nothing | Full implementation |
+| Settings Reorganization | 🔲 Not started | Nothing | Full implementation |
+| Skills AI Creation | 🔲 Not started | Nothing | Full implementation |
+| Overseer | 🔲 Not started | Nothing | Full implementation |
+
+---
+
+## Architecture Notes
+
+### What's Actually Working
+
+**Thread Goal Statement** - Fully implemented, uses existing `thread.meta.update` command, saves to orchestration.
+
+### What's Stubbed/Mock
+
+All Right Sidebar tabs (1-5) have UI but use hardcoded mock data:
+- `PMChat.tsx` - Simulated responses with `setTimeout`
+- `ThreadsTab.tsx` - `MOCK_THREADS` constant
+- `FeaturesBoard.tsx` - `MOCK_FEATURES` constant
+- `GoalsTab.tsx` - `MOCK_GOALS` constant
+- `ContextTab.tsx` - `MOCK_NODES` and `MOCK_BUDGET` constants
+
+### Server Services (Stubs Only)
+
+These interfaces exist but have no implementation:
+- `FeatureService.ts` - Interface defined, no concrete class
+- `GoalsService.ts` - Interface defined, no concrete class
+- `ContextService.ts` - Interface defined, no concrete class
+- `PMChatContextService.ts` - Interface defined, no concrete class
+
+### Contracts (Real)
+
+Schemas exist and are wired to WebSocket RPC:
+- `features.ts` - Feature schemas (used in ws.ts)
+- `goals.ts` - Goal schemas (used in ws.ts)
+- `context.ts` - Context schemas (used in ws.ts)
+
+### What's Needed to Complete Right Sidebar
+
+1. **Implement service classes** - Concrete implementations for FeatureService, GoalsService, ContextService, PMChatContextService
+2. **Add persistence** - Database layer (likely Projection patterns like existing codebase)
+3. **Wire WebSocket handlers** - Connect RPC methods to service implementations
+4. **Frontend API integration** - Replace mock data with real WebSocket calls
+5. **State management** - React Query or Zustand for caching
 
 ---
 
@@ -28,17 +68,21 @@ This document contains detailed specifications for all Rowl features. When a use
 
 Collapsible right sidebar showing project context with 5 tabs: PM Chat, Threads, Features, Goals, and Context. This is the central coordination hub for the project.
 
-### Status: ✅ UI Complete (v1 skeleton)
+### Status: ❌ NOT DONE - UI shells with mock data
 
-**Implemented:**
-- All 6 UI components complete and compilable
-- Collapsible sidebar shell with 5 tabs
-- Mock data in components
+**What exists:**
+- `apps/web/src/components/right-sidebar/RightSidebar.tsx` - Shell with tab bar
+- `apps/web/src/components/right-sidebar/PMChat.tsx` - Mock chat UI
+- `apps/web/src/components/right-sidebar/ThreadsTab.tsx` - Mock thread list
+- `apps/web/src/components/right-sidebar/FeaturesBoard.tsx` - Mock Kanban
+- `apps/web/src/components/right-sidebar/GoalsTab.tsx` - Mock goals
+- `apps/web/src/components/right-sidebar/ContextTab.tsx` - Mock visualizer
 
-**Stubbed (next sprint):**
-- Service implementations (FeatureService, GoalsService, ContextService, PMChatContextService)
-- WebSocket routes
-- Real API integration
+**What needs building:**
+- Service implementations in `apps/server/src/orchestration/Services/`
+- Persistence layer (Projections)
+- WebSocket route handlers
+- Frontend API integration to replace mock data
 
 ### Detailed Specification
 
@@ -307,38 +351,30 @@ interface ContextBudget {
 
 A short, explicit statement at the top of every thread describing what that thread is trying to accomplish.
 
-### Detailed Specification
+### Status: ✅ DONE (merged to main)
+
+**Implemented:**
+- `apps/web/src/components/chat/ThreadGoalStatement.tsx` - React component
+- `packages/contracts/src/orchestration.ts` - Added `goal` field to `OrchestrationThread` and `ThreadMetaUpdateCommand`
+- `apps/web/src/types.ts` - Added `goal: string | null` to Thread interface
+- `apps/web/src/store.ts` - Sync goal from server read model
+- `apps/web/src/components/ChatView.tsx` - Renders above MessagesTimeline
 
 **What it does:**
-
 - Displays at the top of each thread's chat view
 - Editable text field (click to edit)
-- Persisted with thread data
+- Persisted via existing `thread.meta.update` command
 - Used as context for AI to stay on track
-- PM can see all thread goals in right sidebar
 
 **UI Behavior:**
-
 - Shows below thread title/header
 - Placeholder text when empty: "What is this thread trying to accomplish?"
-- Auto-saves on blur or after 1 second of no typing
-- Subtle indicator when saved
+- Auto-saves on blur or Enter key
+- Subtle "Saved" indicator briefly shows after save
 
 **Data Model:**
-
-```typescript
-interface ThreadGoalStatement {
-  threadId: string;
-  goal: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-```
-
-**Implementation Location:**
-
-- `apps/web/src/components/chat/ThreadGoalStatement.tsx` (new)
-- Store goal in existing thread metadata
+- `goal: string | null` added to `OrchestrationThread` schema
+- Uses existing `ThreadMetaUpdateCommand` with new `goal` field
 
 ---
 
