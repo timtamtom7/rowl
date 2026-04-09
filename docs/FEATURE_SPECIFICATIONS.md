@@ -10,7 +10,7 @@ This document contains detailed specifications for all Rowl features. When a use
 
 | Feature | Backend | Frontend | Overall | Usable? |
 |---------|---------|----------|---------|---------|
-| Right Sidebar Shell | N/A | 10% | 10% | ❌ |
+| Right Sidebar Shell | N/A | 15% | 15% | ❌ |
 | PM Chat | 0% | 0% | 0% | ❌ |
 | Threads Tab | 0% | 0% | 0% | ❌ |
 | Features Board | 0% | 0% | 0% | ❌ |
@@ -42,7 +42,7 @@ This document contains detailed specifications for all Rowl features. When a use
 
 ## Feature: Right Sidebar Shell
 
-**Overall: 10%** - Just the container shell, no content tabs wired
+**Overall: 15%** - Shell integrated into layout, empty content area
 
 ### Backend: N/A
 Just a UI container, no backend needed.
@@ -53,6 +53,9 @@ Just a UI container, no backend needed.
   - 5 tab slots defined (pm-chat, threads, features, goals, context)
   - Tab icons and labels working
   - Empty content area (waiting for tab implementations)
+- [x] Integrated into `_chat.tsx` layout
+  - Renders after Outlet (main chat content)
+  - Border styling applied
 
 - [ ] Tab content slots (0%) - Nothing rendering in main area
 
