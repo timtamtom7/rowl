@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { useRightSidebar } from "./RightSidebarContext";
-import { ThreadsTab } from "./ThreadsTab";
 
 export { RightSidebarProvider } from "./RightSidebarContext";
 
@@ -30,21 +29,11 @@ const TABS: TabConfig[] = [
 ];
 
 function renderTabContent(activeTab: RightSidebarTab) {
-  switch (activeTab) {
-    case "threads":
-      return <ThreadsTab />;
-    case "pm-chat":
-    case "features":
-    case "goals":
-    case "context":
-      return (
-        <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-          {activeTab} tab coming soon
-        </div>
-      );
-    default:
-      return null;
-  }
+  return (
+    <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+      {activeTab} tab coming soon
+    </div>
+  );
 }
 
 const RightSidebar = memo(function RightSidebar({ className }: { className?: string }) {

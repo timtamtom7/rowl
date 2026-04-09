@@ -17,7 +17,6 @@ function isProviderKind(value: string | null | undefined): value is ProviderKind
     value === "codex" ||
     value === "copilot" ||
     value === "kimi" ||
-    value === "kilocode" ||
     value === "opencode" ||
     value === "pi"
   );
@@ -31,8 +30,6 @@ export function getProviderDisplayLabel(provider: ProviderKind): string {
       return "GitHub Copilot";
     case "kimi":
       return "Kimi Code";
-    case "kilocode":
-      return "KiloCode";
     case "opencode":
       return "OpenCode";
     case "pi":

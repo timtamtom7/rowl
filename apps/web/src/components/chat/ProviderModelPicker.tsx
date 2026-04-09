@@ -88,7 +88,6 @@ export const PROVIDER_ICON_BY_PROVIDER: Record<ProviderPickerKind, Icon> = {
   openrouter: OpenRouterIcon,
   copilot: GitHubIcon,
   kimi: KimiIcon,
-  kilocode: BotIcon,
   opencode: OpenCodeIcon,
   pi: BotIcon,
   claudeCode: ClaudeAI,
