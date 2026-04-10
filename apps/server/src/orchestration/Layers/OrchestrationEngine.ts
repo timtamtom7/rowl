@@ -14,6 +14,7 @@ import { OrchestrationCommandReceiptRepository } from "../../persistence/Service
 import {
   OrchestrationCommandInvariantError,
   OrchestrationCommandPreviouslyRejectedError,
+  OrchestrationDispatchTimeoutError,
   type OrchestrationDispatchError,
 } from "../Errors.ts";
 import { decideOrchestrationCommand } from "../decider.ts";
@@ -219,7 +220,14 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     Effect.gen(function* () {
       const result = yield* Deferred.make<{ sequence: number }, OrchestrationDispatchError>();
       yield* Queue.offer(commandQueue, { command, result });
-      return yield* Deferred.await(result);
+      const timeoutEffect = Effect.sleep("10 seconds").pipe(
+        Effect.flatMap(() =>
+          Effect.fail(
+            new OrchestrationDispatchTimeoutError({ commandId: command.commandId }),
+          ),
+        ),
+      );
+      return yield* Deferred.await(result).pipe(Effect.race(timeoutEffect));
     });
 
   return {
