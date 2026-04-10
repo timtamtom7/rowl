@@ -83,9 +83,11 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     });
 
     return Effect.gen(function* () {
+      console.log(`[worker] processEnvelope START id=${envelope.command.commandId}`);
       const existingReceipt = yield* commandReceiptRepository.getByCommandId({
         commandId: envelope.command.commandId,
       });
+      console.log(`[worker] receipt check done id=${envelope.command.commandId}`);
       if (Option.isSome(existingReceipt)) {
         if (existingReceipt.value.status === "accepted") {
           yield* Deferred.succeed(envelope.result, {
@@ -103,20 +105,26 @@ const makeOrchestrationEngine = Effect.gen(function* () {
         return;
       }
 
+      console.log(`[worker] calling decideOrchestrationCommand id=${envelope.command.commandId}`);
       const eventBase = yield* decideOrchestrationCommand({
         command: envelope.command,
         readModel,
       });
+      console.log(`[worker] decideOrchestrationCommand done id=${envelope.command.commandId}`);
       const eventBases = Array.isArray(eventBase) ? eventBase : [eventBase];
       const committedCommand = yield* sql
         .withTransaction(
           Effect.gen(function* () {
+            console.log(`[worker] TRANSACTION START id=${envelope.command.commandId}`);
             const committedEvents: OrchestrationEvent[] = [];
             let nextReadModel = readModel;
 
             for (const nextEvent of eventBases) {
+              console.log(`[worker] append event to store id=${envelope.command.commandId}`);
               const savedEvent = yield* eventStore.append(nextEvent);
+              console.log(`[worker] project event id=${envelope.command.commandId}`);
               nextReadModel = yield* projectEvent(nextReadModel, savedEvent);
+              console.log(`[worker] project to SQL id=${envelope.command.commandId}`);
               yield* projectionPipeline.projectEvent(savedEvent);
               committedEvents.push(savedEvent);
             }
@@ -129,6 +137,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
               });
             }
 
+            console.log(`[worker] upsert receipt id=${envelope.command.commandId}`);
             yield* commandReceiptRepository.upsert({
               commandId: envelope.command.commandId,
               aggregateKind: lastSavedEvent.aggregateKind,
@@ -138,6 +147,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
               status: "accepted",
               error: null,
             });
+            console.log(`[worker] TRANSACTION COMMIT DONE id=${envelope.command.commandId}`);
 
             return {
               committedEvents,
@@ -154,11 +164,14 @@ const makeOrchestrationEngine = Effect.gen(function* () {
           ),
         );
 
+      console.log(`[worker] transaction done, readModel updated id=${envelope.command.commandId}`);
       readModel = committedCommand.nextReadModel;
       for (const event of committedCommand.committedEvents) {
         yield* PubSub.publish(eventPubSub, event);
       }
-      yield* Deferred.succeed(envelope.result, { sequence: committedCommand.lastSequence });
+      const seq = committedCommand.lastSequence;
+      console.log(`[dispatch] command ${envelope.command.commandId} completed, resolving with seq=${seq}`);
+      yield* Deferred.succeed(envelope.result, { sequence: seq });
     }).pipe(
       Effect.catch((error) =>
         Effect.gen(function* () {
@@ -204,18 +217,23 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     }),
   );
 
-  const worker = Effect.forever(
-    Queue.take(commandQueue).pipe(
-      Effect.tap((envelope) =>
-        Effect.logInfo("orchestration worker: received command from queue", {
-          commandType: envelope.command.type,
-          commandId: envelope.command.commandId,
-        }),
-      ),
-      Effect.flatMap(processEnvelope),
-    ),
-  );
-  yield* Effect.forkScoped(worker);
+  const workerWithSupervision = Effect.gen(function* () {
+    let crashed = false;
+    while (!crashed) {
+      const envelope = yield* Queue.take(commandQueue);
+      console.log(`[worker] DEQUEUED command=${envelope.command.type} id=${envelope.command.commandId}`);
+      try {
+        yield* processEnvelope(envelope);
+        console.log(`[worker] processEnvelope OK id=${envelope.command.commandId}`);
+      } catch (err) {
+        console.log(`[worker] processEnvelope THREW: ${String(err)}`);
+        console.log(`[worker] stack: ${new Error().stack}`);
+      }
+    }
+    console.log(`[worker] loop exited (crashed=${crashed})`);
+  });
+  yield* Effect.forkScoped(workerWithSupervision);
+
   yield* Effect.log("orchestration engine started").pipe(
     Effect.annotateLogs({ sequence: readModel.snapshotSequence }),
   );
@@ -230,21 +248,12 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     Effect.gen(function* () {
       const result = yield* Deferred.make<{ sequence: number }, OrchestrationDispatchError>();
       yield* Queue.offer(commandQueue, { command, result });
-      yield* Effect.logInfo("orchestration engine dispatch: command offered to queue", {
-        commandType: command.type,
-        commandId: command.commandId,
-        queueDepth: 1,
-      });
+      console.log(`[dispatch] offered command=${command.type} id=${command.commandId}`);
       const timeoutEffect = Effect.sleep("10 seconds").pipe(
-        Effect.flatMap(() =>
-          Effect.logInfo("orchestration engine dispatch: timeout firing", {
-            commandId: command.commandId,
-          }).pipe(
-            Effect.flatMap(() =>
-              Effect.fail(new OrchestrationDispatchTimeoutError({ commandId: command.commandId })),
-            ),
-          ),
-        ),
+        Effect.flatMap(() => {
+          console.log(`[dispatch:${command.commandId}] TIMEOUT FIRED — stack:\n${new Error().stack}`);
+          return Effect.fail(new OrchestrationDispatchTimeoutError({ commandId: command.commandId }));
+        }),
       );
       return yield* Deferred.await(result).pipe(Effect.race(timeoutEffect));
     });
