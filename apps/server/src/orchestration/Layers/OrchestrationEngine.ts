@@ -14,6 +14,7 @@ import { OrchestrationCommandReceiptRepository } from "../../persistence/Service
 import {
   OrchestrationCommandInvariantError,
   OrchestrationCommandPreviouslyRejectedError,
+  OrchestrationDispatchTimeoutError,
   type OrchestrationDispatchError,
 } from "../Errors.ts";
 import { decideOrchestrationCommand } from "../decider.ts";
@@ -203,7 +204,17 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     }),
   );
 
-  const worker = Effect.forever(Queue.take(commandQueue).pipe(Effect.flatMap(processEnvelope)));
+  const worker = Effect.forever(
+    Queue.take(commandQueue).pipe(
+      Effect.tap((envelope) =>
+        Effect.logInfo("orchestration worker: received command from queue", {
+          commandType: envelope.command.type,
+          commandId: envelope.command.commandId,
+        }),
+      ),
+      Effect.flatMap(processEnvelope),
+    ),
+  );
   yield* Effect.forkScoped(worker);
   yield* Effect.log("orchestration engine started").pipe(
     Effect.annotateLogs({ sequence: readModel.snapshotSequence }),
@@ -219,7 +230,23 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     Effect.gen(function* () {
       const result = yield* Deferred.make<{ sequence: number }, OrchestrationDispatchError>();
       yield* Queue.offer(commandQueue, { command, result });
-      return yield* Deferred.await(result);
+      yield* Effect.logInfo("orchestration engine dispatch: command offered to queue", {
+        commandType: command.type,
+        commandId: command.commandId,
+        queueDepth: 1,
+      });
+      const timeoutEffect = Effect.sleep("10 seconds").pipe(
+        Effect.flatMap(() =>
+          Effect.logInfo("orchestration engine dispatch: timeout firing", {
+            commandId: command.commandId,
+          }).pipe(
+            Effect.flatMap(() =>
+              Effect.fail(new OrchestrationDispatchTimeoutError({ commandId: command.commandId })),
+            ),
+          ),
+        ),
+      );
+      return yield* Deferred.await(result).pipe(Effect.race(timeoutEffect));
     });
 
   return {

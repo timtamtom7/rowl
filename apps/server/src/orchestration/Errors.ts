@@ -78,12 +78,25 @@ export class OrchestrationListenerCallbackError extends Schema.TaggedErrorClass<
   }
 }
 
+export class OrchestrationDispatchTimeoutError extends Schema.TaggedErrorClass<OrchestrationDispatchTimeoutError>()(
+  "OrchestrationDispatchTimeoutError",
+  {
+    commandId: Schema.String,
+    cause: Schema.optional(Schema.Defect),
+  },
+) {
+  override get message(): string {
+    return `Orchestration dispatch timed out for command ${this.commandId}`;
+  }
+}
+
 export type OrchestrationDispatchError =
   | ProjectionRepositoryError
   | OrchestrationCommandInvariantError
   | OrchestrationCommandPreviouslyRejectedError
   | OrchestrationProjectorDecodeError
-  | OrchestrationListenerCallbackError;
+  | OrchestrationListenerCallbackError
+  | OrchestrationDispatchTimeoutError;
 
 export type OrchestrationEngineError =
   | OrchestrationDispatchError
