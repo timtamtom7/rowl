@@ -67,5 +67,5 @@ export class OrchestrationCommandReceiptRepository extends ServiceMap.Service<
   OrchestrationCommandReceiptRepository,
   OrchestrationCommandReceiptRepositoryShape
 >()(
-  "cut3/persistence/Services/OrchestrationCommandReceipts/OrchestrationCommandReceiptRepository",
+  "rowl/persistence/Services/OrchestrationCommandReceipts/OrchestrationCommandReceiptRepository",
 ) {}

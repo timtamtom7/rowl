@@ -318,7 +318,7 @@ function stageMacIcons(stageResourcesDir: string, verbose: boolean) {
     }
 
     const tmpRoot = yield* fs.makeTempDirectoryScoped({
-      prefix: "cut3-icon-build-",
+      prefix: "rowl-icon-build-",
     });
 
     const iconPngPath = path.join(stageResourcesDir, "icon.png");
@@ -482,7 +482,7 @@ const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       target: [target],
       icon: "icon.png",
       category: "Development",
-      executableName: "cut3",
+      executableName: "rowl",
       desktop: {
         entry: {
           StartupWMClass: productName,
@@ -583,7 +583,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   const commitHash = resolveGitCommitHash(repoRoot);
   const mkdir = options.keepStage ? fs.makeTempDirectory : fs.makeTempDirectoryScoped;
   const stageRoot = yield* mkdir({
-    prefix: `cut3-desktop-${options.platform}-stage-`,
+    prefix: `rowl-desktop-${options.platform}-stage-`,
   });
 
   const stageAppDir = path.join(stageRoot, "app");

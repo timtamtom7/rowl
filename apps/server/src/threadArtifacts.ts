@@ -273,6 +273,7 @@ export function buildThreadContinuationSummaryFromState(
     id: ThreadId.makeUnsafe("restored-thread"),
     projectId: ProjectId.makeUnsafe("restored-project"),
     title: state.title,
+    goal: null,
     model: state.model,
     runtimeMode: state.runtimeMode,
     interactionMode: state.interactionMode,

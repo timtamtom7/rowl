@@ -54,5 +54,5 @@ export interface PtyAdapterShape {
  * PtyAdapter - Service tag for PTY process integration.
  */
 export class PtyAdapter extends ServiceMap.Service<PtyAdapter, PtyAdapterShape>()(
-  "cut3/terminal/Services/PTY/PtyAdapter",
+  "rowl/terminal/Services/PTY/PtyAdapter",
 ) {}

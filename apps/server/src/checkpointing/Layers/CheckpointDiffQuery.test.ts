@@ -43,6 +43,7 @@ function makeSnapshot(input: {
         id: input.threadId,
         projectId: input.projectId,
         title: "Thread",
+        goal: null,
         model: "gpt-5-codex",
         interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
         runtimeMode: "full-access",

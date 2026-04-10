@@ -201,7 +201,7 @@ export function permissionDecisionFromOutcome(
   }
 }
 
-const ENABLE_PROVIDER_EVENT_LOGS = process.env.CUT3_ENABLE_PROVIDER_EVENT_LOGS === "1";
+const ENABLE_PROVIDER_EVENT_LOGS = process.env.ROWL_ENABLE_PROVIDER_EVENT_LOGS === "1";
 
 function providerLog(label: string, ...args: unknown[]): void {
   if (ENABLE_PROVIDER_EVENT_LOGS) {

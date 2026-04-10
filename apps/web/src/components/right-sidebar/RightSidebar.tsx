@@ -121,9 +121,7 @@ const RightSidebar = memo(function RightSidebar({ className }: { className?: str
     <div
       className={cn(
         "relative flex shrink-0 transition-[width,margin] motion-reduce:transition-none overflow-hidden",
-        rightSidebarExpanded
-          ? "fixed right-0 top-0 h-svh z-50 w-[300px] shadow-lg"
-          : "w-12",
+        rightSidebarExpanded ? "fixed right-0 top-0 h-svh z-50 w-[300px] shadow-lg" : "w-12",
         className,
       )}
       data-state={rightSidebarExpanded ? "expanded" : "collapsed"}

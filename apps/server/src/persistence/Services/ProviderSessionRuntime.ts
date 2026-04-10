@@ -88,4 +88,4 @@ export interface ProviderSessionRuntimeRepositoryShape {
 export class ProviderSessionRuntimeRepository extends ServiceMap.Service<
   ProviderSessionRuntimeRepository,
   ProviderSessionRuntimeRepositoryShape
->()("cut3/persistence/Services/ProviderSessionRuntime/ProviderSessionRuntimeRepository") {}
+>()("rowl/persistence/Services/ProviderSessionRuntime/ProviderSessionRuntimeRepository") {}

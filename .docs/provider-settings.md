@@ -1,6 +1,6 @@
 # Provider settings
 
-CUT3 stores app settings locally on the current device. Open **Settings** in the app to manage appearance, provider-specific paths, model options, thread defaults, and response defaults.
+Rowl stores app settings locally on the current device. Open **Settings** in the app to manage appearance, provider-specific paths, model options, thread defaults, and response defaults.
 
 ## Appearance
 
@@ -39,18 +39,18 @@ The **Providers** section supports local overrides for each provider runtime:
   - Custom binary path
 - **OpenCode**
   - Custom binary path
-  - OpenCode account authentication stays in OpenCode itself via `opencode auth login` and `opencode auth logout`; CUT3 does not store those credentials in this phase
+  - OpenCode account authentication stays in OpenCode itself via `opencode auth login` and `opencode auth logout`; Rowl does not store those credentials in this phase
   - MCP server auth/debug remains server-specific in OpenCode via commands such as `opencode mcp auth <server>` and `opencode mcp debug <server>`
-  - The OpenCode settings panel inspects `opencode auth list`, `opencode mcp list`, `opencode mcp auth list`, and the resolved OpenCode config paths so users can see current provider credentials, MCP connectivity, and copyable auth/debug commands without leaving CUT3
-  - When the top-level CUT3 OpenRouter key is set, new OpenCode sessions also inherit it as `OPENROUTER_API_KEY` so OpenCode provider configs can reference it through `{env:OPENROUTER_API_KEY}`
+  - The OpenCode settings panel inspects `opencode auth list`, `opencode mcp list`, `opencode mcp auth list`, and the resolved OpenCode config paths so users can see current provider credentials, MCP connectivity, and copyable auth/debug commands without leaving Rowl
+  - When the top-level Rowl OpenRouter key is set, new OpenCode sessions also inherit it as `OPENROUTER_API_KEY` so OpenCode provider configs can reference it through `{env:OPENROUTER_API_KEY}`
 - **Kimi Code**
   - Custom binary path
   - Optional API key stored locally and injected into new Kimi CLI sessions
   - Without an API key, authenticate in Kimi Code CLI itself with `kimi login` or by starting `kimi` and running `/login`
 - **Pi**
-  - No separate binary override in CUT3; Pi is embedded through `@mariozechner/pi-coding-agent`
+  - No separate binary override in Rowl; Pi is embedded through `@mariozechner/pi-coding-agent`
   - Pi auth and model discovery still come from `~/.pi/agent` (`auth.json`, `models.json`, Pi env vars, or the external `pi` / `/login` flow)
-  - CUT3 intentionally disables Pi packages, AGENTS files, system prompts, extensions, skills, prompt templates, and themes on this path so workspace instructions still come only from CUT3
+  - Rowl intentionally disables Pi packages, AGENTS files, system prompts, extensions, skills, prompt templates, and themes on this path so workspace instructions still come only from Rowl
 
 Leave a binary field blank to use the provider executable from your `PATH`.
 
@@ -64,7 +64,7 @@ Settings also keeps a few cross-provider behavior defaults:
 - **Thread sharing mode**
   - `Manual`: create share links only when you explicitly choose `/share` or the thread action
   - `Auto`: create a share link automatically after a new server-backed thread settles for the first time
-  - `Disabled`: block creation of new share links from CUT3 until you change the setting again
+  - `Disabled`: block creation of new share links from Rowl until you change the setting again
 - **Stream assistant messages**
   - Show token-by-token output while a turn is in progress
 - **Show tool details**
@@ -93,19 +93,19 @@ This is an app-level default. It applies when starting new Codex turns from the 
 
 ### OpenRouter free models
 
-CUT3 now shows OpenRouter free models in their own settings card and their own top-level section inside the model picker.
+Rowl now shows OpenRouter free models in their own settings card and their own top-level section inside the model picker.
 
-- CUT3 always includes the built-in `openrouter/free` router.
-- The settings page fetches OpenRouter's live model catalog, but CUT3 only lists models that are explicitly free-locked (`openrouter/free` or `:free`) and advertise the full native tool-calling surface CUT3 needs (`tools` plus `tool_choice`).
+- Rowl always includes the built-in `openrouter/free` router.
+- The settings page fetches OpenRouter's live model catalog, but Rowl only lists models that are explicitly free-locked (`openrouter/free` or `:free`) and advertise the full native tool-calling surface Rowl needs (`tools` plus `tool_choice`).
 - You can pin any listed OpenRouter free model into the picker and `/model` suggestions with one click.
-- If the live catalog cannot be fetched, CUT3 surfaces that state in Settings instead of silently hiding it.
-- CUT3 now keeps a last-known-good compatible catalog locally, so the picker and the Settings card can continue showing the previous free-model list with a stale/offline warning instead of collapsing back to only the router entry.
-- If a pinned OpenRouter `:free` model cannot be served because the route is unavailable, overloaded, rate-limited, or filtered out by provider/privacy constraints, CUT3 automatically retries the turn through `openrouter/free` and shows a warning banner so the turn does not silently drift onto a billed model. CUT3 does not auto-retry Responses API validation failures or payment/credit errors, because those need explicit user action instead of a silent reroute.
+- If the live catalog cannot be fetched, Rowl surfaces that state in Settings instead of silently hiding it.
+- Rowl now keeps a last-known-good compatible catalog locally, so the picker and the Settings card can continue showing the previous free-model list with a stale/offline warning instead of collapsing back to only the router entry.
+- If a pinned OpenRouter `:free` model cannot be served because the route is unavailable, overloaded, rate-limited, or filtered out by provider/privacy constraints, Rowl automatically retries the turn through `openrouter/free` and shows a warning banner so the turn does not silently drift onto a billed model. Rowl does not auto-retry Responses API validation failures or payment/credit errors, because those need explicit user action instead of a silent reroute.
 - OpenRouter free models still depend on OpenRouter account limits. New accounts only get a small free allowance, purchased credits raise the daily free-model limit, and negative balances can still produce `402 Payment Required` even for `openrouter/free`.
 
 ### Custom model slugs
 
-CUT3 supports saved custom model ids for:
+Rowl supports saved custom model ids for:
 
 - **GitHub Copilot**
 - **OpenCode** provider/model ids such as `z-ai/glm-4.5` or `minimax/MiniMax-M2.7`
@@ -114,7 +114,7 @@ CUT3 supports saved custom model ids for:
 - Additional Codex model ids you want to save manually
 - Additional OpenRouter `:free` model ids from the current live catalog
 
-OpenCode also advertises runtime-discovered models through ACP. CUT3 merges those live models into the picker after an OpenCode session starts, and keeps a built-in `Default` option under OpenCode so a first session can start without CUT3 guessing a vendor-specific `provider/model` id. Pi now exposes authenticated provider/model ids from local `~/.pi/agent` auth/models state directly in the picker and `/model` suggestions before the first Pi turn, while still keeping `pi/default` available as a compatibility fallback for threads or settings that intentionally rely on Pi choosing its own default provider/model.
+OpenCode also advertises runtime-discovered models through ACP. Rowl merges those live models into the picker after an OpenCode session starts, and keeps a built-in `Default` option under OpenCode so a first session can start without Rowl guessing a vendor-specific `provider/model` id. Pi now exposes authenticated provider/model ids from local `~/.pi/agent` auth/models state directly in the picker and `/model` suggestions before the first Pi turn, while still keeping `pi/default` available as a compatibility fallback for threads or settings that intentionally rely on Pi choosing its own default provider/model.
 
 Saved custom model ids appear in:
 
@@ -123,7 +123,7 @@ Saved custom model ids appear in:
 
 The app normalizes entries before saving them, ignores built-in duplicates, and refuses OpenRouter slugs that are not explicit free variants.
 
-If you add an OpenRouter API key in Settings, CUT3 launches Codex with per-session OpenRouter overrides whenever you pick `openrouter/free` or another saved OpenRouter `:free` slug such as `google/gemma-3n-e4b-it:free`. Native Codex models still use your normal Codex authentication.
+If you add an OpenRouter API key in Settings, Rowl launches Codex with per-session OpenRouter overrides whenever you pick `openrouter/free` or another saved OpenRouter `:free` slug such as `google/gemma-3n-e4b-it:free`. Native Codex models still use your normal Codex authentication.
 
 ### Chat picker controls
 
@@ -131,7 +131,7 @@ The chat composer now exposes a richer model picker instead of only nested provi
 
 - The picker is searchable across provider names, model labels, and raw model slugs.
 - Models are grouped by provider, with OpenRouter kept as its own top-level section.
-- `Provider readiness` opens an in-chat onboarding surface that summarizes local provider health, groups providers into ready / attention / unavailable states, offers copyable login commands where CUT3 knows the real CLI flow, lets you jump straight into OpenRouter/Kimi key entry, and links back to Settings for deeper runtime configuration.
+- `Provider readiness` opens an in-chat onboarding surface that summarizes local provider health, groups providers into ready / attention / unavailable states, offers copyable login commands where Rowl knows the real CLI flow, lets you jump straight into OpenRouter/Kimi key entry, and links back to Settings for deeper runtime configuration.
 - `Manage models` opens an in-chat model management surface with per-model visibility toggles plus favorite pinning.
 - Favorites stay pinned near the top of the picker, and recent model selections are also surfaced ahead of the long tail so switching providers or models takes fewer searches.
 - Hidden models are removed from both the main picker and `/model` suggestions, but they stay saved locally so you can restore them later with `Show all`.
@@ -146,9 +146,9 @@ The composer exposes provider-aware turn controls.
 - **GitHub Copilot**: provider-supported reasoning values from the live ACP session, currently including `Extra High` on recent Copilot CLI builds when the selected model exposes it
 - **OpenCode**: no reasoning-effort picker is shown
 - **Kimi Code**: no reasoning-effort picker is shown
-- **Pi**: reasoning-capable Pi models now expose Pi thinking levels in the composer (`Default`, `off`, `minimal`, `low`, `medium`, `high`, `xhigh`). CUT3 reads Pi's live model reasoning flag from the authenticated Pi catalog, then uses the embedded Pi SDK session to apply and clamp the selected level against the active model's capabilities.
+- **Pi**: reasoning-capable Pi models now expose Pi thinking levels in the composer (`Default`, `off`, `minimal`, `low`, `medium`, `high`, `xhigh`). Rowl reads Pi's live model reasoning flag from the authenticated Pi catalog, then uses the embedded Pi SDK session to apply and clamp the selected level against the active model's capabilities.
 
-Reasoning choices are scoped by provider. CUT3 still shows a Reasoning badge for OpenRouter models that advertise reasoning support, but it does not expose Codex-style reasoning-effort levels for OpenRouter models because the OpenRouter catalog does not currently describe which effort values are valid per model.
+Reasoning choices are scoped by provider. Rowl still shows a Reasoning badge for OpenRouter models that advertise reasoning support, but it does not expose Codex-style reasoning-effort levels for OpenRouter models because the OpenRouter catalog does not currently describe which effort values are valid per model.
 
 ### Codex fast mode
 
@@ -161,7 +161,7 @@ Codex also has a per-turn `Fast Mode` toggle in the composer controls. This is s
 
 ### Context window UI
 
-CUT3 hides the "token context left" UI for OpenRouter-routed models because the routed model can change and the remaining-context display is not reliable enough there.
+Rowl hides the "token context left" UI for OpenRouter-routed models because the routed model can change and the remaining-context display is not reliable enough there.
 
 ### Usage dashboard
 
@@ -169,33 +169,33 @@ The composer context ring is now a full `Usage dashboard` trigger instead of onl
 
 - Click the context ring to open a dialog with the current selection's documented/live context window, token breakdown, latest matching runtime snapshot metadata, and latest reported spend when the provider exposes it.
 - The model picker footer also includes a `Usage` shortcut so you can open the same dashboard while browsing providers/models.
-- If the latest stored runtime snapshot belongs to a different provider/model than the current selection, CUT3 calls that out explicitly instead of silently showing stale numbers.
+- If the latest stored runtime snapshot belongs to a different provider/model than the current selection, Rowl calls that out explicitly instead of silently showing stale numbers.
 - GitHub Copilot selections also include current premium-request quota information in the dashboard.
-- Cost reporting depends on the provider runtime. CUT3 shows the latest reported USD amount when the provider supplies it, otherwise the spend card stays unavailable instead of guessing.
+- Cost reporting depends on the provider runtime. Rowl shows the latest reported USD amount when the provider supplies it, otherwise the spend card stays unavailable instead of guessing.
 
 ### Image attachments
 
 The composer also supports lightweight image input:
 
 - attach images with the paperclip button, drag-and-drop, or paste
-- CUT3 accepts image files only
+- Rowl accepts image files only
 - each message can include up to `8` images
 - each image is limited to `10MB`
 - attached images render as inline previews in the composer and thread timeline
-- when a message only includes images, CUT3 sends a small bootstrap prompt so providers still receive a valid user turn
+- when a message only includes images, Rowl sends a small bootstrap prompt so providers still receive a valid user turn
 - thread export/bootstrap text includes attachment names and metadata instead of re-embedding image bytes
 
 ### Workspace instructions and command templates
 
 The composer now surfaces repo-owned workspace behavior directly:
 
-- CUT3 ships built-in slash commands for common thread actions, including `/new`, `/compact`, `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`, `/init`, `/plan`, `/default`, `/model`, and `/mcp` when the active provider supports MCP.
-- CUT3 checks the active workspace root for `AGENTS.md` and shows whether it is currently available.
+- Rowl ships built-in slash commands for common thread actions, including `/new`, `/compact`, `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`, `/init`, `/plan`, `/default`, `/model`, and `/mcp` when the active provider supports MCP.
+- Rowl checks the active workspace root for `AGENTS.md` and shows whether it is currently available.
 - `/init` drafts or updates `AGENTS.md` using the current workspace shape, then saves it through the same guarded project-write path used by other workspace actions.
-- CUT3 loads repo-local slash-command templates from `.cut3/commands/*.md`.
+- Rowl loads repo-local slash-command templates from `.rowl/commands/*.md`.
 - Template frontmatter supports `description`, optional `provider`, optional `model`, optional `interactionMode`, optional `runtimeMode`, and optional `sendImmediately`.
 - Template bodies can interpolate `$ARGUMENTS` and `$1` through `$9`.
-- When `sendImmediately: true` is set, CUT3 expands the template and dispatches the turn directly. Otherwise it expands into the composer for review before sending.
+- When `sendImmediately: true` is set, Rowl expands the template and dispatches the turn directly. Otherwise it expands into the composer for review before sending.
 
 ### Follow-up queueing and steering
 
@@ -209,7 +209,7 @@ When a turn is already running, the composer exposes follow-up controls instead 
 
 ### Repo-local skills
 
-CUT3 also discovers repo-local skills from `.cut3/skills/<name>/SKILL.md`.
+Rowl also discovers repo-local skills from `.rowl/skills/<name>/SKILL.md`.
 
 - The directory name and frontmatter `name` must match and use the same lowercase hyphenated skill-name format.
 - `SKILL.md` frontmatter must include string `name` and `description` fields.
@@ -229,7 +229,7 @@ Settings now includes a `Permission policies` section for durable approval rules
 
 ### OpenCode MCP visibility
 
-CUT3 now inspects OpenCode MCP state through `opencode mcp list` and `opencode mcp auth list`, exposes those entries in `server.getConfig`, and shows the resolved OpenCode config sources in Settings. That inspection keeps disabled, auth-gated, failed, and connected OpenCode MCP entries separated so the composer `/mcp` browser and the Settings panel reflect the active OpenCode provider state instead of collapsing everything into a single generic list. OpenCode still owns the actual OAuth flow and credential storage, so CUT3 only reports status and offers copyable CLI commands such as `opencode mcp auth <server>` and `opencode mcp debug <server>`.
+Rowl now inspects OpenCode MCP state through `opencode mcp list` and `opencode mcp auth list`, exposes those entries in `server.getConfig`, and shows the resolved OpenCode config sources in Settings. That inspection keeps disabled, auth-gated, failed, and connected OpenCode MCP entries separated so the composer `/mcp` browser and the Settings panel reflect the active OpenCode provider state instead of collapsing everything into a single generic list. OpenCode still owns the actual OAuth flow and credential storage, so Rowl only reports status and offers copyable CLI commands such as `opencode mcp auth <server>` and `opencode mcp debug <server>`.
 
 ## Related docs
 

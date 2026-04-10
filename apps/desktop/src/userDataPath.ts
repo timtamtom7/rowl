@@ -1,6 +1,6 @@
 import Path from "node:path";
 
-const LEGACY_USER_DATA_DIR_NAMES = ["T3 Code", "T3 Code (Alpha)", "T3 Code (Dev)"] as const;
+const LEGACY_USER_DATA_DIR_NAMES = ["CUT3", "T3 Code", "T3 Code (Alpha)", "T3 Code (Dev)"] as const;
 
 function joinUserDataPath(basePath: string, segment: string): string {
   const pathModule = basePath.includes("/") ? Path.posix : Path.win32;

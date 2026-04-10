@@ -8,7 +8,7 @@ import { createLockedPiSettingsManager } from "./piHarness.ts";
 
 describe("createLockedPiSettingsManager", () => {
   it("preserves Pi runtime defaults while stripping package and resource discovery settings", () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "cut3-pi-settings-"));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "rowl-pi-settings-"));
     const agentDir = path.join(cwd, "agent");
     const projectPiDir = path.join(cwd, ".pi");
     fs.mkdirSync(agentDir, { recursive: true });

@@ -126,15 +126,11 @@ export const ThreadGoalStatement = memo(function ThreadGoalStatement({
       >
         <PencilIcon className="size-3.5 shrink-0 text-muted-foreground/50" />
         <span
-          className={`flex-1 text-sm ${
-            goal ? "text-foreground" : "text-muted-foreground italic"
-          }`}
+          className={`flex-1 text-sm ${goal ? "text-foreground" : "text-muted-foreground italic"}`}
         >
           {goal || GOAL_PLACEHOLDER}
         </span>
-        {showSaved && (
-          <span className="text-xs text-muted-foreground">Saved</span>
-        )}
+        {showSaved && <span className="text-xs text-muted-foreground">Saved</span>}
       </button>
     </div>
   );

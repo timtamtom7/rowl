@@ -90,4 +90,4 @@ export interface ProjectionCheckpointRepositoryShape {
 export class ProjectionCheckpointRepository extends ServiceMap.Service<
   ProjectionCheckpointRepository,
   ProjectionCheckpointRepositoryShape
->()("cut3/persistence/Services/ProjectionCheckpoints/ProjectionCheckpointRepository") {}
+>()("rowl/persistence/Services/ProjectionCheckpoints/ProjectionCheckpointRepository") {}

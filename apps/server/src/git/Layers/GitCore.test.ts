@@ -889,24 +889,24 @@ it.layer(TestLayer)("git integration", (it) => {
       Effect.gen(function* () {
         const tmp = yield* makeTmpDir();
         yield* initRepoWithCommit(tmp);
-        yield* createGitBranch({ cwd: tmp, branch: "cut3/feat/session" });
-        yield* createGitBranch({ cwd: tmp, branch: "cut3/tmp-working" });
-        yield* checkoutGitBranch({ cwd: tmp, branch: "cut3/tmp-working" });
+        yield* createGitBranch({ cwd: tmp, branch: "rowl/feat/session" });
+        yield* createGitBranch({ cwd: tmp, branch: "rowl/tmp-working" });
+        yield* checkoutGitBranch({ cwd: tmp, branch: "rowl/tmp-working" });
 
         const renamed = yield* renameGitBranch({
           cwd: tmp,
-          oldBranch: "cut3/tmp-working",
-          newBranch: "cut3/feat/session",
+          oldBranch: "rowl/tmp-working",
+          newBranch: "rowl/feat/session",
         });
 
-        expect(renamed.branch).toBe("cut3/feat/session-1");
+        expect(renamed.branch).toBe("rowl/feat/session-1");
         const branches = yield* listGitBranches({ cwd: tmp });
-        expect(branches.branches.some((branch) => branch.name === "cut3/feat/session")).toBe(true);
-        expect(branches.branches.some((branch) => branch.name === "cut3/feat/session-1")).toBe(
+        expect(branches.branches.some((branch) => branch.name === "rowl/feat/session")).toBe(true);
+        expect(branches.branches.some((branch) => branch.name === "rowl/feat/session-1")).toBe(
           true,
         );
         const current = branches.branches.find((branch) => branch.current);
-        expect(current?.name).toBe("cut3/feat/session-1");
+        expect(current?.name).toBe("rowl/feat/session-1");
       }),
     );
 
@@ -914,18 +914,18 @@ it.layer(TestLayer)("git integration", (it) => {
       Effect.gen(function* () {
         const tmp = yield* makeTmpDir();
         yield* initRepoWithCommit(tmp);
-        yield* createGitBranch({ cwd: tmp, branch: "cut3/feat/session" });
-        yield* createGitBranch({ cwd: tmp, branch: "cut3/feat/session-1" });
-        yield* createGitBranch({ cwd: tmp, branch: "cut3/tmp-working" });
-        yield* checkoutGitBranch({ cwd: tmp, branch: "cut3/tmp-working" });
+        yield* createGitBranch({ cwd: tmp, branch: "rowl/feat/session" });
+        yield* createGitBranch({ cwd: tmp, branch: "rowl/feat/session-1" });
+        yield* createGitBranch({ cwd: tmp, branch: "rowl/tmp-working" });
+        yield* checkoutGitBranch({ cwd: tmp, branch: "rowl/tmp-working" });
 
         const renamed = yield* renameGitBranch({
           cwd: tmp,
-          oldBranch: "cut3/tmp-working",
-          newBranch: "cut3/feat/session",
+          oldBranch: "rowl/tmp-working",
+          newBranch: "rowl/feat/session",
         });
 
-        expect(renamed.branch).toBe("cut3/feat/session-2");
+        expect(renamed.branch).toBe("rowl/feat/session-2");
       }),
     );
 
@@ -1326,12 +1326,12 @@ it.layer(TestLayer)("git integration", (it) => {
           yield* initRepoWithCommit(tmp);
           const core = yield* GitCore;
 
-          yield* git(tmp, ["remote", "add", "origin", "git@github.com:pingdotgg/cut3.git"]);
+          yield* git(tmp, ["remote", "add", "origin", "git@github.com:pingdotgg/rowl.git"]);
 
           const remoteName = yield* core.ensureRemote({
             cwd: tmp,
             preferredName: "origin",
-            url: "git@github.com:pingdotgg/cut3.git/",
+            url: "git@github.com:pingdotgg/rowl.git/",
           });
 
           expect(remoteName).toBe("origin");
@@ -1604,7 +1604,7 @@ it.layer(TestLayer)("git integration", (it) => {
           yield* git(tmp, [
             "checkout",
             "-b",
-            "cut3/pr-488/statemachine",
+            "rowl/pr-488/statemachine",
             "--track",
             "jasonLaster/statemachine",
           ]);
@@ -1626,7 +1626,7 @@ it.layer(TestLayer)("git integration", (it) => {
             yield* git(tmp, ["ls-remote", "--heads", "jasonLaster", "statemachine"]),
           ).toContain("statemachine");
           expect(
-            yield* git(tmp, ["ls-remote", "--heads", "jasonLaster", "cut3/pr-488/statemachine"]),
+            yield* git(tmp, ["ls-remote", "--heads", "jasonLaster", "rowl/pr-488/statemachine"]),
           ).toBe("");
         }),
     );

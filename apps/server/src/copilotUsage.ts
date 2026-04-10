@@ -217,7 +217,7 @@ async function fetchCopilotInternalUser(params: {
     headers: {
       Accept: "application/json",
       Authorization: `token ${params.token}`,
-      "User-Agent": "cut3",
+      "User-Agent": "rowl",
       "X-GitHub-Api-Version": COPILOT_USAGE_API_VERSION,
     },
     signal,

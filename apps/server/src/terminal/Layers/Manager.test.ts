@@ -189,7 +189,7 @@ describe("TerminalManager", () => {
       ptyAdapter?: FakePtyAdapter;
     } = {},
   ) {
-    const logsDir = fs.mkdtempSync(path.join(os.tmpdir(), "cut3-terminal-"));
+    const logsDir = fs.mkdtempSync(path.join(os.tmpdir(), "rowl-terminal-"));
     tempDirs.push(logsDir);
     const ptyAdapter = options.ptyAdapter ?? new FakePtyAdapter();
     const manager = new TerminalManagerRuntime({

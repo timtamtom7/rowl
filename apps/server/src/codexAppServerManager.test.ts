@@ -905,8 +905,8 @@ describe("startSession", () => {
   it("enables Codex experimental api capabilities during initialize", () => {
     expect(buildCodexInitializeParams()).toEqual({
       clientInfo: {
-        name: "cut3_desktop",
-        title: "CUT3 Desktop",
+        name: "rowl_desktop",
+        title: "Rowl Desktop",
         version: "0.1.0",
       },
       capabilities: {
@@ -1013,7 +1013,7 @@ describe("startSession", () => {
       });
     });
 
-    const tempDir = mkdtempSync(path.join(os.tmpdir(), "cut3-codex-failfast-"));
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), "rowl-codex-failfast-"));
     const fakeBinaryPath = path.join(
       tempDir,
       process.platform === "win32" ? "fake-codex.cmd" : "fake-codex",

@@ -86,7 +86,7 @@ describe("tryHandleProjectFaviconRequest", () => {
   });
 
   it("serves a well-known favicon file from the project root", async () => {
-    const projectDir = makeTempDir("cut3-favicon-route-root-");
+    const projectDir = makeTempDir("rowl-favicon-route-root-");
     fs.writeFileSync(path.join(projectDir, "favicon.svg"), "<svg>favicon</svg>", "utf8");
 
     await withRouteServer(async (baseUrl) => {
@@ -99,7 +99,7 @@ describe("tryHandleProjectFaviconRequest", () => {
   });
 
   it("resolves icon href from source files when no well-known favicon exists", async () => {
-    const projectDir = makeTempDir("cut3-favicon-route-source-");
+    const projectDir = makeTempDir("rowl-favicon-route-source-");
     const iconPath = path.join(projectDir, "public", "brand", "logo.svg");
     fs.mkdirSync(path.dirname(iconPath), { recursive: true });
     fs.writeFileSync(
@@ -118,7 +118,7 @@ describe("tryHandleProjectFaviconRequest", () => {
   });
 
   it("resolves icon link when href appears before rel in HTML", async () => {
-    const projectDir = makeTempDir("cut3-favicon-route-html-order-");
+    const projectDir = makeTempDir("rowl-favicon-route-html-order-");
     const iconPath = path.join(projectDir, "public", "brand", "logo.svg");
     fs.mkdirSync(path.dirname(iconPath), { recursive: true });
     fs.writeFileSync(
@@ -137,7 +137,7 @@ describe("tryHandleProjectFaviconRequest", () => {
   });
 
   it("resolves object-style icon metadata when href appears before rel", async () => {
-    const projectDir = makeTempDir("cut3-favicon-route-obj-order-");
+    const projectDir = makeTempDir("rowl-favicon-route-obj-order-");
     const iconPath = path.join(projectDir, "public", "brand", "obj.svg");
     fs.mkdirSync(path.dirname(iconPath), { recursive: true });
     fs.mkdirSync(path.join(projectDir, "src"), { recursive: true });
@@ -158,7 +158,7 @@ describe("tryHandleProjectFaviconRequest", () => {
   });
 
   it("serves a fallback favicon when no icon exists", async () => {
-    const projectDir = makeTempDir("cut3-favicon-route-fallback-");
+    const projectDir = makeTempDir("rowl-favicon-route-fallback-");
 
     await withRouteServer(async (baseUrl) => {
       const pathname = `/api/project-favicon?cwd=${encodeURIComponent(projectDir)}`;
@@ -174,8 +174,8 @@ describe("tryHandleProjectFaviconRequest", () => {
       return;
     }
 
-    const projectDir = makeTempDir("cut3-favicon-route-symlink-root-");
-    const externalDir = makeTempDir("cut3-favicon-route-external-root-");
+    const projectDir = makeTempDir("rowl-favicon-route-symlink-root-");
+    const externalDir = makeTempDir("rowl-favicon-route-external-root-");
     const externalIconPath = path.join(externalDir, "outside.svg");
     fs.writeFileSync(externalIconPath, "<svg>outside</svg>", "utf8");
     fs.symlinkSync(externalIconPath, path.join(projectDir, "favicon.svg"));
@@ -195,8 +195,8 @@ describe("tryHandleProjectFaviconRequest", () => {
       return;
     }
 
-    const projectDir = makeTempDir("cut3-favicon-route-symlink-href-");
-    const externalDir = makeTempDir("cut3-favicon-route-external-href-");
+    const projectDir = makeTempDir("rowl-favicon-route-symlink-href-");
+    const externalDir = makeTempDir("rowl-favicon-route-external-href-");
     const externalIconPath = path.join(externalDir, "outside.svg");
     const linkedIconPath = path.join(projectDir, "public", "brand", "logo.svg");
     fs.mkdirSync(path.dirname(linkedIconPath), { recursive: true });

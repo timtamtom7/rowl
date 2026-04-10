@@ -52,8 +52,8 @@ describe("projectScripts helpers", () => {
     });
 
     expect(env).toMatchObject({
-      CUT3_PROJECT_ROOT: "/repo",
-      CUT3_WORKTREE_PATH: "/repo/worktree-a",
+      ROWL_PROJECT_ROOT: "/repo",
+      ROWL_WORKTREE_PATH: "/repo/worktree-a",
     });
   });
 
@@ -61,13 +61,13 @@ describe("projectScripts helpers", () => {
     const env = projectScriptRuntimeEnv({
       project: { cwd: "/repo" },
       extraEnv: {
-        CUT3_PROJECT_ROOT: "/custom-root",
+        ROWL_PROJECT_ROOT: "/custom-root",
         CUSTOM_FLAG: "1",
       },
     });
 
-    expect(env.CUT3_PROJECT_ROOT).toBe("/custom-root");
+    expect(env.ROWL_PROJECT_ROOT).toBe("/custom-root");
     expect(env.CUSTOM_FLAG).toBe("1");
-    expect(env.CUT3_WORKTREE_PATH).toBeUndefined();
+    expect(env.ROWL_WORKTREE_PATH).toBeUndefined();
   });
 });

@@ -1,4 +1,4 @@
-export const DESKTOP_BACKEND_READY_PREFIX = "[cut3-desktop-ready]";
+export const DESKTOP_BACKEND_READY_PREFIX = "[rowl-desktop-ready]";
 export const DESKTOP_BOOTSTRAP_READY_PATTERN = /bootstrap backend ready port=(\d+)/;
 export const READY_TIMEOUT_MS = 15_000;
 export const READY_SETTLE_MS = 1_500;

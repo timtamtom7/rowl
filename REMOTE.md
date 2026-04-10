@@ -1,22 +1,22 @@
 # Remote Access Setup
 
-Use this when you want to open CUT3 from another device (phone, tablet, another laptop).
+Use this when you want to open Rowl from another device (phone, tablet, another laptop).
 
 ## CLI ↔ Env option map
 
-The CUT3 CLI accepts the following configuration options, available either as CLI flags or environment variables:
+The Rowl CLI accepts the following configuration options, available either as CLI flags or environment variables:
 
 | CLI flag                            | Env var                                | Notes                                                                       |
 | ----------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
-| `--mode <web\|desktop>`             | `CUT3_MODE`                            | Runtime mode.                                                               |
-| `--port <number>`                   | `CUT3_PORT`                            | HTTP/WebSocket port.                                                        |
-| `--host <address>`                  | `CUT3_HOST`                            | Bind interface/address.                                                     |
-| `--state-dir <path>`                | `CUT3_STATE_DIR`                       | State directory.                                                            |
+| `--mode <web\|desktop>`             | `ROWL_MODE`                            | Runtime mode.                                                               |
+| `--port <number>`                   | `ROWL_PORT`                            | HTTP/WebSocket port.                                                        |
+| `--host <address>`                  | `ROWL_HOST`                            | Bind interface/address.                                                     |
+| `--state-dir <path>`                | `ROWL_STATE_DIR`                       | State directory.                                                            |
 | `--dev-url <url>`                   | `VITE_DEV_SERVER_URL`                  | Dev web URL redirect/proxy target.                                          |
-| `--no-browser`                      | `CUT3_NO_BROWSER`                      | Disable auto-open browser.                                                  |
-| `--auth-token <token>`              | `CUT3_AUTH_TOKEN`                      | WebSocket auth token.                                                       |
-| `--auto-bootstrap-project-from-cwd` | `CUT3_AUTO_BOOTSTRAP_PROJECT_FROM_CWD` | Create a project for the current working directory on startup when missing. |
-| `--log-websocket-events`            | `CUT3_LOG_WS_EVENTS`                   | Emit server-side logs for outbound WebSocket push traffic.                  |
+| `--no-browser`                      | `ROWL_NO_BROWSER`                      | Disable auto-open browser.                                                  |
+| `--auth-token <token>`              | `ROWL_AUTH_TOKEN`                      | WebSocket auth token.                                                       |
+| `--auto-bootstrap-project-from-cwd` | `ROWL_AUTO_BOOTSTRAP_PROJECT_FROM_CWD` | Create a project for the current working directory on startup when missing. |
+| `--log-websocket-events`            | `ROWL_LOG_WS_EVENTS`                   | Emit server-side logs for outbound WebSocket push traffic.                  |
 
 > TIP: `--auth-token` also has a `--token` alias, and `--log-websocket-events` also has a `--log-ws-events` alias.
 > Use the `--help` flag to see all available options and their descriptions.

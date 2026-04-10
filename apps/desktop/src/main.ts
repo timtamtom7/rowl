@@ -928,7 +928,7 @@ function resolveWindowIcon(): Electron.NativeImage | null {
  * parentheses (e.g. `~/.config/T3 Code (Alpha)` on Linux). This is
  * unfriendly for shell usage and violates Linux naming conventions.
  *
- * We override it to a clean lowercase name (`cut3`). If the legacy
+ * We override it to a clean lowercase name (`rowl`). If the legacy
  * directory already exists we keep using it so existing users do not
  * lose their Chromium profile data (localStorage, cookies, sessions).
  */

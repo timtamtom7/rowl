@@ -3,11 +3,11 @@
 - `bun run dev` — Starts contracts, server, and web in `turbo watch` mode.
 - `bun run dev:server` — Starts just the WebSocket server (uses Bun TypeScript execution).
 - `bun run dev:web` — Starts just the Vite dev server for the web app.
-- Dev commands default `CUT3_STATE_DIR` to `~/.t3/dev` to keep dev state isolated from desktop/prod state.
-- Separate `bun run dev:web` and `bun run dev:server` launches reuse one shared port offset per `CUT3_STATE_DIR`, so they stay on the same `377x` / `573x` pair instead of drifting apart.
+- Dev commands default `ROWL_STATE_DIR` to `~/.t3/dev` to keep dev state isolated from desktop/prod state.
+- Separate `bun run dev:web` and `bun run dev:server` launches reuse one shared port offset per `ROWL_STATE_DIR`, so they stay on the same `377x` / `573x` pair instead of drifting apart.
 - Override server CLI-equivalent flags from root dev commands with `--`, for example:
   `bun run dev -- --state-dir ~/.t3/another-dev-state`
-- If you bind the web server off loopback, set `CUT3_AUTH_TOKEN`; unauthenticated off-box WebSocket clients are rejected.
+- If you bind the web server off loopback, set `ROWL_AUTH_TOKEN`; unauthenticated off-box WebSocket clients are rejected.
 - `bun run start` — Runs the production server (serves built web app as static files).
 - `bun run build` — Builds contracts, web app, and server through Turbo.
 - `bun run typecheck` — Strict TypeScript checks for all packages.
@@ -25,7 +25,7 @@
 
 - Default local builds are unsigned and not notarized.
 - The DMG build uses `assets/prod/black-macos-1024.png` as the production app icon source.
-- Desktop production windows load the bundled UI from `cut3://app/index.html` (not a `127.0.0.1` document URL).
+- Desktop production windows load the bundled UI from `rowl://app/index.html` (not a `127.0.0.1` document URL).
 - Desktop packaging includes `apps/server/dist` (the `t3` backend) and starts it on loopback with an auth token for WebSocket/API traffic.
 - Your tester can still open an unsigned macOS build by right-clicking the app and choosing **Open** on first launch.
 - To keep staging files for debugging package contents, run: `bun run dist:desktop:dmg -- --keep-stage`
@@ -41,16 +41,16 @@
 ## Desktop smoke test guarantee
 
 - `bun run test:desktop-smoke` exercises launch-time desktop integration only.
-- The smoke test passes only after Electron reaches the bundled backend readiness marker (`[cut3-desktop-ready]{...}`) and no obvious startup exception appears in stdout or stderr.
+- The smoke test passes only after Electron reaches the bundled backend readiness marker (`[rowl-desktop-ready]{...}`) and no obvious startup exception appears in stdout or stderr.
 - The smoke test does not validate full renderer interaction, menu flows, or update installation.
 - For the architecture and logging details behind that contract, see `apps/desktop/README.md`.
 
 ## Running multiple dev instances
 
-Set `CUT3_DEV_INSTANCE` to any value to deterministically shift all dev ports together.
+Set `ROWL_DEV_INSTANCE` to any value to deterministically shift all dev ports together.
 
 - Default ports: server `3773`, web `5733`
-- Shifted ports: `base + offset` (offset is hashed from `CUT3_DEV_INSTANCE`)
-- Example: `CUT3_DEV_INSTANCE=branch-a bun run dev:desktop`
+- Shifted ports: `base + offset` (offset is hashed from `ROWL_DEV_INSTANCE`)
+- Example: `ROWL_DEV_INSTANCE=branch-a bun run dev:desktop`
 
-If you want full control instead of hashing, set `CUT3_PORT_OFFSET` to a numeric offset.
+If you want full control instead of hashing, set `ROWL_PORT_OFFSET` to a numeric offset.

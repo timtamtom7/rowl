@@ -51,7 +51,7 @@ function cleanupStaleDevApps() {
     return;
   }
 
-  spawnSync("pkill", ["-f", "--", `--cut3-dev-root=${desktopDir}`], { stdio: "ignore" });
+  spawnSync("pkill", ["-f", "--", `--rowl-dev-root=${desktopDir}`], { stdio: "ignore" });
 }
 
 function startApp() {
@@ -63,13 +63,13 @@ function startApp() {
   const linuxDesktopLaunchEnv = resolveLinuxDesktopLaunchEnv({
     electronBinaryPath: electronPath,
     mainEntryPath: "dist-electron/main.js",
-    extraArgs: [`--cut3-dev-root=${desktopDir}`],
+    extraArgs: [`--rowl-dev-root=${desktopDir}`],
     extraEnv: {
       VITE_DEV_SERVER_URL: devServerUrl,
     },
   });
 
-  const app = spawn(electronPath, [`--cut3-dev-root=${desktopDir}`, "dist-electron/main.js"], {
+  const app = spawn(electronPath, [`--rowl-dev-root=${desktopDir}`, "dist-electron/main.js"], {
     cwd: desktopDir,
     env: {
       ...childEnv,

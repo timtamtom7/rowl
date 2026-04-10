@@ -82,8 +82,8 @@ jobs:
             require_signing="${{ github.event.inputs.require_signing }}"
             dry_run="${{ github.event.inputs.dry_run }}"
           else
-            publish_cli="${{ vars.CUT3_PUBLISH_CLI || 'false' }}"
-            require_signing="${{ vars.CUT3_REQUIRE_SIGNING || 'false' }}"
+            publish_cli="${{ vars.ROWL_PUBLISH_CLI || 'false' }}"
+            require_signing="${{ vars.ROWL_REQUIRE_SIGNING || 'false' }}"
             dry_run="false"
           fi
 
@@ -478,7 +478,7 @@ jobs:
         run: node scripts/update-release-package-versions.ts "${{ needs.preflight.outputs.version }}"
 
       - name: Build CLI package
-        run: bun run build --filter=@t3tools/web --filter=cut3
+        run: bun run build --filter=@t3tools/web --filter=rowl
 
       - name: Publish CLI package
         run: node apps/server/scripts/cli.ts publish --tag latest --app-version "${{ needs.preflight.outputs.version }}" --verbose

@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   mergeMacUpdateManifests,
@@ -128,6 +128,11 @@ function makeFakeMacUpdater(MacUpdater: ElectronUpdaterModules["MacUpdater"]): a
 }
 
 async function selectMacUpdateFile(args: { uname: string; rosetta: boolean }): Promise<string> {
+  mockedArch = args.uname.toLowerCase().includes("arm") ? "arm64" : "x64";
+  Object.defineProperty(process, "arch", {
+    get: () => mockedArch ?? originalProcessArch,
+  });
+
   const modules = await loadElectronUpdaterModules(args);
   const updater = makeFakeMacUpdater(modules.MacUpdater);
 
@@ -142,12 +147,22 @@ async function selectMacUpdateFile(args: { uname: string; rosetta: boolean }): P
   return call?.fileInfo.url.pathname ?? "";
 }
 
-afterEach(() => {
-  childProcessModule.execFileSync = originalExecFileSync;
-  vi.restoreAllMocks();
-});
+const originalProcessArch = process.arch;
+let mockedArch: string | undefined;
 
 describe("merge-mac-update-manifests electron-updater compatibility", () => {
+  beforeEach(() => {
+    mockedArch = undefined;
+  });
+
+  afterEach(() => {
+    childProcessModule.execFileSync = originalExecFileSync;
+    Object.defineProperty(process, "arch", {
+      get: () => mockedArch ?? originalProcessArch,
+    });
+    vi.restoreAllMocks();
+  });
+
   it("selects the x64 zip for x64 macOS hosts", async () => {
     await expect(
       selectMacUpdateFile({ uname: "Darwin x86_64 Apple Kernel Version", rosetta: false }),

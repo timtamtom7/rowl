@@ -27,11 +27,11 @@ export interface AppState {
 
 const PERSISTED_STATE_KEY = "rowl:renderer-state:v8";
 const LEGACY_PERSISTED_STATE_KEYS = [
-  "cut3:renderer-state:v7",
-  "cut3:renderer-state:v6",
-  "cut3:renderer-state:v5",
-  "cut3:renderer-state:v4",
-  "cut3:renderer-state:v3",
+  "rowl:renderer-state:v7",
+  "rowl:renderer-state:v6",
+  "rowl:renderer-state:v5",
+  "rowl:renderer-state:v4",
+  "rowl:renderer-state:v3",
   "codething:renderer-state:v4",
   "codething:renderer-state:v3",
   "codething:renderer-state:v2",

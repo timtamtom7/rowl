@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { getLegacyUserDataDirNames, resolveDesktopUserDataPath } from "./userDataPath";
 
 describe("getLegacyUserDataDirNames", () => {
-  it("keeps the unified CUT3 profile compatible with legacy T3 directories", () => {
-    expect(getLegacyUserDataDirNames({ appDisplayName: "CUT3" })).toEqual([
+  it("keeps the unified Rowl profile compatible with legacy directories", () => {
+    expect(getLegacyUserDataDirNames({ appDisplayName: "Rowl" })).toEqual([
+      "Rowl",
       "CUT3",
       "T3 Code",
       "T3 Code (Alpha)",
@@ -20,8 +21,8 @@ describe("resolveDesktopUserDataPath", () => {
     expect(
       resolveDesktopUserDataPath({
         appDataBase: "/config",
-        userDataDirName: "cut3",
-        legacyDirNames: getLegacyUserDataDirNames({ appDisplayName: "CUT3" }),
+        userDataDirName: "rowl",
+        legacyDirNames: getLegacyUserDataDirNames({ appDisplayName: "Rowl" }),
         pathExists: (path) => existingPaths.has(path),
       }),
     ).toBe("/config/CUT3");
@@ -31,11 +32,11 @@ describe("resolveDesktopUserDataPath", () => {
     expect(
       resolveDesktopUserDataPath({
         appDataBase: "/config",
-        userDataDirName: "cut3",
-        legacyDirNames: getLegacyUserDataDirNames({ appDisplayName: "CUT3" }),
+        userDataDirName: "rowl",
+        legacyDirNames: getLegacyUserDataDirNames({ appDisplayName: "Rowl" }),
         pathExists: () => false,
       }),
-    ).toBe("/config/cut3");
+    ).toBe("/config/rowl");
   });
 
   it("can recover the old alpha directory too", () => {
@@ -44,8 +45,8 @@ describe("resolveDesktopUserDataPath", () => {
     expect(
       resolveDesktopUserDataPath({
         appDataBase: "/config",
-        userDataDirName: "cut3",
-        legacyDirNames: getLegacyUserDataDirNames({ appDisplayName: "CUT3" }),
+        userDataDirName: "rowl",
+        legacyDirNames: getLegacyUserDataDirNames({ appDisplayName: "Rowl" }),
         pathExists: (path) => existingPaths.has(path),
       }),
     ).toBe("/config/T3 Code (Alpha)");
@@ -57,8 +58,8 @@ describe("resolveDesktopUserDataPath", () => {
     expect(
       resolveDesktopUserDataPath({
         appDataBase: "/config",
-        userDataDirName: "cut3",
-        legacyDirNames: getLegacyUserDataDirNames({ appDisplayName: "CUT3" }),
+        userDataDirName: "rowl",
+        legacyDirNames: getLegacyUserDataDirNames({ appDisplayName: "Rowl" }),
         pathExists: (path) => existingPaths.has(path),
       }),
     ).toBe("/config/T3 Code (Dev)");

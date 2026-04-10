@@ -8,66 +8,38 @@ You can still open an issue or PR, but please do so knowing there is a high chan
 
 If that sounds annoying, that is because it is. This project is still early and we are trying to keep scope, quality, and direction under control.
 
-PRs are automatically labeled with a `vouch:*` trust status and a `size:*` diff size based on changed lines.
-
-If you are an external contributor, expect `vouch:unvouched` until we explicitly add you to [.github/VOUCHED.td](.github/VOUCHED.td).
-
 ## What We Are Most Likely To Accept
 
-Small, focused bug fixes.
-
-Small reliability fixes.
-
-Small performance improvements.
-
-Tightly scoped maintenance work that clearly improves the project without changing its direction.
+- Small, focused bug fixes
+- Small reliability fixes
+- Small performance improvements
+- Tightly scoped maintenance work that clearly improves the project without changing its direction
 
 ## What We Are Least Likely To Accept
 
-Large PRs.
+- Large PRs
+- Drive-by feature work
+- Opinionated rewrites
+- Anything that expands product scope without us asking for it first
 
-Drive-by feature work.
-
-Opinionated rewrites.
-
-Anything that expands product scope without us asking for it first.
-
-If you open a 1,000+ line PR full of new features, we will probably close it quickly and remember that you ignored the clearly written instructions.
+If you open a 1,000+ line PR full of new features, we will probably close it quickly.
 
 ## If You Still Want To Open A PR
 
-Keep it small.
-
-Explain exactly what changed.
-
-Explain exactly why the change should exist.
-
-Do not mix unrelated fixes together.
-
-If the PR makes anything resembling a UI change, include clear before/after images.
-
-If the change depends on motion, timing, transitions, or interaction details, include a short video.
-
-If we have to guess what changed, we are much less likely to review it.
+1. Keep it small
+2. Explain exactly what changed and why
+3. Do not mix unrelated fixes together
+4. If the PR makes UI changes, include before/after images
+5. If the change depends on motion, timing, or transitions, include a short video
 
 ## Documentation And Agent Hygiene
 
-Treat stale docs as a bug.
-
-If your change affects behavior, settings, build steps, release steps, or contributor workflows, update the relevant docs in the same PR. That includes `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.docs/*`, `docs/*`, and any task-specific guide touched by the change.
-
-If you use coding agents, delegate easy bounded work like repo scans, read-only checks, and doc audits to sub agents when that keeps the main review and edit loop clearer. Keep risky edits, final synthesis, and verification owned by the primary agent or author.
+Treat stale docs as a bug. If your change affects behavior, settings, build steps, release steps, or contributor workflows, update the relevant docs in the same PR.
 
 ## Issues First
 
-If you are thinking about a non-trivial change, open an issue first.
-
-That still does not mean we will want the PR, but it gives you a chance to avoid wasting your time.
+If you are thinking about a non-trivial change, open an issue first. That doesn't mean we will want the PR, but it gives you a chance to avoid wasting your time.
 
 ## Be Realistic
 
-Opening a PR does not create an obligation on our side.
-
-We may close it. We may ignore it. We may ask you to shrink it. We may reimplement the idea ourselves later.
-
-If you are fine with that, proceed.
+Opening a PR does not create an obligation on our side. We may close it, ignore it, ask you to shrink it, or reimplement the idea ourselves later.

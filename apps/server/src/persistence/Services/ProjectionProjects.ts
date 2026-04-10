@@ -76,4 +76,4 @@ export interface ProjectionProjectRepositoryShape {
 export class ProjectionProjectRepository extends ServiceMap.Service<
   ProjectionProjectRepository,
   ProjectionProjectRepositoryShape
->()("cut3/persistence/Services/ProjectionProjects/ProjectionProjectRepository") {}
+>()("rowl/persistence/Services/ProjectionProjects/ProjectionProjectRepository") {}

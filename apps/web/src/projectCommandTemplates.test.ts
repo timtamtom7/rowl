@@ -9,7 +9,7 @@ import {
 
 const DEPLOY_TEMPLATE: ProjectCommandTemplate = {
   name: "deploy",
-  relativePath: ".cut3/commands/deploy.md",
+  relativePath: ".rowl/commands/deploy.md",
   description: "Deploy the selected target",
   template: "Deploy $1 with notes: $ARGUMENTS",
   provider: "codex",

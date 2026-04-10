@@ -80,16 +80,16 @@ describe("getOrphanedWorktreePathForThread", () => {
 describe("formatWorktreePathForDisplay", () => {
   it("shows only the last path segment for unix-like paths", () => {
     const result = formatWorktreePathForDisplay(
-      "/Users/julius/.t3/worktrees/cut3-mvp/cut3-4e609bb8",
+      "/Users/julius/.t3/worktrees/rowl-mvp/rowl-4e609bb8",
     );
-    expect(result).toBe("cut3-4e609bb8");
+    expect(result).toBe("rowl-4e609bb8");
   });
 
   it("normalizes windows separators before selecting the final segment", () => {
     const result = formatWorktreePathForDisplay(
-      "C:\\Users\\julius\\.t3\\worktrees\\cut3-mvp\\cut3-4e609bb8",
+      "C:\\Users\\julius\\.t3\\worktrees\\rowl-mvp\\rowl-4e609bb8",
     );
-    expect(result).toBe("cut3-4e609bb8");
+    expect(result).toBe("rowl-4e609bb8");
   });
 
   it("uses the final segment even when outside ~/.t3/worktrees", () => {

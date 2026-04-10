@@ -1,6 +1,6 @@
 # Encyclopedia
 
-This is a living glossary for CUT3. It explains what common terms mean in this codebase.
+This is a living glossary for Rowl. It explains what common terms mean in this codebase.
 
 ## Table of contents
 
@@ -29,7 +29,7 @@ A Git worktree used as an isolated workspace for a thread. If a thread has a `wo
 
 #### Repo-local skill
 
-A repo-owned instruction artifact discovered from `.cut3/skills/<name>/SKILL.md` and attachable per turn from the composer. Each skill must declare `name` and `description`, and `name` must match the lowercase hyphenated directory name. See [projectWorkspaceMetadata.ts][32] and [ComposerSkillPicker.tsx][33].
+A repo-owned instruction artifact discovered from `.rowl/skills/<name>/SKILL.md` and attachable per turn from the composer. Each skill must declare `name` and `description`, and `name` must match the lowercase hyphenated directory name. See [projectWorkspaceMetadata.ts][32] and [ComposerSkillPicker.tsx][33].
 
 ### Thread timeline
 
