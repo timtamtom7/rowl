@@ -157,6 +157,48 @@ function checkLoopDetection(threadId: string, errorMsg: string): string | null {
   return null;
 }
 
+// ── Severity Levels ─────────────────────────────────────────────────
+
+/** Maps alert kinds to severity. CRITICAL blocks agent progress. */
+const ALERT_SEVERITY: Record<string, "CRITICAL" | "WARNING" | "INFO"> = {
+  "dangerous-command": "CRITICAL",
+  "loop-detected": "CRITICAL",
+  "context-exhaustion": "CRITICAL",
+  "session-error": "CRITICAL",
+  "capability-forgetfulness": "WARNING",
+  "technical-delegation": "WARNING",
+  "premature-completion": "WARNING",
+  "context-budget-high": "WARNING",
+  "evaluation-result": "WARNING",
+  "certainty-warning": "INFO",
+};
+
+function getSeverity(kind: string): "CRITICAL" | "WARNING" | "INFO" {
+  return ALERT_SEVERITY[kind] ?? "WARNING";
+}
+
+// ── Dismissal Tracking ─────────────────────────────────────────────
+
+/** Tracks dismissed alerts within a session — prevents re-alerting for the same pattern. */
+const dismissedAlerts = new Map<string, number>(); // key → last dismissed timestamp
+
+/**
+ * Check if an alert should be suppressed (user previously dismissed same kind).
+ * @param threadId - Thread the alert belongs to
+ * @param kind - Alert kind (e.g. "capability-forgetfulness")
+ * @param windowMs - Suppress for this long after dismissal (default: 10 minutes)
+ */
+function isDismissed(threadId: string, kind: string, windowMs = 10 * 60 * 1000): boolean {
+  const key = `${threadId}:${kind}`;
+  const last = dismissedAlerts.get(key);
+  if (!last) return false;
+  return Date.now() - last < windowMs;
+}
+
+function dismissAlert(threadId: string, kind: string): void {
+  dismissedAlerts.set(`${threadId}:${kind}`, Date.now());
+}
+
 // ── Reactor ─────────────────────────────────────────────────────────
 
 type OverseerInput = {
@@ -190,16 +232,27 @@ export const OverseerReactorLive = Layer.effect(
       summary: string,
       payload?: Record<string, unknown>,
     ) {
+      // Skip INFO alerts if user previously dismissed this kind (within 10min)
+      const severity = getSeverity(kind);
+      if (severity === "INFO" && isDismissed(threadId, kind)) {
+        return Effect.void();
+      }
+
       return orchestrationEngine.dispatch({
         type: "thread.activity.append",
         commandId: `overseer:${kind}:${randomUUID()}` as any,
         threadId: threadId as any,
         activity: {
           id: EventId.makeUnsafe(randomUUID()),
-          tone: "error" as const,
+          tone: severity === "CRITICAL" ? "error" as const : severity === "WARNING" ? "warning" as const : "info" as const,
           kind: `overseer.${kind}`,
           summary: `Overseer: ${summary}`,
-          payload: payload ?? {},
+          payload: {
+            severity,
+            blocking: severity === "CRITICAL",
+            dismissed: false,
+            ...(payload ?? {}),
+          },
           turnId: (turnId as any) ?? null,
           createdAt: new Date().toISOString(),
         },
