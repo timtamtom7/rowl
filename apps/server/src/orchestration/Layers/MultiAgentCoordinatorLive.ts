@@ -8,6 +8,7 @@
  * @module MultiAgentCoordinatorLive
  */
 import { randomUUID } from "node:crypto";
+import { join, dirname } from "node:path";
 import { Effect, Layer } from "effect";
 import {
   CommandId,
@@ -24,11 +25,13 @@ import {
   type MultiAgentOverview,
 } from "../Services/MultiAgentCoordinator.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
+import { GitCore } from "../../git/Services/GitCore.ts";
 
 export const MultiAgentCoordinatorLive = Layer.effect(
   MultiAgentCoordinator,
   Effect.gen(function* () {
     const orchestrationEngine = yield* OrchestrationEngineService;
+    const git = yield* GitCore;
 
     const getProjectAgentOverview: MultiAgentCoordinatorShape["getProjectAgentOverview"] = (
       input,
@@ -119,8 +122,48 @@ export const MultiAgentCoordinatorLive = Layer.effect(
       Effect.gen(function* () {
         const readModel = yield* orchestrationEngine.getReadModel();
         const project = readModel.projects.find((p) => p.id === input.projectId);
+        if (!project) {
+          return yield* Effect.fail(
+            new Error(`Project ${input.projectId} not found`),
+          );
+        }
+
         const threadId = ThreadId.makeUnsafe(randomUUID());
         const now = new Date().toISOString();
+
+        // Derive a safe branch name from the feature name
+        const branchName = input.featureName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "")
+          + `-${Date.now().toString(36)}`;
+
+        // Create a dedicated worktree for this agent so it can make
+        // commits without conflicting with other agents or the main branch.
+        const worktreesDir = join(
+          dirname(project.workspaceRoot),
+          "rowl-worktrees",
+          project.title,
+        );
+        const worktreePath = join(worktreesDir, branchName);
+
+        // Try to create a worktree; fall back to main workspace on failure.
+        const worktreeResult = yield* git
+          .createWorktree({
+            cwd: project.workspaceRoot,
+            branch: "main",
+            newBranch: branchName,
+            path: worktreePath,
+          })
+          .pipe(
+            Effect.map((r) => ({ branch: r.worktree.branch, path: r.worktree.path })),
+            Effect.catch(() =>
+              Effect.succeed(null as { branch: string; path: string } | null),
+            ),
+          );
+
+        const resolvedWorktreePath = worktreeResult?.path ?? project.workspaceRoot;
+        const resolvedBranch = worktreeResult?.branch ?? "main";
 
         // Create a thread for this feature
         yield* orchestrationEngine.dispatch({
@@ -132,8 +175,8 @@ export const MultiAgentCoordinatorLive = Layer.effect(
           model: input.model ?? project?.defaultModel ?? DEFAULT_MODEL_BY_PROVIDER.codex,
           runtimeMode: "full-access",
           interactionMode: "default",
-          branch: null,
-          worktreePath: null,
+          branch: resolvedBranch,
+          worktreePath: resolvedWorktreePath,
           createdAt: now,
         });
 
@@ -155,7 +198,7 @@ export const MultiAgentCoordinatorLive = Layer.effect(
 
         return { threadId };
       }).pipe(
-        Effect.catchAll((cause) =>
+        Effect.catch((cause) =>
           Effect.fail(new Error(`Failed to spawn agent for feature: ${String(cause)}`)),
         ),
       ) as any;
