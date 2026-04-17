@@ -1,5 +1,19 @@
 # Rowl Agent Guidance
 
+## Session Start: Read the Plans Front Door
+
+**Before any work on Rowl, read `plans/STATE.md` first.** It is the living front door across all Rowl initiatives. It tells you:
+- What sub-project and phase are currently active
+- Where the last session left off
+- What to read next (current initiative's STATUS, PHASE-*-PLAN, SPEC, RESEARCH)
+- Locked architectural decisions across the project
+
+Do not skip this. It exists so a fresh session with no prior context can orient in under a minute.
+
+Then, for work on the memory-first evolution specifically, read the relevant initiative folder (e.g., `plans/rowl-memory-first/`) in the order `STATUS.md → current PHASE-*-PLAN.md → SPEC.md → RESEARCH.md`.
+
+After any session end, phase transition, or architectural decision: **update `plans/STATE.md`**. Staleness breaks future orientation.
+
 ## Task Completion Requirements
 
 - All of `bun run fmt`, `bun run lint`, and `bun run typecheck` must pass before considering tasks completed.

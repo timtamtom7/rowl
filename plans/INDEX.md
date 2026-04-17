@@ -2,18 +2,32 @@
 
 A living index of all active and future Rowl initiatives. Each initiative is a self-contained folder with SPEC, RESEARCH, PLAN, STATUS files.
 
+**➡ Living front door:** [`plans/STATE.md`](./STATE.md) — read this first at every session start. It always reflects the current focus, last handoff, and reading order.
+
 ---
 
 ## Active
 
 | Initiative | Status | Last Updated | Summary |
 |---|---|---|---|
+| [rowl-memory-first](./rowl-memory-first/) | spec-draft | 2026-04-17 | **Sub-project #1** of the memory-first evolution. Port Letta's memory pattern (git-backed blocks, reminder engine, memory tool, Palace viewer) into Rowl. Two-tier memory: global (cross-project) + project (per-codebase). See `plans/STATE.md`. |
 | [rowl-doc-calibration](./rowl-doc-calibration/) | in-progress | 2026-04-17 | Fixed V1 vs V2 inconsistencies, calibrated status language in V2 |
 | [rowl-overseer-hardening](./rowl-overseer-hardening/) | spec-draft | 2026-04-17 | **PRIORITY #1** — scaffolded only, needs real AI output testing, confidence scoring, learning loop |
 | [rowl-right-sidebar](./rowl-right-sidebar/) | spec-draft | 2026-04-13 | Unified project state system — make all 6 tabs react as one |
 | [rowl-outstanding](./rowl-outstanding/) | verified | 2026-04-13 | All Tier 2-4 roadmap items — verified against actual codebase. ~50% over-reported. |
 | [index-system](./index-system/) | planning | 2026-04-13 | The plans system itself — how we use plans during Rowl sessions |
 | [rowl-codebase-context](./rowl-codebase-context/) | done | 2026-04-13 | Background worker keeps PM's codebase model updated — Tier 3. 10-agent audit complete. |
+
+### Memory-First Evolution Roadmap (sub-projects #1–#4)
+
+An arc of initiatives launched 2026-04-17 that ports proven patterns from four OSS reference projects (letta-code, paperclip, t3code, craft-agents-oss) into Rowl. Always read `plans/STATE.md` for current phase.
+
+| # | Sub-project | Folder | Status |
+|---|---|---|---|
+| 1 | Memory-first agent (Letta pattern, ported) | [rowl-memory-first](./rowl-memory-first/) | spec-draft |
+| 2 | Organizing layer (Paperclip-style Goal/Issue/Document/Approval) | *(future — subsumes `rowl-project-knowledge` and interacts with `rowl-right-sidebar`)* | not-started |
+| 3 | t3code cherry-picks (git checkpoints, worktrees, stacked PRs, composer drafts, context meter, per-turn diff tree) | *(future)* | not-started |
+| 4 | Research/review UX (surfaces sub-project #2's data model as a real research workflow) | *(future)* | not-started |
 
 ---
 
@@ -36,7 +50,7 @@ See: `/Users/mauriello/.letta/plans/2026-04-17-rowl-external-tool-integration.md
 | process-isolation-recovery | medium | Tier 3 | Isolated subprocess per agent, auto-restart |
 | apply-review-system-complete | medium | Tier 3 | End-to-end approve/reject/rollback flow |
 | visual-dashboard-polish | low | Tier 3 | Dashboard polish, live agent status indicators |
-| rowl-project-knowledge | low | Tier 2 | WikiLLM patterns for structured project memory |
+| rowl-project-knowledge | *(subsumed)* | Tier 2 | WikiLLM patterns for structured project memory — folded into `rowl-memory-first` (sub-project #1) and `rowl-organizing-layer` (sub-project #2). |
 | agent-type-abstraction | low | Tier 4 | Agents declare capabilities (can_code, can_generate_images...) |
 | flora-image-agents | low | Tier 4 | First-class image generation agent type |
 | flashboards-video-canvas | low | Tier 4 | AI video generation and visual canvas |

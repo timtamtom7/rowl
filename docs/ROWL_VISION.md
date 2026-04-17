@@ -306,3 +306,57 @@ This is what Rowl is building toward.
 
 _Version 1.0 — Initial Vision Document_
 _Last updated: Based on Valo transcript analysis and Rowl codebase review_
+
+---
+
+## 2026-04-17 Update — Memory-First Evolution (V1.1)
+
+_This section extends the original vision. The orchestra metaphor, vibe coding principles, and control-room framing above still hold. What follows is a next-chapter addition._
+
+### The missing piece: memory
+
+The Rowl we built in V1.0 is a great **dashboard** for AI agents — many instruments, visible, controllable, reviewable. But each thread starts from zero. The agent does not know the project. It does not know the user. It does not accumulate understanding. Every session relearns what the last session figured out.
+
+This turns the control room into a newsroom: we keep broadcasting, but nothing is archived.
+
+**The missing piece is memory.** Not vector-DB semantic recall (that is a tool). **Memory as a first-class, inspectable, editable, human-readable substrate** — markdown blocks with frontmatter, versioned in git, injected into the prompt every turn, browsable in a "Memory Palace," and editable by both human and agent.
+
+### The four reference repos
+
+In April 2026 we evaluated four open-source projects for pattern-sourcing:
+
+- **[letta-code](https://github.com/letta-ai/letta-code)** (MIT) — memory-first agent architecture. Git-backed markdown memory blocks, reminder engine, self-editing memory tool, Palace viewer.
+- **[paperclip](https://github.com/paperclipai/paperclip)** (Apache-2.0) — organizing layer. Goal → Issue → Document/Feedback/Approval, with goal ancestry preventing scope drift.
+- **[t3code](https://github.com/pingdotgg/t3code)** (MIT) — the actual base of current Rowl. Provider abstraction, approval gates, checkpoints, plan mode, worktrees.
+- **[craft-agents-oss](https://github.com/lukilabs/craft-agents-oss)** (Apache-2.0) — UI and window-aesthetic inspiration. Sidebar + skills/MCP surface, Mac-native desktop feel, information architecture. Reference for visual polish across all sub-projects (especially #4).
+
+All four are license-compatible (MIT / Apache-2.0).
+
+### The decomposition
+
+Rather than try to merge four projects into one mega-build, the evolution is staged as four sub-projects, each shippable independently, each layering on the previous:
+
+1. **Memory-first agent** — port Letta's memory pattern into Rowl. Two-tier memory: global (cross-project) and project (per-codebase). Agent per project. This is **sub-project #1**. Live in `plans/rowl-memory-first/`.
+2. **Organizing layer** — port Paperclip's Goal/Issue/Document/Feedback/Approval pattern. Memory (long-term understanding) and Documents (specific research artifacts) become distinct but connected.
+3. **t3code cherry-picks** — git-native turn checkpoints, worktree automation, stacked PRs, composer-draft persistence, context-window meter, per-turn diff trees. Cherry-picked from t3code in a deliberate, staged way.
+4. **Research/review UX** — surface sub-project #2's data model as a real research workflow.
+
+### Architectural integrity with V1.0
+
+Nothing in this next chapter contradicts V1.0:
+
+- **Dashboard principle still holds** — memory and its edits are visible, auditable, diffable.
+- **Permission/control principles still hold** — agent memory writes flow through the existing approval system.
+- **Context-is-everything still holds** — memory is the mechanism that makes context survive across sessions.
+- **Vibe coding still holds** — the agent's understanding of "why" accumulates in memory; the human-as-notice-er directs, refines, and inspects it.
+
+### Where the plan lives
+
+Every session that touches Rowl code or Rowl direction starts by reading **`plans/STATE.md`** — the living front door. From there:
+
+- `plans/INDEX.md` — master index of all initiatives
+- `plans/rowl-memory-first/` — current focus (sub-project #1)
+- Future sub-project folders appear under `plans/` as each begins
+
+_V1.1 — Memory-First Evolution_
+_Next revision: when sub-project #1 phase 1a ships._
