@@ -30,6 +30,9 @@
 - **2026-04-17** — Project memory **gitignored by default**. Opt-in to commit via `commitMemory: true` in `.rowl/agent.json`.
 - **2026-04-17** — Docs convention: align with existing Rowl `plans/` system (SPEC/RESEARCH/STATUS/PLAN/NOTES per initiative), not a new `docs/rowl/` structure.
 - **2026-04-17** — Living front door = `plans/STATE.md` at the plans root. Every future session reads it first.
+- **2026-04-17** — State dir convention = `~/.t3/rowl/` (matches existing `ROWL_STATE_DIR` default per AGENTS.md), not `~/.rowl/`. Spec corrected.
+- **2026-04-17** — Existing `MemoryService` + `MemoryEntries` stub = future **archival memory** layer (SQLite/FTS5, type-categorized, query-searchable). Sub-project #1 does NOT implement it. Sub-project #1 adds a NEW, parallel `CoreMemoryService` for Letta-style named blocks injected every turn. Two-layer model (core + archival) matches Letta's architecture. See SPEC §12.
+- **2026-04-17** — `.rowl/project-brief.md` and `AGENTS.md` stay user-authored; they are NOT memory blocks. The reminder engine reads all three (project-brief, AGENTS.md, memory blocks) when assembling turn context.
 
 ---
 

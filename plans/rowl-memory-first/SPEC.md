@@ -34,7 +34,7 @@ To keep this shippable, the following are **out of scope** for sub-project #1:
 | Agent ↔ thread relationship | **One agent per project. Threads belong to the project's agent.** | Matches Rowl's project-centric model. A project's agent accumulates project understanding; all threads in that project share it. |
 | Self-editing memory | **Yes, from phase 1a, gated by Rowl's existing approval system** | Without self-editing the agent cannot actually *learn* the project. Approval gates make it safe; git makes it reversible. |
 | Storage format | **Markdown files with YAML frontmatter (`.md`), git-backed** | Same pattern as Letta. Human-readable, diffable, portable. |
-| Global memory location | **`~/.rowl/agents/{agentId}/memory/`** | User-home, per-agent, cross-project. |
+| Global memory location | **`~/.t3/rowl/agents/{agentId}/memory/`** | Matches existing `ROWL_STATE_DIR` default (`~/.t3/rowl`) per AGENTS.md. Per-agent, cross-project. |
 | Project memory location | **`{projectRoot}/.rowl/memory/`** (gitignored by default) | Lives with the project but is private to the user unless opted in (`commitMemory: true`). |
 | File extension | **`.md`, not `.mdx`** | Rowl does not use MDX elsewhere; plain markdown is simpler. Frontmatter stays YAML. |
 
@@ -78,8 +78,8 @@ An agent is a named, persisted entity with:
 - `tags` — optional, string array
 - `pinned` — boolean
 
-Agent metadata stored at `~/.rowl/agents/{agentId}/agent.json`.
-Agent's global memory blocks stored at `~/.rowl/agents/{agentId}/memory/*.md` (one git repo per agent).
+Agent metadata stored at `~/.t3/rowl/agents/{agentId}/agent.json`.
+Agent's global memory blocks stored at `~/.t3/rowl/agents/{agentId}/memory/*.md` (one git repo per agent).
 
 ### 4.3 Project-to-agent binding
 
@@ -155,7 +155,7 @@ Pre-commit hook (local git repo hook inside the memory repo):
 
 ## 7. Memory Palace (browser viewer)
 
-`/palace` slash command generates a self-contained HTML file at `~/.rowl/palaces/{agentId}-{timestamp}.html` and opens it in the default browser.
+`/palace` slash command generates a self-contained HTML file at `~/.t3/rowl/palaces/{agentId}-{timestamp}.html` and opens it in the default browser.
 
 Contents:
 - **Left pane:** file tree (global + project memory, grouped by scope)
@@ -259,9 +259,23 @@ Scope:
 - [ ] What is Rowl's existing approval system's extension API? (Checked in phase 1a plan — may need small refactor to add a new approval type.)
 - [ ] Should the memory preamble go in the system prompt, a system-reminder message, or both? (Depends on each provider adapter. Probably both patterns in different adapters.)
 - [ ] Where in the UI does the agent name/indicator go? (Product question — revisit at phase 1b.)
-- [ ] Should `~/.rowl/` conflict with anything on the user's system? (Verify: letta uses `~/.letta/`, t3code uses various. `~/.rowl/` should be clean.)
+- [ ] Should `~/.t3/rowl/` conflict with anything on the user's system? (Verify: letta uses `~/.letta/`, t3code uses various. `~/.t3/rowl/` should be clean.)
 
-## 12. Success criteria
+## 12. Relationship to existing Rowl subsystems
+
+Three existing Rowl surfaces sit near this work. Preserving their roles keeps the mental model clean:
+
+- **`.rowl/project-brief.md`** (existing) — user-authored project instructions. Read as context each turn. **We do NOT merge it with memory blocks.** Project-brief is stable, human-authored; memory is evolving, agent-co-authored. The reminder engine reads both sources and concatenates them.
+- **`AGENTS.md`** (existing, repo root) — global workspace instructions. Same as project-brief: read as context, never written to by the agent. Distinct from memory.
+- **`apps/server/src/orchestration/Services/MemoryService.ts`** (existing stub, unimplemented) — interface for SQLite/FTS5-backed, type-categorized, importance-scored, query-searchable memory entries. This is the natural home for **archival / semantic memory** in a later phase. We do NOT implement it in sub-project #1. Phase 1e may call into it for consolidation.
+
+Phase 1a introduces a NEW, parallel service:
+
+- **`CoreMemoryService`** — Letta-style named blocks, whole-memory injection each turn, file+git-based, inspectable. This is the core memory layer.
+
+The long-term model is Letta's two-layer memory: **core memory** (always in prompt, small, curated) + **archival memory** (searched on demand, large, compressed). Sub-project #1 builds core memory. Archival memory is future work that will implement the already-sketched `MemoryService` interface.
+
+## 13. Success criteria
 
 Sub-project #1 is "done" when:
 - An agent remembers the user's preferences across every project.

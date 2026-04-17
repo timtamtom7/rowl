@@ -34,16 +34,26 @@ All four are license-compatible (MIT / Apache-2.0). The cloned reference repos l
 
 ## Last session handoff
 
+**Session end: 2026-04-17 (spec revisions committed, ready for phase-1a planning)**
+
 Brainstormed the memory-first evolution of Rowl. Decided:
 - Base = current Rowl (a t3code fork, confirmed via git remotes + package.json)
 - Letta integration = **Option C** — port the memory pattern, no Letta dependency
-- Memory = two-tier: global (`~/.rowl/agents/{id}/`) + project (`{repo}/.rowl/memory/`, gitignored)
+- Memory = two-tier: global (`~/.t3/rowl/agents/{id}/memory/`) + project (`{repo}/.rowl/memory/`, gitignored)
 - Agent model: one agent per project; threads inherit project's agent
 - Self-editing memory: yes, from phase 1a, gated by existing approval system
 
-Wrote SPEC.md, RESEARCH.md, STATUS.md for sub-project #1.
+Wrote SPEC.md, RESEARCH.md, STATUS.md for sub-project #1, then revised:
+- State dir path corrected `~/.rowl/` → `~/.t3/rowl/` throughout (matches `ROWL_STATE_DIR` default per AGENTS.md).
+- Added SPEC §12 "Relationship to existing Rowl subsystems" — documents that existing `MemoryService`/`MemoryEntries` stub is reserved for future archival memory (SQLite/FTS5), and phase 1a introduces a NEW parallel `CoreMemoryService` for Letta-style named blocks. Two-layer model (core + archival) matches Letta's actual architecture.
+- `.rowl/project-brief.md` and `AGENTS.md` stay user-authored (NOT memory blocks). Reminder engine reads all three sources when assembling turn context.
 
-Next session resumes by: user approves spec → invoke `superpowers:writing-plans` to produce `PHASE-1A-PLAN.md` → hand plan to a fresh executing session via `superpowers:executing-plans`.
+Architecture findings confirmed in-tree (for phase-1a plan author):
+- Tool system dispatches via `ProviderAdapterRegistry`; approval types enumerated at `apps/server/src/orchestration/providerRuntime.ts:127-138`; approval rules at `apps/server/src/orchestration/approvalRules.ts:5-11`.
+- Frontmatter parser helpers already exist at `apps/server/src/projectWorkspaceMetadata.ts:185+` (`parseFrontmatterSection`, `parseFlatFrontmatter`, `parseFrontmatterValue`) — no external YAML lib needed.
+- Test framework: Vitest via `bun run test`. Pre-commit gates: `bun run fmt && bun run lint && bun run typecheck`.
+
+**Next session resumes by:** invoke `superpowers:writing-plans` skill to produce `plans/rowl-memory-first/PHASE-1A-PLAN.md`. All inputs (SPEC/RESEARCH/STATUS) are in `plans/rowl-memory-first/`. After plan is written, hand off to a fresh execution session via `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans`.
 
 ## The multi-initiative map
 
@@ -87,6 +97,8 @@ Reference repos cloned to `/Users/mauriello/Dev/_reference/`:
 - **2026-04-17** — Agent ↔ thread: one agent per project.
 - **2026-04-17** — Plans convention: use existing `plans/{initiative}/SPEC|RESEARCH|STATUS|PLAN|NOTES.md` pattern.
 - **2026-04-17** — This STATE.md is the living front door. It is updated at every session end, every phase transition, every significant decision.
+- **2026-04-17** — State dir = `~/.t3/rowl/` (not `~/.rowl/`). Matches existing `ROWL_STATE_DIR` default.
+- **2026-04-17** — Two-layer memory model: new `CoreMemoryService` (phase 1a, Letta-style blocks) + existing `MemoryService` stub reserved for future archival/semantic layer. Not competing; complementary.
 
 ## Update discipline (non-negotiable)
 
