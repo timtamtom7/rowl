@@ -2,7 +2,40 @@ import {
   ORCHESTRATION_WS_CHANNELS,
   ORCHESTRATION_WS_METHODS,
   type ContextMenuItem,
+  CompressContextNodeResult,
+  CreateContextNodeResult,
+  CreateFeatureResult,
+  CreateGoalResult,
+  DeleteContextNodeResult,
+  GetContextBudgetResult,
+  GetContextNodeResult,
+  CreateMemoryResult,
+  SearchMemoryResult,
+  ListMemoryByProjectResult,
+  DeleteMemoryResult,
+  ProjectListSourceFilesResult,
+  GetCodebaseHealthResult,
+  UpdateCodebaseHealthResult,
+  GetAgentOverviewResult,
+  SpawnAgentForFeatureResult,
+  DetectConflictsResult,
+  ListPromptsResult,
+  CreatePromptResult,
+  UpdatePromptResult,
+  DeletePromptResult,
+  ListHarnessPresetsResult,
+  ActivateHarnessResult,
+  DeactivateHarnessResult,
+  DeleteFeatureResult,
+  DeleteGoalResult,
   DispatchResult,
+  GetFeatureResult,
+  GetGoalResult,
+  ListContextNodesByProjectResult,
+  ListContextNodesByThreadResult,
+  ListFeaturesByProjectResult,
+  LinkThreadToGoalResult,
+  ListGoalsByProjectResult,
   GitCreateWorktreeResult,
   GitListBranchesResult,
   GitPreparePullRequestThreadResult,
@@ -19,6 +52,7 @@ import {
   ProjectDraftAgentsFileResult,
   ProjectListCommandTemplatesResult,
   ProjectListSkillsResult,
+  ProjectReadFileResult,
   ProjectSearchEntriesResult,
   ProjectWriteFileResult,
   ProjectDeleteFileResult,
@@ -27,6 +61,10 @@ import {
   ServerCopilotReasoningProbe,
   ServerCopilotUsage,
   ServerOpenCodeCredentialResult,
+  RestoreContextNodeResult,
+  SetMainGoalResult,
+  UpdateFeatureResult,
+  UpdateFeatureStageResult,
   ServerOpenCodeState,
   ServerUpsertKeybindingResult,
   TerminalSessionSnapshot,
@@ -39,6 +77,8 @@ import {
   ThreadShareStatusResult,
   ThreadUndoResult,
   ThreadImportShareResult,
+  UnlinkThreadFromGoalResult,
+  UpdateGoalTextResult,
   WS_CHANNELS,
   WS_METHODS,
   type WsWelcomePayload,
@@ -196,6 +236,10 @@ export function createWsNativeApi(): NativeApi {
         ),
       listSkills: (input) =>
         requestWithSchema(WS_METHODS.projectsListSkills, ProjectListSkillsResult, input),
+      listSourceFiles: (input) =>
+        requestWithSchema(WS_METHODS.projectsListSourceFiles, ProjectListSourceFilesResult, input),
+      readFile: (input) =>
+        requestWithSchema(WS_METHODS.projectsReadFile, ProjectReadFileResult, input),
       writeFile: (input) =>
         requestWithSchema(WS_METHODS.projectsWriteFile, ProjectWriteFileResult, input),
       deleteFile: (input) =>
@@ -217,6 +261,114 @@ export function createWsNativeApi(): NativeApi {
       redo: (input) => requestWithSchema(WS_METHODS.threadsRedo, ThreadRedoResult, input),
       getRedoStatus: (input) =>
         requestWithSchema(WS_METHODS.threadsGetRedoStatus, ThreadRedoStatusResult, input),
+    },
+    review: {
+      approve: (input) =>
+        requestWithSchema(
+          WS_METHODS.reviewApprove,
+          Schema.Struct({ success: Schema.Boolean }),
+          input,
+        ),
+      reject: (input) =>
+        requestWithSchema(
+          WS_METHODS.reviewReject,
+          Schema.Struct({ success: Schema.Boolean }),
+          input,
+        ),
+    },
+    context: {
+      createNode: (input) =>
+        requestWithSchema(WS_METHODS.contextCreateNode, CreateContextNodeResult, input),
+      getNode: (input) => requestWithSchema(WS_METHODS.contextGetNode, GetContextNodeResult, input),
+      listByProject: (input) =>
+        requestWithSchema(WS_METHODS.contextListByProject, ListContextNodesByProjectResult, input),
+      listByThread: (input) =>
+        requestWithSchema(WS_METHODS.contextListByThread, ListContextNodesByThreadResult, input),
+      compressNode: (input) =>
+        requestWithSchema(WS_METHODS.contextCompressNode, CompressContextNodeResult, input),
+      restoreNode: (input) =>
+        requestWithSchema(WS_METHODS.contextRestoreNode, RestoreContextNodeResult, input),
+      deleteNode: (input) =>
+        requestWithSchema(WS_METHODS.contextDeleteNode, DeleteContextNodeResult, input),
+      getBudget: (input) =>
+        requestWithSchema(WS_METHODS.contextGetBudget, GetContextBudgetResult, input),
+    },
+    memory: {
+      create: (input) => requestWithSchema(WS_METHODS.memoryCreate, CreateMemoryResult, input),
+      search: (input) => requestWithSchema(WS_METHODS.memorySearch, SearchMemoryResult, input),
+      listByProject: (input) =>
+        requestWithSchema(WS_METHODS.memoryListByProject, ListMemoryByProjectResult, input),
+      delete: (input) => requestWithSchema(WS_METHODS.memoryDelete, DeleteMemoryResult, input),
+    },
+    codebaseHealth: {
+      getSummary: (input) =>
+        requestWithSchema(WS_METHODS.codebaseHealthSummary, GetCodebaseHealthResult, input),
+      updateHealth: (input) =>
+        requestWithSchema(WS_METHODS.codebaseUpdateHealth, UpdateCodebaseHealthResult, input),
+    },
+    prompts: {
+      list: (input) => requestWithSchema(WS_METHODS.promptsList, ListPromptsResult, input),
+      create: (input) => requestWithSchema(WS_METHODS.promptsCreate, CreatePromptResult, input),
+      update: (input) => requestWithSchema(WS_METHODS.promptsUpdate, UpdatePromptResult, input),
+      delete: (input) => requestWithSchema(WS_METHODS.promptsDelete, DeletePromptResult, input),
+    },
+    harness: {
+      listPresets: () =>
+        requestWithSchema(WS_METHODS.harnessPresetsList, ListHarnessPresetsResult, {}),
+      activate: (input) =>
+        requestWithSchema(WS_METHODS.harnessActivate, ActivateHarnessResult, input),
+      deactivate: (input) =>
+        requestWithSchema(WS_METHODS.harnessDeactivate, DeactivateHarnessResult, input),
+      getActive: (input: { threadId: string }) =>
+        requestWithSchema(
+          WS_METHODS.harnessGetActive,
+          Schema.Struct({ preset: Schema.NullOr(Schema.Struct({ id: Schema.String, name: Schema.String })) }),
+          input,
+        ),
+    },
+    featureThreadLinks: {
+      link: (input: { featureId: string; threadId: string }) =>
+        requestWithSchema(WS_METHODS.featureThreadLink, Schema.Struct({}), input),
+      unlink: (input: { featureId: string; threadId: string }) =>
+        requestWithSchema(WS_METHODS.featureThreadUnlink, Schema.Struct({}), input),
+      getLinks: (input: { projectId: string }) =>
+        requestWithSchema(
+          WS_METHODS.featureThreadGetLinks,
+          Schema.Struct({ links: Schema.Array(Schema.Struct({ featureId: Schema.String, threadId: Schema.String, createdAt: Schema.String })) }),
+          input,
+        ),
+    },
+    agents: {
+      getOverview: (input) =>
+        requestWithSchema(WS_METHODS.agentOverview, GetAgentOverviewResult, input),
+      spawnForFeature: (input) =>
+        requestWithSchema(WS_METHODS.agentSpawnForFeature, SpawnAgentForFeatureResult, input),
+      detectConflicts: (input) =>
+        requestWithSchema(WS_METHODS.agentDetectConflicts, DetectConflictsResult, input),
+    },
+    features: {
+      create: (input) => requestWithSchema(WS_METHODS.featuresCreate, CreateFeatureResult, input),
+      get: (input) => requestWithSchema(WS_METHODS.featuresGet, GetFeatureResult, input),
+      listByProject: (input) =>
+        requestWithSchema(WS_METHODS.featuresListByProject, ListFeaturesByProjectResult, input),
+      update: (input) => requestWithSchema(WS_METHODS.featuresUpdate, UpdateFeatureResult, input),
+      updateStage: (input) =>
+        requestWithSchema(WS_METHODS.featuresUpdateStage, UpdateFeatureStageResult, input),
+      delete: (input) => requestWithSchema(WS_METHODS.featuresDelete, DeleteFeatureResult, input),
+    },
+    goals: {
+      create: (input) => requestWithSchema(WS_METHODS.goalsCreate, CreateGoalResult, input),
+      get: (input) => requestWithSchema(WS_METHODS.goalsGet, GetGoalResult, input),
+      listByProject: (input) =>
+        requestWithSchema(WS_METHODS.goalsListByProject, ListGoalsByProjectResult, input),
+      setMain: (input) => requestWithSchema(WS_METHODS.goalsSetMain, SetMainGoalResult, input),
+      linkThread: (input) =>
+        requestWithSchema(WS_METHODS.goalsLinkThread, LinkThreadToGoalResult, input),
+      unlinkThread: (input) =>
+        requestWithSchema(WS_METHODS.goalsUnlinkThread, UnlinkThreadFromGoalResult, input),
+      updateText: (input) =>
+        requestWithSchema(WS_METHODS.goalsUpdateText, UpdateGoalTextResult, input),
+      delete: (input) => requestWithSchema(WS_METHODS.goalsDelete, DeleteGoalResult, input),
     },
     shell: {
       openInEditor: (cwd, editor) =>

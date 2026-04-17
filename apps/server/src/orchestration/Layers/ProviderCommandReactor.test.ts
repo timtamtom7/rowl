@@ -32,6 +32,11 @@ import { TextGeneration, type TextGenerationShape } from "../../git/Services/Tex
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./ProjectionPipeline.ts";
 import { ProviderCommandReactorLive } from "./ProviderCommandReactor.ts";
+import { ContextTrimmerLive } from "./ContextTrimmerLive.ts";
+import { FeatureService } from "../Services/FeatureService.ts";
+import { MemoryService } from "../Services/MemoryService.ts";
+import { ProjectPromptsService } from "../Services/ProjectPromptsService.ts";
+import { GoalsService } from "../Services/GoalsService.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import { ProviderCommandReactor } from "../Services/ProviderCommandReactor.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -108,7 +113,9 @@ describe("ProviderCommandReactor", () => {
         "provider" in input &&
         (input.provider === "codex" ||
           input.provider === "copilot" ||
+          input.provider === "kilocode" ||
           input.provider === "kimi" ||
+          input.provider === "minimax" ||
           input.provider === "opencode" ||
           input.provider === "pi")
           ? input.provider
@@ -226,6 +233,27 @@ describe("ProviderCommandReactor", () => {
       ),
       Layer.provideMerge(ServerConfig.layerTest(process.cwd(), stateDir)),
       Layer.provideMerge(NodeServices.layer),
+      Layer.provideMerge(
+        Layer.succeed(GoalsService, {
+          listGoalsByProject: () => Effect.succeed({ goals: [] }),
+        } as any),
+      ),
+      Layer.provideMerge(
+        Layer.succeed(FeatureService, {
+          listFeaturesByProject: () => Effect.succeed({ features: [] }),
+        } as any),
+      ),
+      Layer.provideMerge(ContextTrimmerLive),
+      Layer.provideMerge(
+        Layer.succeed(MemoryService, {
+          buildRelevantMemoriesBlock: () => Effect.succeed(null),
+        } as any),
+      ),
+      Layer.provideMerge(
+        Layer.succeed(ProjectPromptsService, {
+          getContextForThread: () => Effect.succeed({ prompts: [], harnessContent: null }),
+        } as any),
+      ),
     );
     const runtime = ManagedRuntime.make(layer);
 

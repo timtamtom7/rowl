@@ -319,6 +319,9 @@ function EventRouter() {
           // reflects files created, deleted, or restored during this turn.
           void queryClient.invalidateQueries({ queryKey: projectQueryKeys.all });
         }
+        // Invalidate sidebar data (goals, features, context, memories, agents)
+        // so cross-tab data stays fresh when domain events arrive.
+        void queryClient.invalidateQueries({ queryKey: ["sidebar"] });
         void syncSnapshot();
       },
       {

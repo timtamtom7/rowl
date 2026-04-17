@@ -6,7 +6,9 @@ import { Effect, Layer, Stream } from "effect";
 
 import { CopilotAdapter, type CopilotAdapterShape } from "../Services/CopilotAdapter.ts";
 import { CodexAdapter, CodexAdapterShape } from "../Services/CodexAdapter.ts";
+import { KiloCodeAdapter, type KiloCodeAdapterShape } from "../Services/KiloCodeAdapter.ts";
 import { KimiAdapter, type KimiAdapterShape } from "../Services/KimiAdapter.ts";
+import { MiniMaxAdapter, type MiniMaxAdapterShape } from "../Services/MiniMaxAdapter.ts";
 import { OpenCodeAdapter, type OpenCodeAdapterShape } from "../Services/OpenCodeAdapter.ts";
 import { PiAdapter, type PiAdapterShape } from "../Services/PiAdapter.ts";
 import { ProviderAdapterRegistry } from "../Services/ProviderAdapterRegistry.ts";
@@ -82,6 +84,40 @@ const fakeOpenCodeAdapter: OpenCodeAdapterShape = {
   streamEvents: Stream.empty,
 };
 
+const fakeKiloCodeAdapter: KiloCodeAdapterShape = {
+  provider: "kilocode",
+  capabilities: { sessionModelSwitch: "in-session" },
+  startSession: vi.fn(),
+  sendTurn: vi.fn(),
+  interruptTurn: vi.fn(),
+  respondToRequest: vi.fn(),
+  respondToUserInput: vi.fn(),
+  stopSession: vi.fn(),
+  listSessions: vi.fn(),
+  hasSession: vi.fn(),
+  readThread: vi.fn(),
+  rollbackThread: vi.fn(),
+  stopAll: vi.fn(),
+  streamEvents: Stream.empty,
+};
+
+const fakeMiniMaxAdapter: MiniMaxAdapterShape = {
+  provider: "minimax",
+  capabilities: { sessionModelSwitch: "restart-session" },
+  startSession: vi.fn(),
+  sendTurn: vi.fn(),
+  interruptTurn: vi.fn(),
+  respondToRequest: vi.fn(),
+  respondToUserInput: vi.fn(),
+  stopSession: vi.fn(),
+  listSessions: vi.fn(),
+  hasSession: vi.fn(),
+  readThread: vi.fn(),
+  rollbackThread: vi.fn(),
+  stopAll: vi.fn(),
+  streamEvents: Stream.empty,
+};
+
 const fakePiAdapter: PiAdapterShape = {
   provider: "pi",
   capabilities: { sessionModelSwitch: "restart-session" },
@@ -106,7 +142,9 @@ const layer = it.layer(
       Layer.mergeAll(
         Layer.succeed(CodexAdapter, fakeCodexAdapter),
         Layer.succeed(CopilotAdapter, fakeCopilotAdapter),
+        Layer.succeed(KiloCodeAdapter, fakeKiloCodeAdapter),
         Layer.succeed(KimiAdapter, fakeKimiAdapter),
+        Layer.succeed(MiniMaxAdapter, fakeMiniMaxAdapter),
         Layer.succeed(OpenCodeAdapter, fakeOpenCodeAdapter),
         Layer.succeed(PiAdapter, fakePiAdapter),
       ),
@@ -131,7 +169,15 @@ layer("ProviderAdapterRegistryLive", (it) => {
       assert.equal(pi, fakePiAdapter);
 
       const providers = yield* registry.listProviders();
-      assert.deepEqual(providers, ["codex", "copilot", "kimi", "opencode", "pi"]);
+      assert.deepEqual(providers, [
+        "codex",
+        "copilot",
+        "kilocode",
+        "kimi",
+        "minimax",
+        "opencode",
+        "pi",
+      ]);
     }),
   );
 

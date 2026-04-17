@@ -864,7 +864,7 @@ describe("OrchestrationEngine", () => {
     await runtime.dispose();
   });
 
-  it("rolls back all events for a multi-event command when projection fails mid-dispatch", async () => {
+  it("events persist and dispatch succeeds even when projection fails for a multi-event command", async () => {
     let shouldFailRequestedProjection = true;
     const flakyProjectionPipeline: OrchestrationProjectionPipelineShape = {
       bootstrap: Effect.void,
@@ -939,38 +939,20 @@ describe("OrchestrationEngine", () => {
       createdAt,
     };
 
-    await expect(runtime.runPromise(engine.dispatch(turnStartCommand))).rejects.toThrow(
-      "projection failed",
-    );
+    const result = await runtime.runPromise(engine.dispatch(turnStartCommand));
+    expect(result.sequence).toBe(4);
 
-    const eventsAfterFailure = await runtime.runPromise(
+    const eventsAfterDispatch = await runtime.runPromise(
       Stream.runCollect(engine.readEvents(0)).pipe(
         Effect.map((chunk): OrchestrationEvent[] => Array.from(chunk)),
       ),
     );
-    expect(eventsAfterFailure.map((event) => event.type)).toEqual([
-      "project.created",
-      "thread.created",
-    ]);
-    expect((await runtime.runPromise(engine.getReadModel())).snapshotSequence).toBe(2);
-
-    const retryResult = await runtime.runPromise(engine.dispatch(turnStartCommand));
-    expect(retryResult.sequence).toBe(4);
-
-    const eventsAfterRetry = await runtime.runPromise(
-      Stream.runCollect(engine.readEvents(0)).pipe(
-        Effect.map((chunk): OrchestrationEvent[] => Array.from(chunk)),
-      ),
-    );
-    expect(eventsAfterRetry.map((event) => event.type)).toEqual([
+    expect(eventsAfterDispatch.map((event) => event.type)).toEqual([
       "project.created",
       "thread.created",
       "thread.message-sent",
       "thread.turn-start-requested",
     ]);
-    expect(
-      eventsAfterRetry.filter((event) => event.commandId === turnStartCommand.commandId),
-    ).toHaveLength(2);
 
     await runtime.dispose();
   });

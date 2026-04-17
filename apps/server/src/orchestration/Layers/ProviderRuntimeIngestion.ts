@@ -1246,6 +1246,24 @@ const make = Effect.gen(function* () {
         }
       }
 
+      // Auto-accept approval requests in full-access mode
+      if (
+        event.type === "request.opened" &&
+        event.requestId &&
+        thread.runtimeMode === "full-access" &&
+        event.payload.requestType !== "tool_user_input"
+      ) {
+        yield* providerService
+          .respondToRequest({
+            threadId: thread.id,
+            requestId: event.requestId as any,
+            decision: "acceptForSession",
+          })
+          .pipe(Effect.catch(() => Effect.void));
+        // Skip creating the approval activity — user doesn't need to see it
+        return;
+      }
+
       const activities = runtimeEventToActivities(event);
       yield* Effect.forEach(activities, (activity) =>
         orchestrationEngine.dispatch({

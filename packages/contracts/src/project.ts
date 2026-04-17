@@ -41,6 +41,19 @@ export const ProjectWriteFileResult = Schema.Struct({
 });
 export type ProjectWriteFileResult = typeof ProjectWriteFileResult.Type;
 
+export const ProjectReadFileInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  relativePath: TrimmedNonEmptyString.check(Schema.isMaxLength(PROJECT_WRITE_FILE_PATH_MAX_LENGTH)),
+});
+export type ProjectReadFileInput = typeof ProjectReadFileInput.Type;
+
+export const ProjectReadFileResult = Schema.Struct({
+  exists: Schema.Boolean,
+  contents: Schema.NullOr(Schema.String),
+  relativePath: TrimmedNonEmptyString,
+});
+export type ProjectReadFileResult = typeof ProjectReadFileResult.Type;
+
 export const ProjectDeleteFileInput = Schema.Struct({
   cwd: TrimmedNonEmptyString,
   relativePath: TrimmedNonEmptyString.check(Schema.isMaxLength(PROJECT_WRITE_FILE_PATH_MAX_LENGTH)),
@@ -123,6 +136,25 @@ export const ProjectSkillIssue = Schema.Struct({
   message: TrimmedNonEmptyString,
 });
 export type ProjectSkillIssue = typeof ProjectSkillIssue.Type;
+
+export const ProjectListSourceFilesInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  maxFiles: Schema.optional(PositiveInt),
+});
+export type ProjectListSourceFilesInput = typeof ProjectListSourceFilesInput.Type;
+
+export const SourceFileEntry = Schema.Struct({
+  relativePath: TrimmedNonEmptyString,
+  content: Schema.String,
+  sizeBytes: Schema.Number,
+});
+export type SourceFileEntry = typeof SourceFileEntry.Type;
+
+export const ProjectListSourceFilesResult = Schema.Struct({
+  files: Schema.Array(SourceFileEntry),
+  truncated: Schema.Boolean,
+});
+export type ProjectListSourceFilesResult = typeof ProjectListSourceFilesResult.Type;
 
 export const ProjectListSkillsInput = ProjectWorkspaceInput;
 export type ProjectListSkillsInput = typeof ProjectListSkillsInput.Type;

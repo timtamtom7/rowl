@@ -1,5 +1,6 @@
 import { FolderIcon, MessageSquarePlusIcon } from "lucide-react";
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import type { ProjectId } from "@t3tools/contracts";
 
 import { useAppSettings } from "../../appSettings";
 import { isElectron } from "../../env";
@@ -8,6 +9,7 @@ import { useNewThreadActions } from "../../hooks/useNewThread";
 import { useStore } from "../../store";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { ProjectSetupWizard } from "./ProjectSetupWizard";
 
 function getEmptyChatOnboardingCopy(language: "en" | "fa") {
   if (language === "fa") {
@@ -72,18 +74,47 @@ export function EmptyChatOnboarding() {
   } = useProjectCreationActions();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // Wizard state — shown after a new project is created
+  const [wizardTarget, setWizardTarget] = useState<{
+    projectId: ProjectId;
+    cwd: string;
+  } | null>(null);
+
   const handleAddProject = () => {
-    void addProjectFromPath(newCwd);
+    void addProjectFromPath(newCwd).then((result) => {
+      if (result.ok && result.isNew && result.projectId && result.cwd) {
+        setWizardTarget({ projectId: result.projectId, cwd: result.cwd });
+      }
+    });
   };
 
   const handlePickFolder = async () => {
     const pickedPath = await pickProjectFolder();
     if (pickedPath) {
-      await addProjectFromPath(pickedPath);
+      const result = await addProjectFromPath(pickedPath);
+      if (result.ok && result.isNew && result.projectId && result.cwd) {
+        setWizardTarget({ projectId: result.projectId, cwd: result.cwd });
+      }
       return;
     }
     inputRef.current?.focus();
   };
+
+  const handleWizardComplete = useCallback(() => {
+    setWizardTarget(null);
+    void openDefaultNewThread();
+  }, [openDefaultNewThread]);
+
+  // Show setup wizard after creating a new project
+  if (wizardTarget) {
+    return (
+      <ProjectSetupWizard
+        projectId={wizardTarget.projectId}
+        projectCwd={wizardTarget.cwd}
+        onComplete={handleWizardComplete}
+      />
+    );
+  }
 
   if (!threadsHydrated) {
     return (

@@ -110,6 +110,86 @@ export function summarizeTurnDiffStats(files: ReadonlyArray<TurnDiffFileChange>)
   );
 }
 
+function fileBaseName(path: string): string {
+  return path.split("/").pop() ?? path;
+}
+
+function formatFileList(names: string[], limit = 3): string {
+  if (names.length <= limit) {
+    return names.join(", ");
+  }
+  return `${names.slice(0, limit).join(", ")} and ${names.length - limit} more`;
+}
+
+/**
+ * Generate a plain-language summary of what changed in a turn.
+ * E.g. "Added 2 files: Login.tsx, AuthService.ts. Modified 3 files."
+ */
+export function summarizeTurnDiffInPlainLanguage(files: ReadonlyArray<TurnDiffFileChange>): string {
+  if (files.length === 0) {
+    return "No files changed.";
+  }
+
+  const added: string[] = [];
+  const modified: string[] = [];
+  const deleted: string[] = [];
+  const other: string[] = [];
+
+  for (const file of files) {
+    const name = fileBaseName(file.path);
+    switch (file.kind) {
+      case "added":
+        added.push(name);
+        break;
+      case "deleted":
+        deleted.push(name);
+        break;
+      case "modified":
+        modified.push(name);
+        break;
+      default:
+        other.push(name);
+        break;
+    }
+  }
+
+  // If no kind info, treat all as "changed"
+  if (added.length === 0 && modified.length === 0 && deleted.length === 0) {
+    if (files.length === 1) {
+      return `Changed ${fileBaseName(files[0]!.path)}`;
+    }
+    return `Changed ${files.length} files: ${formatFileList(other)}`;
+  }
+
+  const parts: string[] = [];
+
+  if (added.length > 0) {
+    parts.push(
+      added.length === 1
+        ? `Added ${added[0]}`
+        : `Added ${added.length} files: ${formatFileList(added)}`,
+    );
+  }
+
+  if (modified.length > 0) {
+    parts.push(
+      modified.length === 1
+        ? `Modified ${modified[0]}`
+        : `Modified ${modified.length} files: ${formatFileList(modified)}`,
+    );
+  }
+
+  if (deleted.length > 0) {
+    parts.push(
+      deleted.length === 1
+        ? `Deleted ${deleted[0]}`
+        : `Deleted ${deleted.length} files: ${formatFileList(deleted)}`,
+    );
+  }
+
+  return parts.join(". ");
+}
+
 export function buildTurnDiffTree(files: ReadonlyArray<TurnDiffFileChange>): TurnDiffTreeNode[] {
   const root: MutableDirectoryNode = {
     name: "",

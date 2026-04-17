@@ -9,6 +9,7 @@
 import http from "node:http";
 import * as NodeFs from "node:fs";
 import OS from "node:os";
+import nodePath from "node:path";
 import type { Duplex } from "node:stream";
 
 import type * as acp from "@agentclientprotocol/sdk";
@@ -74,11 +75,21 @@ import {
   listProjectCommandTemplates,
   listProjectSkills,
   readProjectAgentsFile,
+  scanSourceFiles,
 } from "./projectWorkspaceMetadata";
 import { OrchestrationEngineService } from "./orchestration/Services/OrchestrationEngine";
 import { ProjectionSnapshotQuery } from "./orchestration/Services/ProjectionSnapshotQuery";
 import { OrchestrationReactor } from "./orchestration/Services/OrchestrationReactor";
 import { ProviderService } from "./provider/Services/ProviderService";
+import { ContextService } from "./orchestration/Services/ContextService";
+import { CodebaseIntelligence } from "./orchestration/Services/CodebaseIntelligence";
+import { MultiAgentCoordinator } from "./orchestration/Services/MultiAgentCoordinator";
+import { FeatureThreadLinkService } from "./orchestration/Services/FeatureThreadLinkService";
+import { ProjectPromptsService } from "./orchestration/Services/ProjectPromptsService";
+import { ContextBudgetCalculator } from "./orchestration/Services/ContextBudgetCalculator";
+import { MemoryService } from "./orchestration/Services/MemoryService";
+import { FeatureService } from "./orchestration/Services/FeatureService";
+import { GoalsService } from "./orchestration/Services/GoalsService";
 import { ProviderHealth } from "./provider/Services/ProviderHealth";
 import { OpenCodeState } from "./provider/Services/OpenCodeState";
 import { CheckpointDiffQuery } from "./checkpointing/Services/CheckpointDiffQuery";
@@ -371,7 +382,16 @@ export type ServerRuntimeServices =
   | TerminalManager
   | Keybindings
   | Open
-  | AnalyticsService;
+  | AnalyticsService
+  | ContextService
+  | CodebaseIntelligence
+  | ContextBudgetCalculator
+  | FeatureService
+  | GoalsService
+  | MemoryService
+  | MultiAgentCoordinator
+  | FeatureThreadLinkService
+  | ProjectPromptsService;
 
 export class ServerLifecycleError extends Schema.TaggedErrorClass<ServerLifecycleError>()(
   "ServerLifecycleError",
@@ -408,6 +428,15 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const keybindingsManager = yield* Keybindings;
   const providerService = yield* ProviderService;
   const providerHealth = yield* ProviderHealth;
+  const contextService = yield* ContextService;
+  const codebaseIntelligence = yield* CodebaseIntelligence;
+  const multiAgentCoordinator = yield* MultiAgentCoordinator;
+  const contextBudgetCalculator = yield* ContextBudgetCalculator;
+  const memoryService = yield* MemoryService;
+  const featureThreadLinkService = yield* FeatureThreadLinkService;
+  const projectPromptsService = yield* ProjectPromptsService;
+  const featureService = yield* FeatureService;
+  const goalsService = yield* GoalsService;
   const git = yield* GitCore;
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -1117,8 +1146,11 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   if (autoBootstrapProjectFromCwd) {
     yield* Effect.gen(function* () {
       const snapshot = yield* projectionReadModelQuery.getSnapshot();
+      const resolvedCwd = nodePath.resolve(cwd);
       const existingProject = snapshot.projects.find(
-        (project) => project.workspaceRoot === cwd && project.deletedAt === null,
+        (project) =>
+          project.deletedAt === null &&
+          nodePath.resolve(project.workspaceRoot) === resolvedCwd,
       );
       let bootstrapProjectId: ProjectId;
       let bootstrapProjectDefaultModel: string;
@@ -1127,7 +1159,12 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         const createdAt = new Date().toISOString();
         bootstrapProjectId = ProjectId.makeUnsafe(crypto.randomUUID());
         const bootstrapProjectTitle = path.basename(cwd) || "project";
-        bootstrapProjectDefaultModel = DEFAULT_MODEL_BY_PROVIDER.codex;
+        // Use the most recent thread's model if available, otherwise default to Codex
+        const recentThread = snapshot.threads
+          .filter((t) => t.deletedAt === null)
+          .toSorted((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))[0];
+        bootstrapProjectDefaultModel =
+          recentThread?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex;
         yield* orchestrationEngine.dispatch({
           type: "project.create",
           commandId: CommandId.makeUnsafe(crypto.randomUUID()),
@@ -1303,6 +1340,25 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         });
       }
 
+      case WS_METHODS.projectsListSourceFiles: {
+        const body = stripRequestTag(request.body);
+        const authorizedWorkspaceRoot = yield* authorizePath({
+          requestedPath: body.cwd,
+          operation: "Project source file listing",
+        });
+        return yield* Effect.try({
+          try: () => {
+            const maxFiles = (body as any).maxFiles ?? 500;
+            const result = scanSourceFiles(authorizedWorkspaceRoot, maxFiles);
+            return result;
+          },
+          catch: (cause) =>
+            new RouteRequestError({
+              message: `Failed to scan source files: ${String(cause)}`,
+            }),
+        });
+      }
+
       case WS_METHODS.projectsListSkills: {
         const body = stripRequestTag(request.body);
         const authorizedWorkspaceRoot = yield* authorizePath({
@@ -1316,6 +1372,34 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
               message: `Failed to discover workspace skills: ${String(cause)}`,
             }),
         });
+      }
+
+      case WS_METHODS.projectsReadFile: {
+        const body = stripRequestTag(request.body);
+        const authorizedWorkspaceRoot = yield* authorizePath({
+          requestedPath: body.cwd,
+          operation: "Project file read",
+        });
+        const resolvedPath = path.resolve(authorizedWorkspaceRoot, body.relativePath);
+        const exists = yield* fileSystem
+          .exists(resolvedPath)
+          .pipe(
+            Effect.mapError(
+              () => new RouteRequestError({ message: "Failed to check file existence." }),
+            ),
+          );
+        if (!exists) {
+          return { exists: false, contents: null, relativePath: body.relativePath };
+        }
+        const contents = yield* fileSystem
+          .readFileString(resolvedPath)
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new RouteRequestError({ message: `Failed to read file: ${String(cause)}` }),
+            ),
+          );
+        return { exists: true, contents, relativePath: body.relativePath };
       }
 
       case WS_METHODS.projectsWriteFile: {
@@ -1872,29 +1956,225 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
       }
 
       case WS_METHODS.featuresCreate:
+        return yield* featureService.createFeature(stripRequestTag(request.body) as any);
       case WS_METHODS.featuresGet:
+        return yield* featureService.getFeature(stripRequestTag(request.body) as any);
       case WS_METHODS.featuresListByProject:
+        return yield* featureService.listFeaturesByProject(stripRequestTag(request.body) as any);
       case WS_METHODS.featuresUpdate:
+        return yield* featureService.updateFeature(stripRequestTag(request.body) as any);
       case WS_METHODS.featuresUpdateStage:
+        return yield* featureService.updateFeatureStage(stripRequestTag(request.body) as any);
       case WS_METHODS.featuresDelete:
+        return yield* featureService.deleteFeature(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsCreate:
+        return yield* goalsService.createGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsGet:
+        return yield* goalsService.getGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsListByProject:
+        return yield* goalsService.listGoalsByProject(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsSetMain:
+        return yield* goalsService.setMainGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsLinkThread:
+        return yield* goalsService.linkThreadToGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsUnlinkThread:
+        return yield* goalsService.unlinkThreadFromGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsUpdateText:
+        return yield* goalsService.updateGoalText(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsDelete:
-      case WS_METHODS.contextCreateNode:
-      case WS_METHODS.contextGetNode:
-      case WS_METHODS.contextListByProject:
-      case WS_METHODS.contextListByThread:
-      case WS_METHODS.contextCompressNode:
-      case WS_METHODS.contextRestoreNode:
-      case WS_METHODS.contextDeleteNode: {
-        return yield* new RouteRequestError({
-          message: `Method ${request.body._tag} not yet implemented`,
+        return yield* goalsService.deleteGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.reviewApprove: {
+        const reviewBody = stripRequestTag(request.body) as any;
+        yield* orchestrationEngine.dispatch({
+          type: "thread.activity.append",
+          commandId: `review:approve:${crypto.randomUUID()}` as any,
+          threadId: reviewBody.threadId,
+          activity: {
+            id: EventId.makeUnsafe(crypto.randomUUID()),
+            tone: "info" as const,
+            kind: "review.approved",
+            summary: "Changes approved",
+            payload: { turnId: reviewBody.turnId },
+            turnId: reviewBody.turnId,
+            createdAt: new Date().toISOString(),
+          },
+          createdAt: new Date().toISOString(),
         });
+        return { success: true };
+      }
+      case WS_METHODS.reviewReject: {
+        const rejectBody = stripRequestTag(request.body) as any;
+        yield* orchestrationEngine.dispatch({
+          type: "thread.activity.append",
+          commandId: `review:reject:${crypto.randomUUID()}` as any,
+          threadId: rejectBody.threadId,
+          activity: {
+            id: EventId.makeUnsafe(crypto.randomUUID()),
+            tone: "error" as const,
+            kind: "review.rejected",
+            summary: "Changes rejected — reverting",
+            payload: { turnId: rejectBody.turnId, turnCount: rejectBody.turnCount },
+            turnId: rejectBody.turnId,
+            createdAt: new Date().toISOString(),
+          },
+          createdAt: new Date().toISOString(),
+        });
+        yield* orchestrationEngine.dispatch({
+          type: "thread.checkpoint.revert",
+          commandId: `review:revert:${crypto.randomUUID()}` as any,
+          threadId: rejectBody.threadId,
+          turnCount: rejectBody.turnCount,
+          createdAt: new Date().toISOString(),
+        });
+        return { success: true };
+      }
+      case WS_METHODS.contextCreateNode:
+        return yield* contextService.createContextNode(stripRequestTag(request.body) as any);
+      case WS_METHODS.contextGetNode:
+        return yield* contextService.getContextNode(stripRequestTag(request.body) as any);
+      case WS_METHODS.contextListByProject:
+        return yield* contextService.listContextNodesByProject(
+          stripRequestTag(request.body) as any,
+        );
+      case WS_METHODS.contextListByThread:
+        return yield* contextService.listContextNodesByThread(stripRequestTag(request.body) as any);
+      case WS_METHODS.contextCompressNode:
+        return yield* contextService.compressContextNode(stripRequestTag(request.body) as any);
+      case WS_METHODS.contextRestoreNode:
+        return yield* contextService.restoreContextNode(stripRequestTag(request.body) as any);
+      case WS_METHODS.contextDeleteNode:
+        return yield* contextService.deleteContextNode(stripRequestTag(request.body) as any);
+      case WS_METHODS.contextGetBudget: {
+        const budgetBody = stripRequestTag(request.body) as any;
+        const breakdown = yield* contextBudgetCalculator.estimateForThread({
+          threadId: budgetBody.threadId,
+          projectId: budgetBody.projectId,
+        });
+        return { breakdown };
+      }
+
+      // Memory methods
+      case WS_METHODS.memoryCreate: {
+        const memBody = stripRequestTag(request.body) as any;
+        const memory = yield* memoryService.createMemory(memBody);
+        return { memory };
+      }
+      case WS_METHODS.memorySearch: {
+        const searchBody = stripRequestTag(request.body) as any;
+        const memories = yield* memoryService.searchMemories(searchBody);
+        return { memories };
+      }
+      case WS_METHODS.memoryListByProject: {
+        const listBody = stripRequestTag(request.body) as any;
+        const memories = yield* memoryService.listByProject(listBody);
+        return { memories };
+      }
+      case WS_METHODS.memoryDelete:
+        return yield* memoryService.deleteMemory(stripRequestTag(request.body) as any).pipe(
+          Effect.map(() => ({})),
+        );
+
+      // Codebase Intelligence
+      case WS_METHODS.codebaseHealthSummary: {
+        const healthBody = stripRequestTag(request.body) as any;
+        const summary = yield* codebaseIntelligence.getProjectHealthSummary({
+          projectId: healthBody.projectId,
+        });
+        return { summary };
+      }
+      case WS_METHODS.codebaseUpdateHealth: {
+        const updateBody = stripRequestTag(request.body) as any;
+        yield* codebaseIntelligence.updateProjectHealth({
+          projectId: updateBody.projectId,
+          files: updateBody.files,
+        });
+        return {};
+      }
+
+      // Project Prompts + Harnesses
+      case WS_METHODS.promptsList: {
+        const body = stripRequestTag(request.body) as any;
+        const prompts = yield* projectPromptsService.listPrompts(body);
+        return { prompts };
+      }
+      case WS_METHODS.promptsCreate: {
+        const body = stripRequestTag(request.body) as any;
+        const prompt = yield* projectPromptsService.createPrompt(body);
+        return { prompt };
+      }
+      case WS_METHODS.promptsUpdate: {
+        const body = stripRequestTag(request.body) as any;
+        const prompt = yield* projectPromptsService.updatePrompt(body);
+        return { prompt };
+      }
+      case WS_METHODS.promptsDelete: {
+        const body = stripRequestTag(request.body) as any;
+        yield* projectPromptsService.deletePrompt(body);
+        return {};
+      }
+      case WS_METHODS.harnessPresetsList: {
+        const presets = yield* projectPromptsService.listHarnessPresets();
+        return { presets };
+      }
+      case WS_METHODS.harnessActivate: {
+        const body = stripRequestTag(request.body) as any;
+        yield* projectPromptsService.activateHarness(body);
+        return {};
+      }
+      case WS_METHODS.harnessDeactivate: {
+        const body = stripRequestTag(request.body) as any;
+        yield* projectPromptsService.deactivateHarness(body);
+        return {};
+      }
+      case WS_METHODS.harnessGetActive: {
+        const body = stripRequestTag(request.body) as any;
+        const preset = yield* projectPromptsService.getActiveHarness({ threadId: body.threadId });
+        return { preset };
+      }
+
+      // Feature-thread linking
+      case WS_METHODS.featureThreadLink: {
+        const body = stripRequestTag(request.body) as any;
+        yield* featureThreadLinkService.linkFeatureToThread({
+          featureId: body.featureId,
+          threadId: body.threadId,
+        });
+        return {};
+      }
+      case WS_METHODS.featureThreadUnlink: {
+        const body = stripRequestTag(request.body) as any;
+        yield* featureThreadLinkService.unlinkFeatureFromThread({
+          featureId: body.featureId,
+          threadId: body.threadId,
+        });
+        return {};
+      }
+      case WS_METHODS.featureThreadGetLinks: {
+        const body = stripRequestTag(request.body) as any;
+        const links = yield* featureThreadLinkService.getLinksForProject({
+          projectId: body.projectId,
+        });
+        return { links };
+      }
+
+      // Multi-agent
+      case WS_METHODS.agentOverview: {
+        const agentBody = stripRequestTag(request.body) as any;
+        const overview = yield* multiAgentCoordinator.getProjectAgentOverview({
+          projectId: agentBody.projectId,
+        });
+        return { overview };
+      }
+      case WS_METHODS.agentSpawnForFeature: {
+        const spawnBody = stripRequestTag(request.body) as any;
+        return yield* multiAgentCoordinator.spawnAgentForFeature(spawnBody);
+      }
+      case WS_METHODS.agentDetectConflicts: {
+        const conflictBody = stripRequestTag(request.body) as any;
+        const conflicts = yield* multiAgentCoordinator.detectConflicts({
+          projectId: conflictBody.projectId,
+        });
+        return { conflicts };
       }
 
       default: {

@@ -1,5 +1,5 @@
 import { Schema, Struct } from "effect";
-import { NonNegativeInt, ProjectId, ThreadId, TrimmedNonEmptyString } from "./baseSchemas";
+import { NonNegativeInt, ProjectId, ThreadId, TrimmedNonEmptyString, TurnId } from "./baseSchemas";
 
 import {
   ClientOrchestrationCommand,
@@ -56,8 +56,12 @@ import {
   ProjectListCommandTemplatesResult,
   ProjectListSkillsInput,
   ProjectListSkillsResult,
+  ProjectListSourceFilesInput,
+  ProjectListSourceFilesResult,
   ProjectSearchEntriesInput,
   ProjectSearchEntriesResult,
+  ProjectReadFileInput,
+  ProjectReadFileResult,
   ProjectWriteFileInput,
   ProjectWriteFileResult,
   ProjectDeleteFileInput,
@@ -84,6 +88,22 @@ import {
   ThreadUndoResult,
 } from "./threadFeatures";
 import { OpenInEditorInput } from "./editor";
+
+// Review schemas (inline — simple structures)
+const ReviewApproveInput = Schema.Struct({
+  threadId: ThreadId,
+  turnId: TurnId,
+});
+type ReviewApproveInput = typeof ReviewApproveInput.Type;
+const ReviewApproveResult = Schema.Struct({ success: Schema.Boolean });
+
+const ReviewRejectInput = Schema.Struct({
+  threadId: ThreadId,
+  turnId: TurnId,
+  turnCount: Schema.Number,
+});
+type ReviewRejectInput = typeof ReviewRejectInput.Type;
+const ReviewRejectResult = Schema.Struct({ success: Schema.Boolean });
 import {
   ServerConfig,
   ServerConfigUpdatedPayload,
@@ -112,7 +132,49 @@ import {
   ListContextNodesByThreadResult,
   RestoreContextNodeInput,
   RestoreContextNodeResult,
+  GetContextBudgetInput,
+  GetContextBudgetResult,
 } from "./context";
+import {
+  CreateMemoryInput,
+  CreateMemoryResult,
+  DeleteMemoryInput,
+  DeleteMemoryResult,
+  ListMemoryByProjectInput,
+  ListMemoryByProjectResult,
+  SearchMemoryInput,
+  SearchMemoryResult,
+} from "./memory";
+import {
+  GetCodebaseHealthInput,
+  GetCodebaseHealthResult,
+  UpdateCodebaseHealthInput,
+  UpdateCodebaseHealthResult,
+} from "./codebaseHealth";
+import {
+  GetAgentOverviewInput,
+  GetAgentOverviewResult,
+  SpawnAgentForFeatureInput,
+  SpawnAgentForFeatureResult,
+  DetectConflictsInput,
+  DetectConflictsResult,
+} from "./multiAgent";
+import {
+  ListPromptsInput,
+  ListPromptsResult,
+  CreatePromptInput,
+  CreatePromptResult,
+  UpdatePromptInput,
+  UpdatePromptResult,
+  DeletePromptInput,
+  DeletePromptResult,
+  HarnessPreset,
+  ListHarnessPresetsResult,
+  ActivateHarnessInput,
+  ActivateHarnessResult,
+  DeactivateHarnessInput,
+  DeactivateHarnessResult,
+} from "./projectPrompts";
 import {
   CreateFeatureInput,
   CreateFeatureResult,
@@ -157,7 +219,9 @@ export const WS_METHODS = {
   projectsReadAgentsFile: "projects.readAgentsFile",
   projectsDraftAgentsFile: "projects.draftAgentsFile",
   projectsListCommandTemplates: "projects.listCommandTemplates",
+  projectsListSourceFiles: "projects.listSourceFiles",
   projectsListSkills: "projects.listSkills",
+  projectsReadFile: "projects.readFile",
   projectsWriteFile: "projects.writeFile",
   projectsDeleteFile: "projects.deleteFile",
 
@@ -171,6 +235,10 @@ export const WS_METHODS = {
   threadsUndo: "threads.undo",
   threadsRedo: "threads.redo",
   threadsGetRedoStatus: "threads.getRedoStatus",
+
+  // Review methods
+  reviewApprove: "review.approve",
+  reviewReject: "review.reject",
 
   // Shell methods
   shellOpenInEditor: "shell.openInEditor",
@@ -231,6 +299,37 @@ export const WS_METHODS = {
   contextCompressNode: "context.compressNode",
   contextRestoreNode: "context.restoreNode",
   contextDeleteNode: "context.deleteNode",
+  contextGetBudget: "context.getBudget",
+
+  // Codebase Intelligence
+  codebaseHealthSummary: "codebase.healthSummary",
+  codebaseUpdateHealth: "codebase.updateHealth",
+
+  // Project prompts + harnesses
+  promptsList: "prompts.list",
+  promptsCreate: "prompts.create",
+  promptsUpdate: "prompts.update",
+  promptsDelete: "prompts.delete",
+  harnessPresetsList: "harness.presets.list",
+  harnessActivate: "harness.activate",
+  harnessDeactivate: "harness.deactivate",
+  harnessGetActive: "harness.getActive",
+
+  // Feature-thread linking
+  featureThreadLink: "featureThread.link",
+  featureThreadUnlink: "featureThread.unlink",
+  featureThreadGetLinks: "featureThread.getLinks",
+
+  // Multi-agent
+  agentOverview: "agent.overview",
+  agentSpawnForFeature: "agent.spawnForFeature",
+  agentDetectConflicts: "agent.detectConflicts",
+
+  // Memory methods
+  memoryCreate: "memory.create",
+  memorySearch: "memory.search",
+  memoryListByProject: "memory.listByProject",
+  memoryDelete: "memory.delete",
 } as const;
 
 // ── Push Event Channels ──────────────────────────────────────────────
@@ -239,7 +338,17 @@ export const WS_CHANNELS = {
   terminalEvent: "terminal.event",
   serverWelcome: "server.welcome",
   serverConfigUpdated: "server.configUpdated",
+  fileActivity: "file.activity",
 } as const;
+
+/** File activity event pushed when Claude reads/writes/creates files during a turn */
+export const FileActivityEvent = Schema.Struct({
+  threadId: Schema.String,
+  filePath: Schema.String,
+  action: Schema.Literals(["read", "write", "create", "delete"]),
+  timestamp: Schema.String,
+});
+export type FileActivityEvent = typeof FileActivityEvent.Type;
 
 // -- Tagged Union of all request body schemas ─────────────────────────
 
@@ -269,7 +378,9 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.projectsReadAgentsFile, ProjectAgentsFileInput),
   tagRequestBody(WS_METHODS.projectsDraftAgentsFile, ProjectDraftAgentsFileInput),
   tagRequestBody(WS_METHODS.projectsListCommandTemplates, ProjectListCommandTemplatesInput),
+  tagRequestBody(WS_METHODS.projectsListSourceFiles, ProjectListSourceFilesInput),
   tagRequestBody(WS_METHODS.projectsListSkills, ProjectListSkillsInput),
+  tagRequestBody(WS_METHODS.projectsReadFile, ProjectReadFileInput),
   tagRequestBody(WS_METHODS.projectsWriteFile, ProjectWriteFileInput),
   tagRequestBody(WS_METHODS.projectsDeleteFile, ProjectDeleteFileInput),
 
@@ -283,6 +394,10 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.threadsUndo, ThreadUndoInput),
   tagRequestBody(WS_METHODS.threadsRedo, ThreadRedoInput),
   tagRequestBody(WS_METHODS.threadsGetRedoStatus, ThreadRedoStatusInput),
+
+  // Review methods
+  tagRequestBody(WS_METHODS.reviewApprove, ReviewApproveInput),
+  tagRequestBody(WS_METHODS.reviewReject, ReviewRejectInput),
 
   // Shell methods
   tagRequestBody(WS_METHODS.shellOpenInEditor, OpenInEditorInput),
@@ -343,6 +458,27 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.contextCompressNode, CompressContextNodeInput),
   tagRequestBody(WS_METHODS.contextRestoreNode, RestoreContextNodeInput),
   tagRequestBody(WS_METHODS.contextDeleteNode, DeleteContextNodeInput),
+  tagRequestBody(WS_METHODS.contextGetBudget, GetContextBudgetInput),
+  tagRequestBody(WS_METHODS.memoryCreate, CreateMemoryInput),
+  tagRequestBody(WS_METHODS.memorySearch, SearchMemoryInput),
+  tagRequestBody(WS_METHODS.memoryListByProject, ListMemoryByProjectInput),
+  tagRequestBody(WS_METHODS.memoryDelete, DeleteMemoryInput),
+  tagRequestBody(WS_METHODS.codebaseHealthSummary, GetCodebaseHealthInput),
+  tagRequestBody(WS_METHODS.codebaseUpdateHealth, UpdateCodebaseHealthInput),
+  tagRequestBody(WS_METHODS.promptsList, ListPromptsInput),
+  tagRequestBody(WS_METHODS.promptsCreate, CreatePromptInput),
+  tagRequestBody(WS_METHODS.promptsUpdate, UpdatePromptInput),
+  tagRequestBody(WS_METHODS.promptsDelete, DeletePromptInput),
+  tagRequestBody(WS_METHODS.harnessPresetsList, Schema.Struct({})),
+  tagRequestBody(WS_METHODS.harnessActivate, ActivateHarnessInput),
+  tagRequestBody(WS_METHODS.harnessDeactivate, DeactivateHarnessInput),
+  tagRequestBody(WS_METHODS.harnessGetActive, Schema.Struct({ threadId: Schema.String })),
+  tagRequestBody(WS_METHODS.featureThreadLink, Schema.Struct({ featureId: Schema.String, threadId: Schema.String })),
+  tagRequestBody(WS_METHODS.featureThreadUnlink, Schema.Struct({ featureId: Schema.String, threadId: Schema.String })),
+  tagRequestBody(WS_METHODS.featureThreadGetLinks, Schema.Struct({ projectId: Schema.String })),
+  tagRequestBody(WS_METHODS.agentOverview, GetAgentOverviewInput),
+  tagRequestBody(WS_METHODS.agentSpawnForFeature, SpawnAgentForFeatureInput),
+  tagRequestBody(WS_METHODS.agentDetectConflicts, DetectConflictsInput),
 ]);
 
 export const WebSocketRequest = Schema.Struct({
@@ -378,6 +514,7 @@ export interface WsPushPayloadByChannel {
   readonly [WS_CHANNELS.serverConfigUpdated]: typeof ServerConfigUpdatedPayload.Type;
   readonly [WS_CHANNELS.terminalEvent]: typeof TerminalEvent.Type;
   readonly [ORCHESTRATION_WS_CHANNELS.domainEvent]: OrchestrationEvent;
+  readonly [WS_CHANNELS.fileActivity]: FileActivityEvent;
 }
 
 export type WsPushChannel = keyof WsPushPayloadByChannel;
@@ -404,11 +541,16 @@ export const WsPushOrchestrationDomainEvent = makeWsPushSchema(
   ORCHESTRATION_WS_CHANNELS.domainEvent,
   OrchestrationEvent,
 );
+export const WsPushFileActivity = makeWsPushSchema(
+  WS_CHANNELS.fileActivity,
+  FileActivityEvent,
+);
 
 export const WsPushChannelSchema = Schema.Literals([
   WS_CHANNELS.serverWelcome,
   WS_CHANNELS.serverConfigUpdated,
   WS_CHANNELS.terminalEvent,
+  WS_CHANNELS.fileActivity,
   ORCHESTRATION_WS_CHANNELS.domainEvent,
 ]);
 export type WsPushChannelSchema = typeof WsPushChannelSchema.Type;
@@ -417,6 +559,7 @@ export const WsPush = Schema.Union([
   WsPushServerWelcome,
   WsPushServerConfigUpdated,
   WsPushTerminalEvent,
+  WsPushFileActivity,
   WsPushOrchestrationDomainEvent,
 ]);
 export type WsPush = typeof WsPush.Type;
@@ -446,7 +589,9 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.projectsReadAgentsFile]: ProjectAgentsFileResult,
   [WS_METHODS.projectsDraftAgentsFile]: ProjectDraftAgentsFileResult,
   [WS_METHODS.projectsListCommandTemplates]: ProjectListCommandTemplatesResult,
+  [WS_METHODS.projectsListSourceFiles]: ProjectListSourceFilesResult,
   [WS_METHODS.projectsListSkills]: ProjectListSkillsResult,
+  [WS_METHODS.projectsReadFile]: ProjectReadFileResult,
   [WS_METHODS.projectsWriteFile]: ProjectWriteFileResult,
   [WS_METHODS.projectsDeleteFile]: ProjectDeleteFileResult,
   [WS_METHODS.threadsGetShareStatus]: ThreadShareStatusResult,
@@ -458,6 +603,8 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.threadsUndo]: ThreadUndoResult,
   [WS_METHODS.threadsRedo]: ThreadRedoResult,
   [WS_METHODS.threadsGetRedoStatus]: ThreadRedoStatusResult,
+  [WS_METHODS.reviewApprove]: ReviewApproveResult,
+  [WS_METHODS.reviewReject]: ReviewRejectResult,
   [WS_METHODS.shellOpenInEditor]: Schema.Void,
   [WS_METHODS.gitPull]: GitPullResult,
   [WS_METHODS.gitStatus]: GitStatusResult,
@@ -510,6 +657,27 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.contextCompressNode]: CompressContextNodeResult,
   [WS_METHODS.contextRestoreNode]: RestoreContextNodeResult,
   [WS_METHODS.contextDeleteNode]: DeleteContextNodeResult,
+  [WS_METHODS.contextGetBudget]: GetContextBudgetResult,
+  [WS_METHODS.memoryCreate]: CreateMemoryResult,
+  [WS_METHODS.memorySearch]: SearchMemoryResult,
+  [WS_METHODS.memoryListByProject]: ListMemoryByProjectResult,
+  [WS_METHODS.memoryDelete]: DeleteMemoryResult,
+  [WS_METHODS.codebaseHealthSummary]: GetCodebaseHealthResult,
+  [WS_METHODS.codebaseUpdateHealth]: UpdateCodebaseHealthResult,
+  [WS_METHODS.promptsList]: ListPromptsResult,
+  [WS_METHODS.promptsCreate]: CreatePromptResult,
+  [WS_METHODS.promptsUpdate]: UpdatePromptResult,
+  [WS_METHODS.promptsDelete]: DeletePromptResult,
+  [WS_METHODS.harnessPresetsList]: ListHarnessPresetsResult,
+  [WS_METHODS.harnessActivate]: ActivateHarnessResult,
+  [WS_METHODS.harnessDeactivate]: DeactivateHarnessResult,
+  [WS_METHODS.harnessGetActive]: Schema.Struct({ preset: Schema.NullOr(HarnessPreset) }),
+  [WS_METHODS.featureThreadLink]: Schema.Struct({}),
+  [WS_METHODS.featureThreadUnlink]: Schema.Struct({}),
+  [WS_METHODS.featureThreadGetLinks]: Schema.Struct({ links: Schema.Array(Schema.Struct({ featureId: Schema.String, threadId: Schema.String, createdAt: Schema.String })) }),
+  [WS_METHODS.agentOverview]: GetAgentOverviewResult,
+  [WS_METHODS.agentSpawnForFeature]: SpawnAgentForFeatureResult,
+  [WS_METHODS.agentDetectConflicts]: DetectConflictsResult,
 } as const;
 
 export type WsRpcMethod = keyof typeof WsRpcResultSchemaByMethod;

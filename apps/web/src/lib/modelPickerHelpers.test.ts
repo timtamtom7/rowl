@@ -88,7 +88,16 @@ describe("findModelOptionBySlug", () => {
 
 describe("getProviderPickerSectionDescription", () => {
   it("returns a non-empty description for every known available provider", () => {
-    const providers = ["codex", "openrouter", "copilot", "kimi", "opencode", "pi"] as const;
+    const providers = [
+      "codex",
+      "openrouter",
+      "copilot",
+      "kilocode",
+      "kimi",
+      "minimax",
+      "opencode",
+      "pi",
+    ] as const;
     for (const provider of providers) {
       const description = getProviderPickerSectionDescription(provider);
       expect(description).toBeTruthy();
@@ -156,6 +165,8 @@ describe("buildPickerProviderSections", () => {
     ],
     copilot: [],
     kimi: [],
+    kilocode: [],
+    minimax: [],
     opencode: [],
     pi: [],
   };
@@ -166,8 +177,24 @@ describe("buildPickerProviderSections", () => {
       visibleModelOptionsByProvider: modelOptionsByProvider,
       openRouterModelOptions: [],
       opencodeModelOptions: [],
-      favoriteModelsByProvider: { codex: [], copilot: [], kimi: [], opencode: [], pi: [] },
-      recentModelsByProvider: { codex: [], copilot: [], kimi: [], opencode: [], pi: [] },
+      favoriteModelsByProvider: {
+        codex: [],
+        copilot: [],
+        kimi: [],
+        kilocode: [],
+        minimax: [],
+        opencode: [],
+        pi: [],
+      },
+      recentModelsByProvider: {
+        codex: [],
+        copilot: [],
+        kimi: [],
+        kilocode: [],
+        minimax: [],
+        opencode: [],
+        pi: [],
+      },
       lockedProvider: null,
       normalizedQuery: "",
     });
@@ -182,8 +209,24 @@ describe("buildPickerProviderSections", () => {
       visibleModelOptionsByProvider: modelOptionsByProvider,
       openRouterModelOptions: [],
       opencodeModelOptions: [],
-      favoriteModelsByProvider: { codex: [], copilot: [], kimi: [], opencode: [], pi: [] },
-      recentModelsByProvider: { codex: [], copilot: [], kimi: [], opencode: [], pi: [] },
+      favoriteModelsByProvider: {
+        codex: [],
+        copilot: [],
+        kimi: [],
+        kilocode: [],
+        minimax: [],
+        opencode: [],
+        pi: [],
+      },
+      recentModelsByProvider: {
+        codex: [],
+        copilot: [],
+        kimi: [],
+        kilocode: [],
+        minimax: [],
+        opencode: [],
+        pi: [],
+      },
       lockedProvider: null,
       normalizedQuery: "5.4",
     });
@@ -198,8 +241,24 @@ describe("buildPickerProviderSections", () => {
       visibleModelOptionsByProvider: modelOptionsByProvider,
       openRouterModelOptions: [],
       opencodeModelOptions: [],
-      favoriteModelsByProvider: { codex: [], copilot: [], kimi: [], opencode: [], pi: [] },
-      recentModelsByProvider: { codex: [], copilot: [], kimi: [], opencode: [], pi: [] },
+      favoriteModelsByProvider: {
+        codex: [],
+        copilot: [],
+        kimi: [],
+        kilocode: [],
+        minimax: [],
+        opencode: [],
+        pi: [],
+      },
+      recentModelsByProvider: {
+        codex: [],
+        copilot: [],
+        kimi: [],
+        kilocode: [],
+        minimax: [],
+        opencode: [],
+        pi: [],
+      },
       lockedProvider: null,
       normalizedQuery: "zzz-no-match",
     });
@@ -212,8 +271,24 @@ describe("buildPickerProviderSections", () => {
       visibleModelOptionsByProvider: modelOptionsByProvider,
       openRouterModelOptions: [],
       opencodeModelOptions: [],
-      favoriteModelsByProvider: { codex: [], copilot: [], kimi: [], opencode: [], pi: [] },
-      recentModelsByProvider: { codex: [], copilot: [], kimi: [], opencode: [], pi: [] },
+      favoriteModelsByProvider: {
+        codex: [],
+        copilot: [],
+        kimi: [],
+        kilocode: [],
+        minimax: [],
+        opencode: [],
+        pi: [],
+      },
+      recentModelsByProvider: {
+        codex: [],
+        copilot: [],
+        kimi: [],
+        kilocode: [],
+        minimax: [],
+        opencode: [],
+        pi: [],
+      },
       lockedProvider: "copilot",
       normalizedQuery: "",
     });
@@ -231,6 +306,8 @@ describe("buildPickerProviderSections", () => {
         codex: ["gpt-5.3-codex"],
         copilot: [],
         kimi: [],
+        kilocode: [],
+        minimax: [],
         opencode: [],
         pi: [],
       },
@@ -238,6 +315,8 @@ describe("buildPickerProviderSections", () => {
         codex: ["gpt-5.4"],
         copilot: [],
         kimi: [],
+        kilocode: [],
+        minimax: [],
         opencode: [],
         pi: [],
       },

@@ -19,9 +19,10 @@ Keep provider availability claims in docs and onboarding copy aligned with `apps
 
 Current providers:
 
-- **Available**: Codex, OpenRouter, GitHub Copilot, Kimi Code, OpenCode, Pi
-- **Coming soon**: Gemini
+- **Available**: Codex, OpenRouter, GitHub Copilot, KiloCode, Kimi Code, MiniMax, OpenCode, Pi
 - **Unavailable placeholders**: Claude Code, Cursor
+
+Note: Gemini models are accessible through OpenRouter/Codex, not as a standalone provider.
 
 ## Core Priorities
 
@@ -37,7 +38,7 @@ Long term maintainability is a core priority. If you add new functionality, firs
 
 ## Package Roles
 
-- `apps/server`: Node.js HTTP/WebSocket server. Serves the React web app, owns orchestration/project/git/terminal APIs, and routes provider sessions for Codex, GitHub Copilot, OpenCode, Kimi Code, and Pi.
+- `apps/server`: Node.js HTTP/WebSocket server. Serves the React web app, owns orchestration/project/git/terminal APIs, and routes provider sessions for Codex, GitHub Copilot, KiloCode, Kimi Code, MiniMax, OpenCode, and Pi.
 - `apps/web`: React/Vite UI. Owns session UX, conversation/event rendering, composer/settings controls, plan sidebar flows, and client-side state. Connects to the server via WebSocket.
 - `apps/desktop`: Electron shell. Starts a desktop-scoped `t3` backend, loads the shared web app, and exposes native dialogs, menus, and desktop update flows.
 - `packages/contracts`: Shared Effect Schema schemas and TypeScript contracts for provider events, WebSocket protocol, keybindings, and model/session types. Keep this package schema-only — no runtime logic.
@@ -52,7 +53,9 @@ How we use it in this codebase:
 - Codex sessions are brokered through `codex app-server` (JSON-RPC over stdio) in `apps/server/src/codexAppServerManager.ts`.
 - GitHub Copilot sessions are brokered through ACP-backed runtime management in `apps/server/src/copilotAcpManager.ts`.
 - OpenCode sessions are brokered through ACP-backed runtime management in `apps/server/src/opencodeAcpManager.ts`.
+- KiloCode sessions are brokered through ACP-backed runtime management in `apps/server/src/kilocodeAcpManager.ts`, using `kilo acp` with Kilo Gateway OAuth authentication.
 - Kimi Code sessions are brokered through ACP-backed runtime management in `apps/server/src/kimiAcpManager.ts`, including optional API-key-backed startup.
+- MiniMax sessions are brokered through a direct API manager in `apps/server/src/minimaxApiManager.ts`, using MiniMax-M2.7 via an OpenAI-compatible streaming endpoint with native tool calling and image support.
 - Pi sessions are brokered through the embedded `@mariozechner/pi-coding-agent` Node SDK in `apps/server/src/piSdkManager.ts`, while Rowl intentionally disables Pi's own resource discovery so repo instructions still come only from Rowl.
 - Cross-provider routing and shared runtime event fan-out are coordinated in `apps/server/src/provider/Layers/ProviderService.ts`.
 - WebSocket request handling and push channels are served from `apps/server/src/wsServer.ts`.
@@ -76,3 +79,13 @@ For future tool-backed providers, prefer runtimes with a native app-server or AC
 - Open-source Codex repo: https://github.com/openai/codex
 - Codex-Monitor (Tauri, feature-complete, strong reference implementation): https://github.com/Dimillian/CodexMonitor
 - Pi mono repo (`packages/coding-agent`): https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent
+
+## Plans System
+
+Rowl development plans live in `~/Dev/rowl/plans/`. Each initiative has its own folder with SPEC, RESEARCH, PLAN, and STATUS files.
+
+During a Rowl session:
+- Reference initiatives by path: "What's the status of the rowl-right-sidebar plan?"
+- After sessions: "Sync notes to the rowl-codebase-context STATUS.md"
+
+Plans are NOT auto-injected into AI context — reference them explicitly by path when you need them.

@@ -43,6 +43,16 @@ import { CodexAdapter } from "../src/provider/Services/CodexAdapter.ts";
 import { ProviderService } from "../src/provider/Services/ProviderService.ts";
 import { AnalyticsService } from "../src/telemetry/Services/AnalyticsService.ts";
 import { CheckpointReactorLive } from "../src/orchestration/Layers/CheckpointReactor.ts";
+import { ContextTrimmerLive } from "../src/orchestration/Layers/ContextTrimmerLive.ts";
+import { OverseerReactorLive } from "../src/orchestration/Layers/OverseerReactor.ts";
+import { CodebaseIntelligence } from "../src/orchestration/Services/CodebaseIntelligence.ts";
+import { ContextService } from "../src/orchestration/Services/ContextService.ts";
+import { EvaluatorService } from "../src/orchestration/Services/EvaluatorService.ts";
+import { HandoffService } from "../src/orchestration/Services/HandoffService.ts";
+import { MemoryService } from "../src/orchestration/Services/MemoryService.ts";
+import { ProjectPromptsService } from "../src/orchestration/Services/ProjectPromptsService.ts";
+import { FeatureService } from "../src/orchestration/Services/FeatureService.ts";
+import { GoalsService } from "../src/orchestration/Services/GoalsService.ts";
 import { OrchestrationEngineLive } from "../src/orchestration/Layers/OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "../src/orchestration/Layers/ProjectionPipeline.ts";
 import { OrchestrationProjectionSnapshotQueryLive } from "../src/orchestration/Layers/ProjectionSnapshotQuery.ts";
@@ -296,18 +306,67 @@ export const makeOrchestrationIntegrationHarness = (
     const textGenerationLayer = Layer.succeed(TextGeneration, {
       generateBranchName: () => Effect.succeed({ branch: null }),
     } as unknown as TextGenerationShape);
+    const stubGoalsServiceLayer = Layer.succeed(GoalsService, {
+      listGoalsByProject: () => Effect.succeed({ goals: [] }),
+    } as any);
+    const stubFeatureServiceLayer = Layer.succeed(FeatureService, {
+      listFeaturesByProject: () => Effect.succeed({ features: [] }),
+    } as any);
     const providerCommandReactorLayer = ProviderCommandReactorLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
       Layer.provideMerge(gitCoreLayer),
       Layer.provideMerge(textGenerationLayer),
+      Layer.provideMerge(stubGoalsServiceLayer),
+      Layer.provideMerge(stubFeatureServiceLayer),
+      Layer.provideMerge(ContextTrimmerLive),
+      Layer.provideMerge(
+        Layer.succeed(MemoryService, {
+          buildRelevantMemoriesBlock: () => Effect.succeed(null),
+        } as any),
+      ),
+      Layer.provideMerge(
+        Layer.succeed(ProjectPromptsService, {
+          getContextForThread: () => Effect.succeed({ prompts: [], harnessContent: null }),
+        } as any),
+      ),
     );
     const checkpointReactorLayer = CheckpointReactorLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
+    );
+    const stubContextServiceLayer = Layer.succeed(ContextService, {
+      createContextNode: () => Effect.succeed({ node: {} }),
+    } as any);
+    const stubMemoryServiceLayer = Layer.succeed(MemoryService, {
+      createMemory: () => Effect.succeed({} as any),
+      buildRelevantMemoriesBlock: () => Effect.succeed(null),
+    } as any);
+    const stubCodebaseIntelligenceLayer = Layer.succeed(CodebaseIntelligence, {
+      recordFileChange: () => Effect.void,
+      updateProjectHealth: () => Effect.void,
+      getProjectHealthSummary: () => Effect.succeed({ totalFiles: 0, averageHealth: 100, criticalFiles: [], warningFiles: [], healthyFiles: 0 } as any),
+      getFileHealth: () => Effect.succeed(null),
+    } as any);
+    const overseerReactorLayer = OverseerReactorLive.pipe(
+      Layer.provideMerge(runtimeServicesLayer),
+      Layer.provideMerge(stubContextServiceLayer),
+      Layer.provideMerge(stubMemoryServiceLayer),
+      Layer.provideMerge(stubCodebaseIntelligenceLayer),
+      Layer.provideMerge(
+        Layer.succeed(HandoffService, {
+          generateBriefing: () => Effect.succeed(null),
+        } as any),
+      ),
+      Layer.provideMerge(
+        Layer.succeed(EvaluatorService, {
+          evaluateThread: () => Effect.succeed(null),
+        } as any),
+      ),
     );
     const orchestrationReactorLayer = OrchestrationReactorLive.pipe(
       Layer.provideMerge(runtimeIngestionLayer),
       Layer.provideMerge(providerCommandReactorLayer),
       Layer.provideMerge(checkpointReactorLayer),
+      Layer.provideMerge(overseerReactorLayer),
     );
     const layer = orchestrationReactorLayer.pipe(
       Layer.provide(persistenceLayer),

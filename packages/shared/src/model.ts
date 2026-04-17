@@ -19,6 +19,8 @@ const MODEL_SLUG_SET_BY_PROVIDER: Record<CatalogProvider, ReadonlySet<ModelSlug>
   codex: new Set(MODEL_OPTIONS_BY_PROVIDER.codex.map((option) => option.slug)),
   copilot: new Set(MODEL_OPTIONS_BY_PROVIDER.copilot.map((option) => option.slug)),
   kimi: new Set(MODEL_OPTIONS_BY_PROVIDER.kimi.map((option) => option.slug)),
+  kilocode: new Set(MODEL_OPTIONS_BY_PROVIDER.kilocode.map((option) => option.slug)),
+  minimax: new Set(MODEL_OPTIONS_BY_PROVIDER.minimax.map((option) => option.slug)),
   opencode: new Set(MODEL_OPTIONS_BY_PROVIDER.opencode.map((option) => option.slug)),
   pi: new Set(MODEL_OPTIONS_BY_PROVIDER.pi.map((option) => option.slug)),
 };
@@ -26,6 +28,8 @@ const LEGACY_MODEL_SLUG_SET_BY_PROVIDER: Record<CatalogProvider, ReadonlySet<Mod
   codex: new Set(LEGACY_MODEL_SLUGS_BY_PROVIDER.codex),
   copilot: new Set(LEGACY_MODEL_SLUGS_BY_PROVIDER.copilot),
   kimi: new Set(LEGACY_MODEL_SLUGS_BY_PROVIDER.kimi),
+  kilocode: new Set(LEGACY_MODEL_SLUGS_BY_PROVIDER.kilocode),
+  minimax: new Set(LEGACY_MODEL_SLUGS_BY_PROVIDER.minimax),
   opencode: new Set(LEGACY_MODEL_SLUGS_BY_PROVIDER.opencode),
   pi: new Set(LEGACY_MODEL_SLUGS_BY_PROVIDER.pi),
 };

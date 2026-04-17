@@ -155,6 +155,30 @@ export function isCopilotModelAvailable(
   return availableModelIds.length === 0 || availableModelIds.includes(model);
 }
 
+export function normalizeCopilotStartErrorMessage(rawMessage: string): string {
+  if (/auth[_ ]required|authentication required|not logged in|token/i.test(rawMessage)) {
+    return "GitHub Copilot requires authentication. Set COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN and try again.";
+  }
+
+  if (/ENOENT|not found|command not found|no such file/i.test(rawMessage)) {
+    return "GitHub Copilot CLI (`copilot`) is not installed or not on PATH. Install it and try again, or set a custom binary path in Settings.";
+  }
+
+  if (/timed? ?out|timeout/i.test(rawMessage)) {
+    return "GitHub Copilot took too long to start. Check your network connection and try again.";
+  }
+
+  if (/rate.?limit|too many requests|429/i.test(rawMessage)) {
+    return "GitHub Copilot rate limit reached. Wait a moment and try again.";
+  }
+
+  if (/quota|usage.?limit|premium.?request/i.test(rawMessage)) {
+    return "GitHub Copilot usage limit reached. Check your Copilot plan and quota.";
+  }
+
+  return rawMessage;
+}
+
 function mapCopilotRuntimeMode(runtimeMode: ProviderSession["runtimeMode"]): ReadonlyArray<string> {
   return runtimeMode === "full-access" ? ["--allow-all"] : [];
 }
@@ -704,8 +728,9 @@ export class CopilotAcpManager extends EventEmitter<CopilotAcpManagerEvents> {
       }
       return { ...context.session };
     } catch (error) {
-      const message =
+      const rawMessage =
         context.lastStderrLine ?? toMessage(error, "Failed to start GitHub Copilot session.");
+      const message = normalizeCopilotStartErrorMessage(rawMessage);
       this.startingSessions.delete(input.threadId);
       this.updateSession(context, {
         status: "error",

@@ -19,6 +19,7 @@ export const PI_THINKING_LEVEL_OPTIONS = PROVIDER_REASONING_LEVEL_OPTIONS;
 export type PiThinkingLevel = (typeof PI_THINKING_LEVEL_OPTIONS)[number];
 export const OPENROUTER_FREE_ROUTER_MODEL = "openrouter/free" as const;
 export const OPENCODE_DEFAULT_MODEL = "opencode/default" as const;
+export const KILOCODE_DEFAULT_MODEL = "kilo-auto/balanced" as const;
 export const PI_DEFAULT_MODEL = "pi/default" as const;
 
 export const CodexModelOptions = Schema.Struct({
@@ -97,6 +98,12 @@ export const MODEL_OPTIONS_BY_PROVIDER = {
     { slug: "grok-code-fast-1", name: "Grok Code Fast 1" },
   ],
   kimi: [{ slug: "kimi-for-coding", name: "Kimi for Coding" }],
+  kilocode: [
+    { slug: "kilo-auto/frontier", name: "Kilo Auto Frontier" },
+    { slug: KILOCODE_DEFAULT_MODEL, name: "Kilo Auto Balanced" },
+    { slug: "kilo-auto/free", name: "Kilo Auto Free" },
+  ],
+  minimax: [{ slug: "MiniMax-M2.7", name: "MiniMax-M2.7" }],
   opencode: [{ slug: OPENCODE_DEFAULT_MODEL, name: "Default" }],
   pi: [{ slug: PI_DEFAULT_MODEL, name: "Default" }],
 } as const satisfies Record<ProviderKind, readonly ModelOption[]>;
@@ -106,6 +113,8 @@ export const LEGACY_MODEL_SLUGS_BY_PROVIDER = {
   codex: [],
   copilot: ["goldeneye", "raptor-mini"],
   kimi: [],
+  kilocode: [],
+  minimax: [],
   opencode: [],
   pi: [],
 } as const satisfies Record<ProviderKind, readonly string[]>;
@@ -117,6 +126,8 @@ export const DEFAULT_MODEL_BY_PROVIDER = {
   codex: "gpt-5.4",
   copilot: "claude-sonnet-4.5",
   kimi: "kimi-for-coding",
+  kilocode: KILOCODE_DEFAULT_MODEL,
+  minimax: "MiniMax-M2.7",
   opencode: OPENCODE_DEFAULT_MODEL,
   pi: PI_DEFAULT_MODEL,
 } as const satisfies Record<ProviderKind, ModelSlug>;
@@ -246,6 +257,26 @@ export const MODEL_CONTEXT_WINDOW_INFO_BY_PROVIDER = {
       note: "CUT3 only writes a 262,144-token max_context_size when launching an API-key-backed Kimi temp config. Login-backed sessions rely on the runtime's own config and may differ.",
     },
   },
+  kilocode: {
+    "kilo-auto/frontier": {
+      source: "provider-config",
+      note: "Kilo auto-routing to best available models. Actual context window depends on the underlying model selected by Kilo.",
+    },
+    [KILOCODE_DEFAULT_MODEL]: {
+      source: "provider-config",
+      note: "Kilo auto-routing with cost-effective model selection. Actual context window depends on the underlying model selected by Kilo.",
+    },
+    "kilo-auto/free": {
+      source: "provider-config",
+      note: "Kilo auto-routing to best available free models. Actual context window depends on the underlying model selected by Kilo.",
+    },
+  },
+  minimax: {
+    "MiniMax-M2.7": {
+      source: "provider-doc",
+      note: "MiniMax-M2.7 supports up to 1M context but performance degrades beyond 200K tokens.",
+    },
+  },
   opencode: {
     [OPENCODE_DEFAULT_MODEL]: {
       source: "provider-config",
@@ -274,6 +305,8 @@ export const MODEL_SLUG_ALIASES_BY_PROVIDER = {
     "gemini-3.1-pro": "gemini-3.1-pro-preview",
   },
   kimi: {},
+  kilocode: {},
+  minimax: {},
   opencode: {},
   pi: {},
 } as const satisfies Record<ProviderKind, Record<string, ModelSlug>>;
@@ -282,6 +315,8 @@ export const REASONING_EFFORT_OPTIONS_BY_PROVIDER = {
   codex: CODEX_REASONING_EFFORT_OPTIONS,
   copilot: COPILOT_REASONING_EFFORT_OPTIONS,
   kimi: [],
+  kilocode: [],
+  minimax: [],
   opencode: [],
   pi: PI_THINKING_LEVEL_OPTIONS,
 } as const satisfies Record<ProviderKind, readonly ProviderReasoningLevel[]>;
@@ -290,6 +325,8 @@ export const DEFAULT_REASONING_EFFORT_BY_PROVIDER = {
   codex: "high",
   copilot: "high",
   kimi: null,
+  kilocode: null,
+  minimax: null,
   opencode: null,
   pi: null,
 } as const satisfies Record<ProviderKind, ProviderReasoningLevel | null>;

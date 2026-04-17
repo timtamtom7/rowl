@@ -78,10 +78,14 @@ export function getModelOptionsForProviderPicker(
       return modelOptionsByProvider.codex.filter((option) => !isCodexOpenRouterModel(option.slug));
     case "copilot":
       return modelOptionsByProvider.copilot;
-    case "opencode":
-      return mergeModelOptions(modelOptionsByProvider.opencode, opencodeModelOptions);
+    case "kilocode":
+      return modelOptionsByProvider.kilocode;
     case "kimi":
       return modelOptionsByProvider.kimi;
+    case "minimax":
+      return modelOptionsByProvider.minimax;
+    case "opencode":
+      return mergeModelOptions(modelOptionsByProvider.opencode, opencodeModelOptions);
     case "pi":
       return modelOptionsByProvider.pi;
     default:
@@ -185,8 +189,12 @@ export function getProviderPickerSectionDescription(provider: AvailableProviderP
       return "OpenRouter-routed models that run through Codex.";
     case "copilot":
       return "GitHub Copilot chat models discovered from your local runtime.";
+    case "kilocode":
+      return "KiloCode models via Kilo Gateway. Auto-routing models select the best backend for each task.";
     case "kimi":
       return "Kimi Code sessions backed by either `kimi login` / `/login` CLI auth or a configured Kimi API key.";
+    case "minimax":
+      return "MiniMax models via direct API. Configure your MiniMax API key in Settings.";
     case "opencode":
       return "OpenCode models discovered from your local OpenCode runtime.";
     case "pi":

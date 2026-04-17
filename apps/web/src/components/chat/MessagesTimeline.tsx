@@ -8,7 +8,7 @@ import {
 import { deriveTimelineEntries, formatElapsed } from "../../session-logic";
 import { AUTO_SCROLL_BOTTOM_THRESHOLD_PX } from "../../chat-scroll";
 import { type TurnDiffSummary } from "../../types";
-import { summarizeTurnDiffStats } from "../../lib/turnDiffTree";
+import { summarizeTurnDiffInPlainLanguage, summarizeTurnDiffStats } from "../../lib/turnDiffTree";
 import ChatMarkdown from "../ChatMarkdown";
 import {
   BotIcon,
@@ -31,6 +31,7 @@ import { estimateTimelineMessageHeight } from "../timelineHeight";
 import { buildExpandedImagePreview, ExpandedImagePreview } from "./ExpandedImagePreview";
 import { ProposedPlanCard } from "./ProposedPlanCard";
 import { ChangedFilesTree } from "./ChangedFilesTree";
+import { TurnReviewCard } from "./TurnReviewCard";
 import { DiffStatLabel, hasNonZeroStat } from "./DiffStatLabel";
 import { MessageCopyButton } from "./MessageCopyButton";
 import {
@@ -48,6 +49,7 @@ const MAX_VISIBLE_WORK_LOG_ENTRIES = 6;
 const ALWAYS_UNVIRTUALIZED_TAIL_ROWS = 8;
 
 interface MessagesTimelineProps {
+  threadId?: string | undefined;
   hasMessages: boolean;
   isWorking: boolean;
   activeTurnInProgress: boolean;
@@ -77,6 +79,7 @@ interface MessagesTimelineProps {
 }
 
 export const MessagesTimeline = memo(function MessagesTimeline({
+  threadId,
   hasMessages,
   isWorking,
   activeTurnInProgress,
@@ -490,7 +493,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                         variant="outline"
                         disabled={isRevertingCheckpoint || isWorking}
                         onClick={() => onRevertUserMessage(row.message.id)}
-                        title="Revert to this message"
+                        title={
+                          isRevertingCheckpoint
+                            ? "Reverting..."
+                            : isWorking
+                              ? "Cannot undo while AI is working"
+                              : "Undo changes from this point"
+                        }
                       >
                         <Undo2Icon className="size-3" />
                       </Button>
@@ -577,6 +586,9 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                           </Button>
                         </div>
                       </div>
+                      <p className="mb-1.5 text-xs text-muted-foreground">
+                        {summarizeTurnDiffInPlainLanguage(checkpointFiles)}
+                      </p>
                       <ChangedFilesTree
                         key={`changed-files-tree:${turnSummary.turnId}`}
                         turnId={turnSummary.turnId}
@@ -585,6 +597,16 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                         resolvedTheme={resolvedTheme}
                         onOpenTurnDiff={onOpenTurnDiff}
                       />
+                      {threadId && turnSummary.checkpointTurnCount != null && (
+                        <TurnReviewCard
+                          threadId={threadId}
+                          turnId={turnSummary.turnId}
+                          turnCount={turnSummary.checkpointTurnCount}
+                          files={checkpointFiles}
+                          disabled={isRevertingCheckpoint || isWorking}
+                          onReviewed={() => {}}
+                        />
+                      )}
                     </div>
                   );
                 })()}

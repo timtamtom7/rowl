@@ -8,11 +8,14 @@ export interface PersistedProviderSecretRequirements {
   readonly codex?: {
     readonly openRouterApiKey?: true;
   };
-  readonly opencode?: {
-    readonly openRouterApiKey?: true;
-  };
   readonly kimi?: {
     readonly apiKey?: true;
+  };
+  readonly minimax?: {
+    readonly apiKey?: true;
+  };
+  readonly opencode?: {
+    readonly openRouterApiKey?: true;
   };
 }
 
@@ -28,6 +31,9 @@ export function sanitizeProviderOptionsForPersistence(
     return undefined;
   }
 
+  const kilocode = providerOptions.kilocode?.binaryPath
+    ? { kilocode: { binaryPath: providerOptions.kilocode.binaryPath } }
+    : {};
   const kimi = providerOptions.kimi?.binaryPath
     ? { kimi: { binaryPath: providerOptions.kimi.binaryPath } }
     : {};
@@ -46,6 +52,7 @@ export function sanitizeProviderOptionsForPersistence(
         }
       : {}),
     ...(providerOptions.copilot ? { copilot: providerOptions.copilot } : {}),
+    ...kilocode,
     ...kimi,
     ...opencode,
   } satisfies ProviderStartOptions;
@@ -82,6 +89,16 @@ export function sanitizeProviderOptionsRecordForPersistence(
     }
     if (Object.keys(copilot).length > 0) {
       next.copilot = copilot;
+    }
+  }
+
+  if (isRecord(providerOptions.kilocode)) {
+    const kilocode: Record<string, unknown> = {};
+    if (typeof providerOptions.kilocode.binaryPath === "string") {
+      kilocode.binaryPath = providerOptions.kilocode.binaryPath;
+    }
+    if (Object.keys(kilocode).length > 0) {
+      next.kilocode = kilocode;
     }
   }
 
@@ -123,6 +140,7 @@ export function deriveProviderSecretRequirements(
       ? { opencode: { openRouterApiKey: true as const } }
       : {}),
     ...(trimSecret(providerOptions.kimi?.apiKey) ? { kimi: { apiKey: true as const } } : {}),
+    ...(trimSecret(providerOptions.minimax?.apiKey) ? { minimax: { apiKey: true as const } } : {}),
   } satisfies PersistedProviderSecretRequirements;
 
   return Object.keys(next).length > 0 ? next : undefined;
@@ -145,6 +163,9 @@ export function sanitizeProviderSecretRequirementsRecord(
     ...(isRecord(value.kimi) && value.kimi.apiKey === true
       ? { kimi: { apiKey: true as const } }
       : {}),
+    ...(isRecord(value.minimax) && value.minimax.apiKey === true
+      ? { minimax: { apiKey: true as const } }
+      : {}),
   } satisfies PersistedProviderSecretRequirements;
 
   return Object.keys(next).length > 0 ? next : undefined;
@@ -161,12 +182,15 @@ export function hydrateProviderOptionsWithEnvironment(input: {
   const env = input.env ?? process.env;
   const openRouterApiKey = trimSecret(env.OPENROUTER_API_KEY);
   const kimiApiKey = trimSecret(env.KIMI_API_KEY);
+  const minimaxApiKey = trimSecret(env.MINIMAX_API_KEY);
   const missingSecrets = new Set<string>();
   const providerOptions: Record<string, unknown> = {
     ...(input.providerOptions?.codex ? { codex: { ...input.providerOptions.codex } } : {}),
     ...(input.providerOptions?.copilot ? { copilot: { ...input.providerOptions.copilot } } : {}),
-    ...(input.providerOptions?.opencode ? { opencode: { ...input.providerOptions.opencode } } : {}),
+    ...(input.providerOptions?.kilocode ? { kilocode: { ...input.providerOptions.kilocode } } : {}),
     ...(input.providerOptions?.kimi ? { kimi: { ...input.providerOptions.kimi } } : {}),
+    ...(input.providerOptions?.minimax ? { minimax: { ...input.providerOptions.minimax } } : {}),
+    ...(input.providerOptions?.opencode ? { opencode: { ...input.providerOptions.opencode } } : {}),
   };
 
   if (input.secretRequirements?.codex?.openRouterApiKey) {
@@ -202,6 +226,18 @@ export function hydrateProviderOptionsWithEnvironment(input: {
       };
     } else {
       missingSecrets.add("KIMI_API_KEY");
+    }
+  }
+
+  if (input.secretRequirements?.minimax?.apiKey) {
+    if (minimaxApiKey) {
+      const existingMiniMax = isRecord(providerOptions.minimax) ? providerOptions.minimax : {};
+      providerOptions.minimax = {
+        ...existingMiniMax,
+        apiKey: minimaxApiKey,
+      };
+    } else {
+      missingSecrets.add("MINIMAX_API_KEY");
     }
   }
 

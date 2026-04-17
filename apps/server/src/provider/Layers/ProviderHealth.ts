@@ -30,7 +30,9 @@ import { createPiHarnessCatalogSnapshot } from "../../piHarness.ts";
 const DEFAULT_TIMEOUT_MS = 4_000;
 const CODEX_PROVIDER = "codex" as const;
 const COPILOT_PROVIDER = "copilot" as const;
+const KILOCODE_PROVIDER = "kilocode" as const;
 const KIMI_PROVIDER = "kimi" as const;
+const MINIMAX_PROVIDER = "minimax" as const;
 const OPENCODE_PROVIDER = "opencode" as const;
 const PI_PROVIDER = "pi" as const;
 
@@ -286,6 +288,7 @@ const runCliCommand = (commandName: string, args: ReadonlyArray<string>) =>
 
 const runCodexCommand = (args: ReadonlyArray<string>) => runCliCommand("codex", args);
 const runCopilotCommand = (args: ReadonlyArray<string>) => runCliCommand("copilot", args);
+const runKiloCodeCommand = (args: ReadonlyArray<string>) => runCliCommand("kilo", args);
 const runKimiCommand = (args: ReadonlyArray<string>) => runCliCommand("kimi", args);
 const runOpenCodeCommand = (args: ReadonlyArray<string>) => runCliCommand("opencode", args);
 
@@ -745,6 +748,87 @@ export const checkPiProviderStatus: Effect.Effect<ServerProviderStatus, never> =
   }
 });
 
+export const checkKiloCodeProviderStatus: Effect.Effect<
+  ServerProviderStatus,
+  never,
+  ChildProcessSpawner.ChildProcessSpawner
+> = Effect.gen(function* () {
+  const checkedAt = new Date().toISOString();
+
+  const versionProbe = yield* runKiloCodeCommand(["--version"]).pipe(
+    Effect.timeoutOption(DEFAULT_TIMEOUT_MS),
+    Effect.result,
+  );
+
+  if (Result.isFailure(versionProbe)) {
+    const error = versionProbe.failure;
+    return {
+      provider: KILOCODE_PROVIDER,
+      status: "error" as const,
+      available: false,
+      authStatus: "unknown" as const,
+      checkedAt,
+      message: isCommandMissingCause(error)
+        ? "KiloCode CLI (`kilo`) is not installed or not on PATH."
+        : `Failed to execute KiloCode CLI health check: ${error instanceof Error ? error.message : String(error)}.`,
+    };
+  }
+
+  if (Option.isNone(versionProbe.success)) {
+    return {
+      provider: KILOCODE_PROVIDER,
+      status: "error" as const,
+      available: false,
+      authStatus: "unknown" as const,
+      checkedAt,
+      message: "KiloCode CLI is installed but failed to run. Timed out while running command.",
+    };
+  }
+
+  const version = versionProbe.success.value;
+  if (version.code !== 0) {
+    const detail = detailFromResult(version);
+    return {
+      provider: KILOCODE_PROVIDER,
+      status: "error" as const,
+      available: false,
+      authStatus: "unknown" as const,
+      checkedAt,
+      message: detail
+        ? `KiloCode CLI is installed but failed to run. ${detail}`
+        : "KiloCode CLI is installed but failed to run.",
+    };
+  }
+
+  return {
+    provider: KILOCODE_PROVIDER,
+    status: "warning" as const,
+    available: true,
+    authStatus: "unknown" as const,
+    checkedAt,
+    message:
+      "Could not verify KiloCode authentication non-interactively. Complete the Kilo Gateway OAuth flow if session start fails.",
+  };
+});
+
+export const checkMiniMaxProviderStatus: Effect.Effect<ServerProviderStatus, never> = Effect.sync(
+  () => {
+    const checkedAt = new Date().toISOString();
+
+    // MiniMax is a direct API provider — no CLI to probe.
+    // Availability depends on having an API key configured.
+    return {
+      provider: MINIMAX_PROVIDER,
+      status: "ready" as const,
+      available: true,
+      authStatus: "unknown" as const,
+      checkedAt,
+      message:
+        "MiniMax uses a direct API connection. Add a MiniMax API key in Settings to start sessions.",
+    };
+  },
+);
+
 // ── Layer ───────────────────────────────────────────────────────────
 
 export const ProviderHealthLive = Layer.effect(
@@ -759,7 +843,9 @@ export const ProviderHealthLive = Layer.effect(
         [
           checkCodexProviderStatus,
           checkCopilotProviderStatus,
+          checkKiloCodeProviderStatus,
           checkKimiProviderStatus,
+          checkMiniMaxProviderStatus,
           checkOpenCodeProviderStatus,
           checkPiProviderStatus,
         ],

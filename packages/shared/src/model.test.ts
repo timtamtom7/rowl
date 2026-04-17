@@ -77,6 +77,16 @@ describe("resolveModelSlug", () => {
     expect(resolveModelSlug("kimi-for-coding", "kimi")).toBe("kimi-for-coding");
   });
 
+  it("returns provider-specific defaults and catalogs for kilocode", () => {
+    expect(getDefaultModel("kilocode")).toBe(DEFAULT_MODEL_BY_PROVIDER.kilocode);
+    expect(getModelOptions("kilocode")).toEqual(MODEL_OPTIONS_BY_PROVIDER.kilocode);
+  });
+
+  it("returns provider-specific defaults and catalogs for minimax", () => {
+    expect(getDefaultModel("minimax")).toBe(DEFAULT_MODEL_BY_PROVIDER.minimax);
+    expect(getModelOptions("minimax")).toEqual(MODEL_OPTIONS_BY_PROVIDER.minimax);
+  });
+
   it("returns provider-specific defaults and catalogs for pi", () => {
     expect(getDefaultModel("pi")).toBe(DEFAULT_MODEL_BY_PROVIDER.pi);
     expect(getModelOptions("pi")).toEqual(MODEL_OPTIONS_BY_PROVIDER.pi);

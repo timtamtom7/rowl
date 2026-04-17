@@ -12,6 +12,25 @@ import { Cause, Effect, Layer, Option, Stream } from "effect";
 import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 
 import { parseTurnDiffFilesFromUnifiedDiff } from "../../checkpointing/Diffs.ts";
+
+function normalizeCheckpointRevertError(detail: string): string {
+  if (/HEAD detached|detached HEAD/i.test(detail)) {
+    return "Could not revert changes. Try closing and reopening the thread.";
+  }
+  if (/not a git repository|no git/i.test(detail)) {
+    return "This project doesn't support undo because it's not tracked with version control.";
+  }
+  if (/lock|locked|index\.lock/i.test(detail)) {
+    return "Could not revert — another operation is in progress. Wait a moment and try again.";
+  }
+  if (/conflict|merge conflict/i.test(detail)) {
+    return "Could not revert due to conflicting changes. The workspace may need manual cleanup.";
+  }
+  if (/permission|access denied|EACCES/i.test(detail)) {
+    return "Could not revert — file permission error. Check your workspace folder access.";
+  }
+  return "Something went wrong while reverting. Your files may be unchanged.";
+}
 import {
   checkpointRefForThreadTurn,
   resolveThreadWorkspaceCwd,
@@ -83,7 +102,7 @@ const make = Effect.gen(function* () {
         id: EventId.makeUnsafe(crypto.randomUUID()),
         tone: "error",
         kind: "checkpoint.revert.failed",
-        summary: "Checkpoint revert failed",
+        summary: normalizeCheckpointRevertError(input.detail),
         payload: {
           turnCount: input.turnCount,
           detail: input.detail,

@@ -38,9 +38,15 @@ import { TextGeneration } from "../../git/Services/TextGeneration.ts";
 import { ProviderService } from "../../provider/Services/ProviderService.ts";
 import {
   readProjectAgentsFile,
+  readProjectBriefFile,
   resolveProjectSkillSelection,
 } from "../../projectWorkspaceMetadata.ts";
 import { parseLatestResumeContext, THREAD_SKILLS_ACTIVITY_KIND } from "../../threadArtifacts.ts";
+import { ContextTrimmer } from "../Services/ContextTrimmer.ts";
+import { FeatureService } from "../Services/FeatureService.ts";
+import { MemoryService } from "../Services/MemoryService.ts";
+import { ProjectPromptsService } from "../Services/ProjectPromptsService.ts";
+import { GoalsService } from "../Services/GoalsService.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import {
   ProviderCommandReactor,
@@ -93,14 +99,17 @@ function applyThreadTurnContext(input: {
     readonly description: string;
     readonly contents: string;
   }>;
+  readonly projectContext?: string | undefined;
 }): string {
   const normalizedResumeSummary = input.resumeSummary?.trim();
   const normalizedSkills = (input.selectedSkills ?? []).filter(
     (skill) => skill.contents.trim().length > 0,
   );
+  const normalizedProjectContext = input.projectContext?.trim();
   if (
     (!normalizedResumeSummary || normalizedResumeSummary.length === 0) &&
-    normalizedSkills.length === 0
+    normalizedSkills.length === 0 &&
+    (!normalizedProjectContext || normalizedProjectContext.length === 0)
   ) {
     return applyWorkspaceAgentsInstructions({
       agentsContents: input.agentsContents,
@@ -120,6 +129,9 @@ function applyThreadTurnContext(input: {
       agentsContents,
       "</workspace_instructions>",
     );
+  }
+  if (normalizedProjectContext && normalizedProjectContext.length > 0) {
+    sections.push("<project_context>", normalizedProjectContext, "</project_context>");
   }
   if (normalizedResumeSummary && normalizedResumeSummary.length > 0) {
     sections.push(
@@ -237,6 +249,11 @@ function buildGeneratedWorktreeBranchName(raw: string): string {
 const make = Effect.gen(function* () {
   const orchestrationEngine = yield* OrchestrationEngineService;
   const providerService = yield* ProviderService;
+  const contextTrimmer = yield* ContextTrimmer;
+  const goalsService = yield* GoalsService;
+  const featureService = yield* FeatureService;
+  const memoryService = yield* MemoryService;
+  const projectPromptsService = yield* ProjectPromptsService;
   const git = yield* GitCore;
   const textGeneration = yield* TextGeneration;
   const handledTurnStartKeys = yield* Cache.make<string, true>({
@@ -396,7 +413,9 @@ const make = Effect.gen(function* () {
     const currentProvider: ProviderKind | undefined =
       thread.session?.providerName === "codex" ||
       thread.session?.providerName === "copilot" ||
+      thread.session?.providerName === "kilocode" ||
       thread.session?.providerName === "kimi" ||
+      thread.session?.providerName === "minimax" ||
       thread.session?.providerName === "opencode" ||
       thread.session?.providerName === "pi"
         ? thread.session.providerName
@@ -570,9 +589,150 @@ const make = Effect.gen(function* () {
       workspaceCwd && input.skills && input.skills.length > 0
         ? resolveProjectSkillSelection({ cwd: workspaceCwd, skillNames: input.skills })
         : [];
-    const resumeContext = ensuredSession.startedFresh
+    const rawResumeContext = ensuredSession.startedFresh
       ? parseLatestResumeContext(thread.activities)
       : null;
+
+    // Trim resume summary if it's too large (>1500 tokens)
+    let resumeContext = rawResumeContext;
+    if (rawResumeContext?.summary && rawResumeContext.summary.length > 6000) {
+      const trimResult = yield* contextTrimmer.trimResumeSummary({
+        summary: rawResumeContext.summary,
+        maxTokens: 1500,
+      });
+      resumeContext = { ...rawResumeContext, summary: trimResult.trimmed };
+    }
+
+    // Build project context: brief + goals + features + thread goal
+    let projectContextBlock: string | undefined;
+    try {
+      const briefContents = workspaceCwd ? readProjectBriefFile(workspaceCwd) : null;
+      const goalsResult = yield* goalsService
+        .listGoalsByProject({ projectId: thread.projectId })
+        .pipe(Effect.catch(() => Effect.succeed({ goals: [] as any[] })));
+      const featuresResult = yield* featureService
+        .listFeaturesByProject({ projectId: thread.projectId })
+        .pipe(Effect.catch(() => Effect.succeed({ features: [] as any[] })));
+
+      const contextParts: string[] = [];
+
+      if (briefContents) {
+        contextParts.push(`<brief>\n${briefContents}\n</brief>`);
+      }
+
+      const mainGoal = goalsResult.goals.find((g: any) => g.isMain);
+      const subGoals = goalsResult.goals.filter((g: any) => !g.isMain);
+      if (mainGoal || subGoals.length > 0) {
+        contextParts.push("<goals>");
+        if (mainGoal) {
+          contextParts.push(`  <main_goal>${(mainGoal as any).text}</main_goal>`);
+        }
+        for (const goal of subGoals) {
+          const linkedInfo =
+            (goal as any).linkedThreadIds?.length > 0
+              ? ` linked_threads="${(goal as any).linkedThreadIds.length}"`
+              : "";
+          contextParts.push(`  <goal${linkedInfo}>${(goal as any).text}</goal>`);
+        }
+        contextParts.push("</goals>");
+      }
+
+      if (featuresResult.features.length > 0) {
+        contextParts.push("<features>");
+        for (const feature of featuresResult.features) {
+          const f = feature as any;
+          contextParts.push(
+            `  <feature name="${f.name}" stage="${f.stage}"${f.description ? ` description="${f.description.slice(0, 200)}"` : ""} />`,
+          );
+        }
+        contextParts.push("</features>");
+      }
+
+      const threadGoal = (thread as any).goal;
+      if (threadGoal && typeof threadGoal === "string" && threadGoal.trim().length > 0) {
+        contextParts.push(`<thread_goal>${threadGoal.trim()}</thread_goal>`);
+      }
+
+      // Cross-thread context: summarize sibling threads so AI knows about parallel work
+      const siblingThreads = readModel.threads.filter(
+        (t) =>
+          t.projectId === thread.projectId &&
+          t.id !== thread.id &&
+          t.deletedAt === null &&
+          !(t.title ?? "").startsWith("[Product Manager]") &&
+          !(t.title ?? "").startsWith("[Skill Generator]"),
+      );
+      if (siblingThreads.length > 0) {
+        const recentSiblings = siblingThreads
+          .toSorted((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))
+          .slice(0, 5);
+        contextParts.push("<sibling_threads>");
+        for (const sibling of recentSiblings) {
+          const s = sibling as any;
+          const status = s.session?.status ?? "idle";
+          const goalText = s.goal ? ` goal="${s.goal}"` : "";
+          contextParts.push(
+            `  <thread title="${s.title}" status="${status}"${goalText} />`,
+          );
+        }
+        contextParts.push("</sibling_threads>");
+      }
+
+      contextParts.push(
+        `<verification_reminder>
+IRON LAW: No completion claims without verification evidence.
+The user cannot read code. When you finish a task:
+1. Describe exactly what the user should see or try
+2. Run verification commands (tests, build) and report results
+3. Only THEN say the task is complete — with evidence
+Never say "done", "finished", "complete", "working" without fresh proof.
+If you're unsure, say so clearly instead of claiming success.
+</verification_reminder>`,
+      );
+
+      // Inject project prompts + active harness from database
+      const promptsContext = yield* projectPromptsService
+        .getContextForThread({
+          projectId: thread.projectId as any,
+          threadId: thread.id as any,
+        })
+        .pipe(Effect.catch(() => Effect.succeed({ prompts: [] as any[], harnessContent: null })));
+
+      if (promptsContext.prompts.length > 0) {
+        contextParts.push("<project_rules>");
+        for (const prompt of promptsContext.prompts) {
+          contextParts.push(
+            `<rule name="${(prompt as any).name}" scope="${(prompt as any).scope}">`,
+          );
+          contextParts.push((prompt as any).content);
+          contextParts.push("</rule>");
+        }
+        contextParts.push("</project_rules>");
+      }
+
+      if (promptsContext.harnessContent) {
+        contextParts.push(promptsContext.harnessContent);
+      }
+
+      // Inject relevant memories from deep memory system
+      const memoriesBlock = yield* memoryService
+        .buildRelevantMemoriesBlock({
+          query: input.messageText,
+          projectId: thread.projectId as any,
+          maxTokens: 500,
+        })
+        .pipe(Effect.catch(() => Effect.succeed(null as string | null)));
+      if (memoriesBlock) {
+        contextParts.push(memoriesBlock);
+      }
+
+      if (contextParts.length > 0) {
+        projectContextBlock = contextParts.join("\n");
+      }
+    } catch {
+      // Don't let project context failures block the turn
+    }
+
     const normalizedInput = toNonEmptyProviderInput(
       applyThreadTurnContext({
         agentsContents:
@@ -588,6 +748,7 @@ const make = Effect.gen(function* () {
               })),
             }
           : {}),
+        ...(projectContextBlock ? { projectContext: projectContextBlock } : {}),
       }),
     );
     const normalizedAttachments = input.attachments ?? [];
@@ -621,7 +782,9 @@ const make = Effect.gen(function* () {
     const sessionProvider =
       (updatedThread?.session?.providerName === "codex" ||
       updatedThread?.session?.providerName === "copilot" ||
+      updatedThread?.session?.providerName === "kilocode" ||
       updatedThread?.session?.providerName === "kimi" ||
+      updatedThread?.session?.providerName === "minimax" ||
       updatedThread?.session?.providerName === "opencode" ||
       updatedThread?.session?.providerName === "pi"
         ? updatedThread.session.providerName
@@ -822,7 +985,9 @@ const make = Effect.gen(function* () {
             const sessionProvider =
               thread.session?.providerName === "codex" ||
               thread.session?.providerName === "copilot" ||
+              thread.session?.providerName === "kilocode" ||
               thread.session?.providerName === "kimi" ||
+              thread.session?.providerName === "minimax" ||
               thread.session?.providerName === "opencode" ||
               thread.session?.providerName === "pi"
                 ? thread.session.providerName

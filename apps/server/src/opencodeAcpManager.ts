@@ -231,6 +231,14 @@ export function normalizeOpenCodeStartErrorMessage(rawMessage: string): string {
     return "OpenCode requires authentication. Run `opencode auth login` and try again.";
   }
 
+  if (/ENOENT|not found|command not found|no such file/i.test(rawMessage)) {
+    return "OpenCode CLI (`opencode`) is not installed or not on PATH. Install it and try again, or set a custom binary path in Settings.";
+  }
+
+  if (/timed? ?out|timeout/i.test(rawMessage)) {
+    return "OpenCode took too long to start. Check your network connection and try again.";
+  }
+
   return rawMessage;
 }
 

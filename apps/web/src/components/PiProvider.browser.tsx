@@ -117,6 +117,8 @@ describe("Pi provider GUI", () => {
       codex: [{ slug: "gpt-5.4", name: "GPT-5.4" }],
       copilot: [{ slug: "claude-sonnet-4.5", name: "Claude Sonnet 4.5" }],
       kimi: [{ slug: "kimi-for-coding", name: "Kimi for Coding" }],
+      kilocode: [],
+      minimax: [],
       opencode: [{ slug: "opencode/default", name: "Default" }],
       pi: [
         { slug: "pi/default", name: "Default" },
@@ -146,8 +148,24 @@ describe("Pi provider GUI", () => {
           serviceTierSetting="auto"
           hasHiddenModels={false}
           hiddenProviders={[]}
-          favoriteModelsByProvider={{ codex: [], copilot: [], kimi: [], opencode: [], pi: [] }}
-          recentModelsByProvider={{ codex: [], copilot: [], kimi: [], opencode: [], pi: [] }}
+          favoriteModelsByProvider={{
+            codex: [],
+            copilot: [],
+            kimi: [],
+            kilocode: [],
+            minimax: [],
+            opencode: [],
+            pi: [],
+          }}
+          recentModelsByProvider={{
+            codex: [],
+            copilot: [],
+            kimi: [],
+            kilocode: [],
+            minimax: [],
+            opencode: [],
+            pi: [],
+          }}
           projectDefaultModel={null}
           onOpenProviderSetup={() => undefined}
           onOpenManageModels={() => undefined}
@@ -205,6 +223,8 @@ describe("Pi provider GUI", () => {
       codex: [{ slug: "gpt-5.4", name: "GPT-5.4" }],
       copilot: [{ slug: "claude-sonnet-4.5", name: "Claude Sonnet 4.5" }],
       kimi: [{ slug: "kimi-for-coding", name: "Kimi for Coding" }],
+      kilocode: [],
+      minimax: [],
       opencode: [{ slug: "opencode/default", name: "Default" }],
       pi: [
         { slug: "pi/default", name: "Default" },
@@ -217,6 +237,8 @@ describe("Pi provider GUI", () => {
     } satisfies Record<ProviderKind, ReadonlyArray<{ slug: string; name: string }>>;
     const visibleModelOptionsByProvider = {
       ...allModelOptionsByProvider,
+      kilocode: [],
+      minimax: [],
       pi: [
         { slug: "openai/gpt-5.4", name: "GPT-5.4" },
         {
@@ -245,8 +267,24 @@ describe("Pi provider GUI", () => {
           serviceTierSetting="auto"
           hasHiddenModels={false}
           hiddenProviders={[]}
-          favoriteModelsByProvider={{ codex: [], copilot: [], kimi: [], opencode: [], pi: [] }}
-          recentModelsByProvider={{ codex: [], copilot: [], kimi: [], opencode: [], pi: [] }}
+          favoriteModelsByProvider={{
+            codex: [],
+            copilot: [],
+            kimi: [],
+            kilocode: [],
+            minimax: [],
+            opencode: [],
+            pi: [],
+          }}
+          recentModelsByProvider={{
+            codex: [],
+            copilot: [],
+            kimi: [],
+            kilocode: [],
+            minimax: [],
+            opencode: [],
+            pi: [],
+          }}
           projectDefaultModel={null}
           onOpenProviderSetup={() => undefined}
           onOpenManageModels={() => undefined}

@@ -364,9 +364,15 @@ function ChatRouteLayoutContent() {
         <ThreadSidebar />
       </Sidebar>
       <DiffWorkerPoolProvider>
-        <div className="flex flex-1 min-h-0">
+        <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
           <Outlet />
-          <RightSidebar />
+          {(() => {
+            const activeProjectId =
+              paletteActiveThread?.projectId ?? paletteActiveDraftThread?.projectId;
+            if (!activeProjectId) return null;
+            const projectCwd = paletteProjects.find((p) => p.id === activeProjectId)?.cwd;
+            return <RightSidebar projectCwd={projectCwd} projectId={activeProjectId} />;
+          })()}
         </div>
       </DiffWorkerPoolProvider>
     </RightSidebarProvider>

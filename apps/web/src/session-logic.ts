@@ -1,5 +1,6 @@
 import {
   ApprovalRequestId,
+  MODEL_OPTIONS_BY_PROVIDER,
   PROVIDER_REASONING_LEVEL_OPTIONS,
   isToolLifecycleItemType,
   type ModelSlug,
@@ -33,7 +34,9 @@ export const PROVIDER_OPTIONS: Array<{
   { value: "codex", label: "Codex", available: true },
   { value: "openrouter", label: "OpenRouter", available: true },
   { value: "copilot", label: "GitHub Copilot", available: true },
+  { value: "kilocode", label: "KiloCode", available: true },
   { value: "kimi", label: "Kimi Code", available: true },
+  { value: "minimax", label: "MiniMax", available: true },
   { value: "opencode", label: "OpenCode", available: true },
   { value: "pi", label: "Pi", available: true },
   { value: "claudeCode", label: "Claude Code", available: false },
@@ -49,8 +52,12 @@ export function getProviderPickerBackingProvider(
       return "codex";
     case "copilot":
       return "copilot";
+    case "kilocode":
+      return "kilocode";
     case "kimi":
       return "kimi";
+    case "minimax":
+      return "minimax";
     case "opencode":
       return "opencode";
     case "pi":
@@ -72,6 +79,35 @@ export function getProviderPickerKindForSelection(
   }
 
   return provider;
+}
+
+/**
+ * If a model slug is a built-in model for a different provider than the one
+ * currently selected, return the correct provider. This prevents cases where
+ * e.g. "MiniMax-M2.7" is selected but the provider stays as "codex".
+ */
+export function resolveProviderForModel(
+  currentProvider: ProviderKind,
+  model: ModelSlug,
+): ProviderKind {
+  // If the model is valid for the current provider, keep it
+  const currentOptions = MODEL_OPTIONS_BY_PROVIDER[currentProvider];
+  if (currentOptions?.some((option) => option.slug === model)) {
+    return currentProvider;
+  }
+
+  // Check if the model is a built-in for a different provider
+  for (const [provider, options] of Object.entries(MODEL_OPTIONS_BY_PROVIDER)) {
+    if (provider === currentProvider) continue;
+    if (options.some((option) => option.slug === model)) {
+      return provider as ProviderKind;
+    }
+  }
+  // Also detect kilo-auto/* models
+  if (model.startsWith("kilo-auto/") && currentProvider !== "kilocode") {
+    return "kilocode";
+  }
+  return currentProvider;
 }
 
 export interface WorkLogEntry {

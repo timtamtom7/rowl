@@ -120,10 +120,16 @@ describe("opencodeAcpManager errors", () => {
     );
   });
 
-  it("preserves unrelated startup errors", () => {
+  it("normalizes timeout errors into user-friendly messages", () => {
     expect(
       normalizeOpenCodeStartErrorMessage("OpenCode ACP initialize timed out after 10000ms."),
-    ).toBe("OpenCode ACP initialize timed out after 10000ms.");
+    ).toBe("OpenCode took too long to start. Check your network connection and try again.");
+  });
+
+  it("preserves unrelated startup errors", () => {
+    expect(
+      normalizeOpenCodeStartErrorMessage("Unexpected internal error in OpenCode runtime."),
+    ).toBe("Unexpected internal error in OpenCode runtime.");
   });
 });
 

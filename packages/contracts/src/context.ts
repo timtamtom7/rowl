@@ -106,3 +106,38 @@ export type DeleteContextNodeInput = typeof DeleteContextNodeInput.Type;
 
 export const DeleteContextNodeResult = Schema.Struct({});
 export type DeleteContextNodeResult = typeof DeleteContextNodeResult.Type;
+
+// ── Context Budget Breakdown ──────────────────────────────────────────
+
+export const ContextBudgetBreakdown = Schema.Struct({
+  /** Approximate tokens from AGENTS.md workspace instructions */
+  agentsMd: NonNegativeInt,
+  /** Approximate tokens from project context (brief, goals, features, thread goal) */
+  projectContext: NonNegativeInt,
+  /** Approximate tokens from resume/compaction summary */
+  resumeSummary: NonNegativeInt,
+  /** Approximate tokens from selected skills */
+  skills: NonNegativeInt,
+  /** Approximate tokens from user message (0 if estimating future turn) */
+  userMessage: NonNegativeInt,
+  /** Sum of all Rowl-controlled context sections */
+  totalRowlContext: NonNegativeInt,
+  /** Provider-reported total tokens used in last turn (null if unavailable) */
+  lastReportedTotal: Schema.NullOr(Schema.Number),
+  /** Known context window limit for the model (null if unknown) */
+  contextWindowLimit: Schema.NullOr(Schema.Number),
+  /** Percentage of context window used, 0-100 (null if limit unknown) */
+  usagePercent: Schema.NullOr(Schema.Number),
+});
+export type ContextBudgetBreakdown = typeof ContextBudgetBreakdown.Type;
+
+export const GetContextBudgetInput = Schema.Struct({
+  threadId: ThreadId,
+  projectId: ProjectId,
+});
+export type GetContextBudgetInput = typeof GetContextBudgetInput.Type;
+
+export const GetContextBudgetResult = Schema.Struct({
+  breakdown: ContextBudgetBreakdown,
+});
+export type GetContextBudgetResult = typeof GetContextBudgetResult.Type;

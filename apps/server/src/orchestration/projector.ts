@@ -177,7 +177,15 @@ export function projectEvent(
     case "project.created":
       return decodeForEvent(ProjectCreatedPayload, event.payload, event.type, "payload").pipe(
         Effect.map((payload) => {
-          const existing = nextBase.projects.find((entry) => entry.id === payload.projectId);
+          const existingById = nextBase.projects.find((entry) => entry.id === payload.projectId);
+          // Prevent duplicate projects with the same workspace root
+          const existingByPath = !existingById
+            ? nextBase.projects.find(
+                (entry) =>
+                  entry.deletedAt === null &&
+                  entry.workspaceRoot === payload.workspaceRoot,
+              )
+            : undefined;
           const nextProject = {
             id: payload.projectId,
             title: payload.title,
@@ -189,13 +197,22 @@ export function projectEvent(
             deletedAt: null,
           };
 
+          if (existingById) {
+            // Update existing project with same ID
+            return {
+              ...nextBase,
+              projects: nextBase.projects.map((entry) =>
+                entry.id === payload.projectId ? nextProject : entry,
+              ),
+            };
+          }
+          if (existingByPath) {
+            // Workspace root already registered — skip adding a duplicate
+            return nextBase;
+          }
           return {
             ...nextBase,
-            projects: existing
-              ? nextBase.projects.map((entry) =>
-                  entry.id === payload.projectId ? nextProject : entry,
-                )
-              : [...nextBase.projects, nextProject],
+            projects: [...nextBase.projects, nextProject],
           };
         }),
       );

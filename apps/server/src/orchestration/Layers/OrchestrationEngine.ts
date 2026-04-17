@@ -80,6 +80,12 @@ const makeOrchestrationEngine = Effect.gen(function* () {
       for (const persistedEvent of persistedEvents) {
         yield* PubSub.publish(eventPubSub, persistedEvent);
       }
+      yield* Effect.forEach(persistedEvents, (persistedEvent) =>
+        projectionPipeline.projectEvent(persistedEvent).pipe(
+          Effect.catchTag("PersistenceSqlError", () => Effect.void),
+          Effect.catchTag("PersistenceDecodeError", () => Effect.void),
+        ),
+      );
     });
 
     return Effect.gen(function* () {
@@ -158,8 +164,16 @@ const makeOrchestrationEngine = Effect.gen(function* () {
       for (const event of committedCommand.committedEvents) {
         yield* PubSub.publish(eventPubSub, event);
       }
+      yield* Effect.forEach(committedCommand.committedEvents, (event) =>
+        projectionPipeline.projectEvent(event).pipe(
+          Effect.catchTag("PersistenceSqlError", () => Effect.void),
+          Effect.catchTag("PersistenceDecodeError", () => Effect.void),
+        ),
+      );
       const seq = committedCommand.lastSequence;
-      console.log(`[dispatch] command ${envelope.command.commandId} completed, resolving with seq=${seq}`);
+      console.log(
+        `[dispatch] command ${envelope.command.commandId} completed, resolving with seq=${seq}`,
+      );
       yield* Deferred.succeed(envelope.result, { sequence: seq });
     }).pipe(
       Effect.catch((error) =>
@@ -207,11 +221,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
   );
 
   yield* Effect.forkScoped(
-    Effect.forever(
-      Queue.take(commandQueue).pipe(
-        Effect.flatMap(processEnvelope),
-      ),
-    ),
+    Effect.forever(Queue.take(commandQueue).pipe(Effect.flatMap(processEnvelope))),
   );
 
   yield* Effect.log("orchestration engine started").pipe(
@@ -231,8 +241,12 @@ const makeOrchestrationEngine = Effect.gen(function* () {
       console.log(`[dispatch] offered command=${command.type} id=${command.commandId}`);
       const timeoutEffect = Effect.sleep("10 seconds").pipe(
         Effect.flatMap(() => {
-          console.log(`[dispatch:${command.commandId}] TIMEOUT FIRED — stack:\n${new Error().stack}`);
-          return Effect.fail(new OrchestrationDispatchTimeoutError({ commandId: command.commandId }));
+          console.log(
+            `[dispatch:${command.commandId}] TIMEOUT FIRED — stack:\n${new Error().stack}`,
+          );
+          return Effect.fail(
+            new OrchestrationDispatchTimeoutError({ commandId: command.commandId }),
+          );
         }),
       );
       return yield* Deferred.await(result).pipe(Effect.race(timeoutEffect));

@@ -3,7 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OPENROUTER_FREE_ROUTER_MODEL, type ProviderKind } from "@t3tools/contracts";
 import { getModelOptions, isCodexOpenRouterModel, normalizeModelSlug } from "@t3tools/shared/model";
-import { ImagePlusIcon, LoaderCircleIcon, RefreshCwIcon, Trash2Icon, ZapIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  ImagePlusIcon,
+  LoaderCircleIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+  ZapIcon,
+} from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsiblePanel } from "~/components/ui/collapsible";
 
 import {
   APP_SERVICE_TIER_OPTIONS,
@@ -21,8 +29,6 @@ import { resolveAndPersistPreferredEditor } from "../editorPreferences";
 import { isElectron } from "../env";
 import { useChatBackgroundImage } from "../hooks/useChatBackgroundImage";
 import { removeChatBackgroundBlob, saveChatBackgroundBlob } from "../lib/chatBackgroundStorage";
-import { formatCompactTokenCount } from "../lib/contextWindow";
-import { cn } from "../lib/utils";
 import {
   isCut3CompatibleOpenRouterModelOption,
   isOpenRouterGuaranteedFreeSlug,
@@ -54,7 +60,7 @@ import { getLatestServerWelcome } from "../wsNativeApi";
 import { SidebarInset } from "~/components/ui/sidebar";
 
 const MODEL_PROVIDER_SETTINGS: Array<{
-  provider: Extract<ProviderKind, "copilot" | "opencode" | "kimi" | "pi">;
+  provider: Extract<ProviderKind, "copilot" | "kilocode" | "opencode" | "kimi" | "minimax" | "pi">;
   title: string;
   description: string;
   placeholder: string;
@@ -66,6 +72,13 @@ const MODEL_PROVIDER_SETTINGS: Array<{
     description: "Save additional Copilot model slugs for the picker and `/model` command.",
     placeholder: "your-copilot-model-slug",
     example: "claude-sonnet-4.6",
+  },
+  {
+    provider: "kilocode",
+    title: "KiloCode",
+    description: "Save additional KiloCode model ids for the picker and `/model` command.",
+    placeholder: "your-kilocode-model-id",
+    example: "kilocode/default",
   },
   {
     provider: "opencode",
@@ -82,6 +95,13 @@ const MODEL_PROVIDER_SETTINGS: Array<{
     example: "kimi-for-coding",
   },
   {
+    provider: "minimax",
+    title: "MiniMax",
+    description: "Save additional MiniMax model ids for the picker and `/model` command.",
+    placeholder: "your-minimax-model-id",
+    example: "MiniMax-M2.7",
+  },
+  {
     provider: "pi",
     title: "Pi",
     description: "Save additional Pi provider/model ids for the picker and `/model` command.",
@@ -95,6 +115,10 @@ function getSettingsCopy(language: AppLanguage) {
     return {
       settingsLabel: "تنظیمات",
       settingsDescription: "ترجیحات برنامه برای این دستگاه را تنظیم کنید.",
+      tabGeneral: "عمومی",
+      tabProviders: "ارائه‌دهندگان",
+      tabModels: "مدل‌ها",
+      tabAdvanced: "پیشرفته",
       chatBackgroundTitle: "پس زمینه گفتگو",
       chatBackgroundDescription: "یک تصویر سفارشی پشت خط زمانی گفتگو در این دستگاه قرار دهید.",
       status: "وضعیت",
@@ -145,6 +169,21 @@ function getSettingsCopy(language: AppLanguage) {
       copilotBinaryPath: "مسیر باینری Copilot",
       leaveBlankCopilot: "برای استفاده از copilot از PATH این کادر را خالی بگذارید.",
       resetCopilotOverrides: "بازنشانی بازنویسی های Copilot",
+      kilocodeTitle: "KiloCode",
+      kilocodeDescription:
+        "برای نشست های جدید KiloCode اعمال می شود. قبل از شروع نشست ها، جریان OAuth Kilo Gateway را کامل کنید.",
+      kilocodeBinaryPath: "مسیر باینری KiloCode",
+      leaveBlankKilocode: "برای استفاده از kilo از PATH این کادر را خالی بگذارید.",
+      resetKilocodeOverrides: "بازنشانی بازنویسی های KiloCode",
+      minimaxTitle: "MiniMax",
+      minimaxDescription:
+        "MiniMax از اتصال مستقیم API استفاده می کند. کلید API MiniMax خود را برای شروع نشست ها با MiniMax-M2.7 اضافه کنید.",
+      minimaxApiKey: "کلید API MiniMax",
+      minimaxApiDescription: (electron: boolean) =>
+        electron
+          ? "کلید API MiniMax خود را اضافه کنید تا Rowl مستقیماً به API MiniMax متصل شود. Rowl آن را در نشست دسکتاپ نگه می دارد."
+          : "کلید API MiniMax خود را اضافه کنید تا Rowl مستقیماً به API MiniMax متصل شود. Rowl آن را فقط در حافظه نشست فعلی مرورگر نگه می دارد.",
+      resetMinimaxOverrides: "بازنشانی بازنویسی های MiniMax",
       opencodeTitle: "OpenCode",
       opencodeDescription:
         "برای نشست های جدید OpenCode اعمال می شود و به Rowl اجازه می دهد از نصب غیرپیش فرض opencode استفاده کند. اعتبارنامه ها را با opencode auth login و opencode auth logout مدیریت کنید، و اگر پیکربندی OpenCode شما به OPENROUTER_API_KEY نیاز دارد کلید OpenRouter را در بخش بالایی Rowl وارد کنید.",
@@ -218,6 +257,10 @@ function getSettingsCopy(language: AppLanguage) {
           title: "GitHub Copilot",
           description: "اسلاگ های مدل اضافی Copilot را برای انتخابگر و دستور /model ذخیره کنید.",
         },
+        kilocode: {
+          title: "KiloCode",
+          description: "شناسه های مدل اضافی KiloCode را برای انتخابگر و دستور /model ذخیره کنید.",
+        },
         opencode: {
           title: "OpenCode",
           description: "شناسه های provider/model اضافی را برای انتخابگر و دستور /model ذخیره کنید.",
@@ -225,6 +268,10 @@ function getSettingsCopy(language: AppLanguage) {
         kimi: {
           title: "Kimi Code",
           description: "شناسه های مدل اضافی Kimi Code را برای انتخابگر و دستور /model ذخیره کنید.",
+        },
+        minimax: {
+          title: "MiniMax",
+          description: "شناسه های مدل اضافی MiniMax را برای انتخابگر و دستور /model ذخیره کنید.",
         },
         pi: {
           title: "Pi",
@@ -298,6 +345,10 @@ function getSettingsCopy(language: AppLanguage) {
   return {
     settingsLabel: "Settings",
     settingsDescription: "Configure app-level preferences for this device.",
+    tabGeneral: "General",
+    tabProviders: "Providers",
+    tabModels: "Models",
+    tabAdvanced: "Advanced",
     chatBackgroundTitle: "Chat background",
     chatBackgroundDescription: "Add a custom image behind the chat timeline on this device.",
     status: "Status",
@@ -348,6 +399,21 @@ function getSettingsCopy(language: AppLanguage) {
     copilotBinaryPath: "Copilot binary path",
     leaveBlankCopilot: "Leave blank to use copilot from your PATH.",
     resetCopilotOverrides: "Reset copilot overrides",
+    kilocodeTitle: "KiloCode",
+    kilocodeDescription:
+      "Applies to new KiloCode sessions. Complete the Kilo Gateway OAuth flow before starting sessions. Leave the binary path blank to use `kilo` from your PATH.",
+    kilocodeBinaryPath: "KiloCode binary path",
+    leaveBlankKilocode: "Leave blank to use kilo from your PATH.",
+    resetKilocodeOverrides: "Reset KiloCode overrides",
+    minimaxTitle: "MiniMax",
+    minimaxDescription:
+      "MiniMax uses a direct API connection. Add your MiniMax API key to start sessions with MiniMax-M2.7.",
+    minimaxApiKey: "MiniMax API key",
+    minimaxApiDescription: (electron: boolean) =>
+      electron
+        ? "Add your MiniMax API key to let Rowl connect to the MiniMax API directly. Rowl keeps it in the desktop session and persists it in your OS credential store when secure storage is available."
+        : "Add your MiniMax API key to let Rowl connect to the MiniMax API directly. Rowl keeps it only in memory for the current browser session.",
+    resetMinimaxOverrides: "Reset MiniMax overrides",
     opencodeTitle: "OpenCode",
     opencodeDescription:
       "Applies to new OpenCode sessions and lets Rowl use a non-default `opencode` install. Manage credentials with `opencode auth login` and `opencode auth logout`, and add the top-level OpenRouter key in Rowl if your OpenCode config expects `OPENROUTER_API_KEY`.",
@@ -420,6 +486,10 @@ function getSettingsCopy(language: AppLanguage) {
         title: "GitHub Copilot",
         description: "Save additional Copilot model slugs for the picker and /model command.",
       },
+      kilocode: {
+        title: "KiloCode",
+        description: "Save additional KiloCode model ids for the picker and /model command.",
+      },
       opencode: {
         title: "OpenCode",
         description: "Save extra provider/model IDs for the picker and /model.",
@@ -427,6 +497,10 @@ function getSettingsCopy(language: AppLanguage) {
       kimi: {
         title: "Kimi Code",
         description: "Save additional Kimi Code model ids for the picker and /model command.",
+      },
+      minimax: {
+        title: "MiniMax",
+        description: "Save additional MiniMax model ids for the picker and /model command.",
       },
       pi: {
         title: "Pi",
@@ -534,10 +608,14 @@ function getCustomModelsForProvider(
       return settings.customCodexModels;
     case "copilot":
       return settings.customCopilotModels;
-    case "opencode":
-      return settings.customOpencodeModels;
+    case "kilocode":
+      return settings.customKilocodeModels;
     case "kimi":
       return settings.customKimiModels;
+    case "minimax":
+      return settings.customMinimaxModels;
+    case "opencode":
+      return settings.customOpencodeModels;
     case "pi":
       return settings.customPiModels;
     default:
@@ -554,10 +632,14 @@ function getDefaultCustomModelsForProvider(
       return defaults.customCodexModels;
     case "copilot":
       return defaults.customCopilotModels;
-    case "opencode":
-      return defaults.customOpencodeModels;
+    case "kilocode":
+      return defaults.customKilocodeModels;
     case "kimi":
       return defaults.customKimiModels;
+    case "minimax":
+      return defaults.customMinimaxModels;
+    case "opencode":
+      return defaults.customOpencodeModels;
     case "pi":
       return defaults.customPiModels;
     default:
@@ -571,10 +653,14 @@ function patchCustomModels(provider: ProviderKind, models: string[]) {
       return { customCodexModels: models };
     case "copilot":
       return { customCopilotModels: models };
-    case "opencode":
-      return { customOpencodeModels: models };
+    case "kilocode":
+      return { customKilocodeModels: models };
     case "kimi":
       return { customKimiModels: models };
+    case "minimax":
+      return { customMinimaxModels: models };
+    case "opencode":
+      return { customOpencodeModels: models };
     case "pi":
       return { customPiModels: models };
     default:
@@ -582,7 +668,7 @@ function patchCustomModels(provider: ProviderKind, models: string[]) {
   }
 }
 
-function renderCapabilityBadge(label: string) {
+function _renderCapabilityBadge(label: string) {
   return (
     <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
       {label}
@@ -598,6 +684,31 @@ function SettingsRouteView() {
   const settingsDirection = getAppLanguageDetails(settings.language).dir;
   const serverConfigQuery = useQuery(serverConfigQueryOptions());
   const openRouterCatalogQuery = useQuery(openRouterFreeModelsQueryOptions());
+  const SETTINGS_TAB_STORAGE_KEY = "rowl:settings:active-tab";
+  type SettingsTab = "general" | "providers" | "advanced";
+  const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>(() => {
+    try {
+      const stored = localStorage.getItem(SETTINGS_TAB_STORAGE_KEY);
+      if (stored === "general" || stored === "providers" || stored === "advanced") {
+        return stored;
+      }
+    } catch {
+      // ignore
+    }
+    return "general";
+  });
+  const switchSettingsTab = useCallback((tab: SettingsTab) => {
+    setActiveSettingsTab(tab);
+    try {
+      localStorage.setItem(SETTINGS_TAB_STORAGE_KEY, tab);
+    } catch {
+      // ignore
+    }
+  }, []);
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+  const [customModelSelectedProvider, setCustomModelSelectedProvider] = useState(
+    MODEL_PROVIDER_SETTINGS[0]?.provider ?? "copilot",
+  );
   const [isOpeningKeybindings, setIsOpeningKeybindings] = useState(false);
   const [openKeybindingsError, setOpenKeybindingsError] = useState<string | null>(null);
   const [chatBackgroundError, setChatBackgroundError] = useState<string | null>(null);
@@ -619,6 +730,8 @@ function SettingsRouteView() {
     copilot: "",
     opencode: "",
     kimi: "",
+    kilocode: "",
+    minimax: "",
     pi: "",
   });
   const [customModelErrorByProvider, setCustomModelErrorByProvider] = useState<
@@ -678,9 +791,11 @@ function SettingsRouteView() {
   const codexHomePath = settings.codexHomePath;
   const openRouterApiKey = settings.openRouterApiKey;
   const copilotBinaryPath = settings.copilotBinaryPath;
+  const kilocodeBinaryPath = settings.kilocodeBinaryPath;
   const opencodeBinaryPath = settings.opencodeBinaryPath;
   const kimiBinaryPath = settings.kimiBinaryPath;
   const kimiApiKey = settings.kimiApiKey;
+  const minimaxApiKey = settings.minimaxApiKey;
   const codexServiceTier = settings.codexServiceTier;
   const openRouterFreeModels = useMemo(
     () => openRouterCatalogQuery.data?.models ?? [OPENROUTER_FREE_ROUTER_OPTION],
@@ -707,10 +822,10 @@ function SettingsRouteView() {
       : null;
     return fromCwd ?? latestWelcome?.bootstrapProjectId ?? null;
   }, [latestWelcome?.bootstrapProjectId, latestWelcome?.cwd, projects]);
-  const openRouterCustomModelInput = customModelInputByProvider.codex;
-  const openRouterCustomModelError = customModelErrorByProvider.codex ?? null;
+  const _openRouterCustomModelInput = customModelInputByProvider.codex;
+  const _openRouterCustomModelError = customModelErrorByProvider.codex ?? null;
   const savedOpenRouterModels = settings.customCodexModels;
-  const savedOpenRouterModelWarnings = useMemo(
+  const _savedOpenRouterModelWarnings = useMemo(
     () =>
       new Map(
         savedOpenRouterModels.map((slug) => {
@@ -860,14 +975,14 @@ function SettingsRouteView() {
     [customModelInputByProvider, saveCustomModel],
   );
 
-  const addOpenRouterCatalogModel = useCallback(
+  const _addOpenRouterCatalogModel = useCallback(
     (slug: string) => {
       saveCustomModel("codex", slug);
     },
     [saveCustomModel],
   );
 
-  const resetOpenRouterCustomModels = useCallback(() => {
+  const _resetOpenRouterCustomModels = useCallback(() => {
     updateSettings(
       patchCustomModels("codex", [...getDefaultCustomModelsForProvider(defaults, "codex")]),
     );
@@ -893,7 +1008,7 @@ function SettingsRouteView() {
         ? copy.openRouterCached(openRouterCatalogModelCount)
         : copy.openRouterUnavailable;
 
-  const openRouterCatalogError =
+  const _openRouterCatalogError =
     openRouterCatalogQuery.data?.status === "unavailable"
       ? openRouterCatalogQuery.data.message
       : openRouterCatalogQuery.data?.status === "available"
@@ -1134,964 +1249,1055 @@ function SettingsRouteView() {
               </div>
             </header>
 
-            <AppearanceSettingsSection />
+            <nav className="flex gap-1 rounded-xl border border-border bg-card p-1">
+              {(
+                [
+                  { key: "general", label: copy.tabGeneral ?? "General" },
+                  { key: "providers", label: copy.tabProviders ?? "Providers" },
+                  { key: "advanced", label: copy.tabAdvanced ?? "Advanced" },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => switchSettingsTab(tab.key)}
+                  className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    activeSettingsTab === tab.key
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
 
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.chatBackgroundTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {copy.chatBackgroundDescription}
-                </p>
-              </div>
+            {activeSettingsTab === "general" && (
+              <>
+                <div className="space-y-4">
+                  <AppearanceSettingsSection />
 
-              <input
-                ref={chatBackgroundFileInputRef}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={handleChatBackgroundFileChange}
-              />
+                  <section className="rounded-2xl border border-border bg-card p-5">
+                    <div className="mb-4">
+                      <h2 className="text-sm font-medium text-foreground">
+                        {copy.chatBackgroundTitle}
+                      </h2>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {copy.chatBackgroundDescription}
+                      </p>
+                    </div>
 
-              <div className="space-y-4">
-                <div className="overflow-hidden rounded-xl border border-border bg-background/60">
-                  {hasChatBackgroundImageSource ? (
-                    <div className="aspect-[16/7] overflow-hidden">
-                      <div
-                        className="h-full w-full scale-105 bg-cover bg-center bg-no-repeat"
-                        style={{
-                          backgroundImage: `linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 32%)), url(${chatBackgroundPreview.url})`,
-                          filter: `blur(${chatBackgroundBlurPx}px)`,
-                          opacity: chatBackgroundImageOpacity,
-                        }}
+                    <input
+                      ref={chatBackgroundFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={handleChatBackgroundFileChange}
+                    />
+
+                    <div className="space-y-4">
+                      <div className="overflow-hidden rounded-xl border border-border bg-background/60">
+                        {hasChatBackgroundImageSource ? (
+                          <div className="aspect-[16/7] overflow-hidden">
+                            <div
+                              className="h-full w-full scale-105 bg-cover bg-center bg-no-repeat"
+                              style={{
+                                backgroundImage: `linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 32%)), url(${chatBackgroundPreview.url})`,
+                                filter: `blur(${chatBackgroundBlurPx}px)`,
+                                opacity: chatBackgroundImageOpacity,
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="aspect-[16/7] bg-[linear-gradient(135deg,var(--color-neutral-200),transparent_55%),linear-gradient(180deg,var(--background),color-mix(in_srgb,var(--background)_80%,var(--primary)))] dark:bg-[linear-gradient(135deg,var(--color-neutral-800),transparent_55%),linear-gradient(180deg,var(--background),color-mix(in_srgb,var(--background)_88%,var(--primary)))]" />
+                        )}
+
+                        <div className="border-t border-border/70 px-3 py-2 text-xs text-muted-foreground">
+                          <p>
+                            {copy.status}:{" "}
+                            <span className="font-medium text-foreground">
+                              {hasChatBackgroundImage
+                                ? copy.customImageActive
+                                : copy.defaultBackground}
+                            </span>
+                          </p>
+                          <p className="mt-1">
+                            {copy.file}:{" "}
+                            <span className="font-medium text-foreground">
+                              {settings.chatBackgroundImageName || copy.none}
+                            </span>
+                          </p>
+                          <p className="mt-1">
+                            {copy.fade}:{" "}
+                            <span className="font-medium text-foreground">
+                              {chatBackgroundFadePercent}%
+                            </span>
+                          </p>
+                          <p className="mt-1">
+                            {copy.blur}:{" "}
+                            <span className="font-medium text-foreground">
+                              {chatBackgroundBlurPx}px
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={openChatBackgroundPicker}
+                          disabled={isUpdatingChatBackground}
+                        >
+                          {isUpdatingChatBackground ? (
+                            <LoaderCircleIcon className="size-4 animate-spin" />
+                          ) : (
+                            <ImagePlusIcon className="size-4" />
+                          )}
+                          {hasChatBackgroundImage ? copy.changeBackground : copy.addBackground}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={removeChatBackgroundImage}
+                          disabled={!hasChatBackgroundImageSource || isUpdatingChatBackground}
+                        >
+                          <Trash2Icon className="size-4" />
+                          {copy.removeBackground}
+                        </Button>
+                      </div>
+
+                      <div className="space-y-4 rounded-xl border border-border bg-background/50 px-3 py-3">
+                        <label className="block space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-medium text-foreground">{copy.fade}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {chatBackgroundFadePercent}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={chatBackgroundFadePercent}
+                            disabled={!hasChatBackgroundImageSource}
+                            onChange={(event) =>
+                              updateSettings({
+                                chatBackgroundImageFadePercent: clampChatBackgroundFadePercent(
+                                  Number(event.target.value),
+                                ),
+                              })
+                            }
+                            className="w-full accent-primary disabled:cursor-not-allowed disabled:opacity-45"
+                            aria-label={copy.fade}
+                          />
+                          <p className="text-xs text-muted-foreground">{copy.fadeDescription}</p>
+                        </label>
+
+                        <label className="block space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-medium text-foreground">{copy.blur}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {chatBackgroundBlurPx}px
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={MAX_CHAT_BACKGROUND_IMAGE_BLUR_PX}
+                            step={1}
+                            value={chatBackgroundBlurPx}
+                            disabled={!hasChatBackgroundImageSource}
+                            onChange={(event) =>
+                              updateSettings({
+                                chatBackgroundImageBlurPx: clampChatBackgroundBlurPx(
+                                  Number(event.target.value),
+                                ),
+                              })
+                            }
+                            className="w-full accent-primary disabled:cursor-not-allowed disabled:opacity-45"
+                            aria-label={copy.blur}
+                          />
+                          <p className="text-xs text-muted-foreground">{copy.blurDescription}</p>
+                        </label>
+
+                        {(chatBackgroundFadePercent !==
+                          DEFAULT_CHAT_BACKGROUND_IMAGE_FADE_PERCENT ||
+                          chatBackgroundBlurPx !== DEFAULT_CHAT_BACKGROUND_IMAGE_BLUR_PX) && (
+                          <div className="flex justify-end">
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="outline"
+                              onClick={() =>
+                                updateSettings({
+                                  chatBackgroundImageFadePercent:
+                                    DEFAULT_CHAT_BACKGROUND_IMAGE_FADE_PERCENT,
+                                  chatBackgroundImageBlurPx: DEFAULT_CHAT_BACKGROUND_IMAGE_BLUR_PX,
+                                })
+                              }
+                            >
+                              {copy.resetImageEffects}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        {copy.imageStorageNote(CHAT_BACKGROUND_IMAGE_SIZE_LIMIT_LABEL)}
+                      </p>
+                      {chatBackgroundError ? (
+                        <p className="text-xs text-destructive">{chatBackgroundError}</p>
+                      ) : null}
+                    </div>
+                  </section>
+                </div>
+              </>
+            )}
+
+            {activeSettingsTab === "providers" && (
+              <section className="rounded-2xl border border-border bg-card divide-y divide-border">
+                {/* Codex */}
+                <Collapsible
+                  open={expandedProvider === "codex"}
+                  onOpenChange={(open) => setExpandedProvider(open ? "codex" : null)}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5">
+                    <ChevronRightIcon
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${expandedProvider === "codex" ? "rotate-90" : ""}`}
+                    />
+                    <span className="flex-1 text-start text-sm font-medium text-foreground">
+                      {copy.codexTitle}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {codexBinaryPath ? "Custom path" : "PATH"}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <div className="space-y-4 px-5 pb-4">
+                      <p className="text-xs text-muted-foreground">{copy.codexDescription}</p>
+                      <label htmlFor="codex-binary-path" className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.codexBinaryPath}
+                        </span>
+                        <Input
+                          id="codex-binary-path"
+                          dir="ltr"
+                          value={codexBinaryPath}
+                          onChange={(event) =>
+                            updateSettings({ codexBinaryPath: event.target.value })
+                          }
+                          placeholder="codex"
+                          spellCheck={false}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {copy.leaveBlankCodex}
+                        </span>
+                      </label>
+                      <label htmlFor="codex-home-path" className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.codexHomePath}
+                        </span>
+                        <Input
+                          id="codex-home-path"
+                          dir="ltr"
+                          value={codexHomePath}
+                          onChange={(event) =>
+                            updateSettings({ codexHomePath: event.target.value })
+                          }
+                          placeholder="/Users/you/.codex"
+                          spellCheck={false}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {copy.codexHomeDescription}
+                        </span>
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.defaultServiceTier}
+                        </span>
+                        <Select
+                          items={APP_SERVICE_TIER_OPTIONS.map((option) => ({
+                            label: copy.serviceTierOptions[option.value].label,
+                            value: option.value,
+                          }))}
+                          value={codexServiceTier}
+                          onValueChange={(value) => {
+                            if (!value) return;
+                            updateSettings({ codexServiceTier: value });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectPopup alignItemWithTrigger={false}>
+                            {APP_SERVICE_TIER_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                <div className="flex min-w-0 items-center gap-2">
+                                  {option.value === "fast" ? (
+                                    <ZapIcon className="size-3.5 text-amber-500" />
+                                  ) : (
+                                    <span className="size-3.5 shrink-0" aria-hidden="true" />
+                                  )}
+                                  <span className="truncate">
+                                    {copy.serviceTierOptions[option.value].label}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectPopup>
+                        </Select>
+                        <span className="text-xs text-muted-foreground">
+                          {copy.serviceTierOptions[codexServiceTier].description}
+                        </span>
+                      </label>
+                      <div className="flex justify-end">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() =>
+                            updateSettings({
+                              codexBinaryPath: defaults.codexBinaryPath,
+                              codexHomePath: defaults.codexHomePath,
+                            })
+                          }
+                        >
+                          {copy.resetCodexOverrides}
+                        </Button>
+                      </div>
+                    </div>
+                  </CollapsiblePanel>
+                </Collapsible>
+
+                {/* OpenRouter */}
+                <Collapsible
+                  open={expandedProvider === "openrouter"}
+                  onOpenChange={(open) => setExpandedProvider(open ? "openrouter" : null)}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5">
+                    <ChevronRightIcon
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${expandedProvider === "openrouter" ? "rotate-90" : ""}`}
+                    />
+                    <span className="flex-1 text-start text-sm font-medium text-foreground">
+                      {copy.openRouterTitle}
+                    </span>
+                    <span
+                      className={`text-xs ${openRouterApiKey.trim().length > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
+                    >
+                      {openRouterApiKey.trim().length > 0 ? "Configured" : "Not configured"}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <div className="space-y-4 px-5 pb-4">
+                      <p className="text-xs text-muted-foreground">{copy.openRouterDescription}</p>
+                      <label htmlFor="openrouter-api-key" className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.openRouterApiKey}
+                        </span>
+                        <Input
+                          id="openrouter-api-key"
+                          dir="ltr"
+                          type="password"
+                          value={openRouterApiKey}
+                          onChange={(event) =>
+                            updateSettings({ openRouterApiKey: event.target.value })
+                          }
+                          placeholder="sk-or-..."
+                          autoComplete="new-password"
+                          spellCheck={false}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {copy.openRouterKeyDescription(isElectron)}
+                        </span>
+                      </label>
+                      <div className="flex justify-end">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() =>
+                            updateSettings({ openRouterApiKey: defaults.openRouterApiKey })
+                          }
+                        >
+                          {copy.resetOpenRouterKey}
+                        </Button>
+                      </div>
+                    </div>
+                  </CollapsiblePanel>
+                </Collapsible>
+
+                {/* Copilot */}
+                <Collapsible
+                  open={expandedProvider === "copilot"}
+                  onOpenChange={(open) => setExpandedProvider(open ? "copilot" : null)}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5">
+                    <ChevronRightIcon
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${expandedProvider === "copilot" ? "rotate-90" : ""}`}
+                    />
+                    <span className="flex-1 text-start text-sm font-medium text-foreground">
+                      {copy.copilotTitle}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {copilotBinaryPath ? "Custom path" : "PATH"}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <div className="space-y-4 px-5 pb-4">
+                      <p className="text-xs text-muted-foreground">{copy.copilotDescription}</p>
+                      <label htmlFor="copilot-binary-path" className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.copilotBinaryPath}
+                        </span>
+                        <Input
+                          id="copilot-binary-path"
+                          dir="ltr"
+                          value={copilotBinaryPath}
+                          onChange={(event) =>
+                            updateSettings({ copilotBinaryPath: event.target.value })
+                          }
+                          placeholder="copilot"
+                          spellCheck={false}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {copy.leaveBlankCopilot}
+                        </span>
+                      </label>
+                      <div className="flex justify-end">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() =>
+                            updateSettings({ copilotBinaryPath: defaults.copilotBinaryPath })
+                          }
+                        >
+                          {copy.resetCopilotOverrides}
+                        </Button>
+                      </div>
+                    </div>
+                  </CollapsiblePanel>
+                </Collapsible>
+
+                {/* KiloCode */}
+                <Collapsible
+                  open={expandedProvider === "kilocode"}
+                  onOpenChange={(open) => setExpandedProvider(open ? "kilocode" : null)}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5">
+                    <ChevronRightIcon
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${expandedProvider === "kilocode" ? "rotate-90" : ""}`}
+                    />
+                    <span className="flex-1 text-start text-sm font-medium text-foreground">
+                      {copy.kilocodeTitle}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {kilocodeBinaryPath ? "Custom path" : "PATH"}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <div className="space-y-4 px-5 pb-4">
+                      <p className="text-xs text-muted-foreground">{copy.kilocodeDescription}</p>
+                      <label htmlFor="kilocode-binary-path" className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.kilocodeBinaryPath}
+                        </span>
+                        <Input
+                          id="kilocode-binary-path"
+                          dir="ltr"
+                          value={kilocodeBinaryPath}
+                          onChange={(event) =>
+                            updateSettings({ kilocodeBinaryPath: event.target.value })
+                          }
+                          placeholder="kilo"
+                          spellCheck={false}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {copy.leaveBlankKilocode}
+                        </span>
+                      </label>
+                      <div className="flex justify-end">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() =>
+                            updateSettings({ kilocodeBinaryPath: defaults.kilocodeBinaryPath })
+                          }
+                        >
+                          {copy.resetKilocodeOverrides}
+                        </Button>
+                      </div>
+                    </div>
+                  </CollapsiblePanel>
+                </Collapsible>
+
+                {/* OpenCode */}
+                <Collapsible
+                  open={expandedProvider === "opencode"}
+                  onOpenChange={(open) => setExpandedProvider(open ? "opencode" : null)}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5">
+                    <ChevronRightIcon
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${expandedProvider === "opencode" ? "rotate-90" : ""}`}
+                    />
+                    <span className="flex-1 text-start text-sm font-medium text-foreground">
+                      {copy.opencodeTitle}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {opencodeBinaryPath ? "Custom path" : "PATH"}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <div className="space-y-4 px-5 pb-4">
+                      <p className="text-xs text-muted-foreground">{copy.opencodeDescription}</p>
+                      <label htmlFor="opencode-binary-path" className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.opencodeBinaryPath}
+                        </span>
+                        <Input
+                          id="opencode-binary-path"
+                          dir="ltr"
+                          value={opencodeBinaryPath}
+                          onChange={(event) =>
+                            updateSettings({ opencodeBinaryPath: event.target.value })
+                          }
+                          placeholder="opencode"
+                          spellCheck={false}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {copy.leaveBlankOpencode}
+                        </span>
+                      </label>
+                      <div className="flex justify-end">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() =>
+                            updateSettings({ opencodeBinaryPath: defaults.opencodeBinaryPath })
+                          }
+                        >
+                          {copy.resetOpencodeOverrides}
+                        </Button>
+                      </div>
+                      <div className="pt-4 border-t border-border">
+                        <OpenCodeCredentialsManager />
+                      </div>
+                    </div>
+                  </CollapsiblePanel>
+                </Collapsible>
+
+                {/* Kimi */}
+                <Collapsible
+                  open={expandedProvider === "kimi"}
+                  onOpenChange={(open) => setExpandedProvider(open ? "kimi" : null)}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5">
+                    <ChevronRightIcon
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${expandedProvider === "kimi" ? "rotate-90" : ""}`}
+                    />
+                    <span className="flex-1 text-start text-sm font-medium text-foreground">
+                      {copy.kimiTitle}
+                    </span>
+                    <span
+                      className={`text-xs ${kimiApiKey ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
+                    >
+                      {kimiApiKey ? "API key set" : kimiBinaryPath ? "Custom path" : "PATH"}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <div className="space-y-4 px-5 pb-4">
+                      <p className="text-xs text-muted-foreground">{copy.kimiDescription}</p>
+                      <label htmlFor="kimi-binary-path" className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.kimiBinaryPath}
+                        </span>
+                        <Input
+                          id="kimi-binary-path"
+                          dir="ltr"
+                          value={kimiBinaryPath}
+                          onChange={(event) =>
+                            updateSettings({ kimiBinaryPath: event.target.value })
+                          }
+                          placeholder="kimi"
+                          spellCheck={false}
+                        />
+                        <span className="text-xs text-muted-foreground">{copy.leaveBlankKimi}</span>
+                      </label>
+                      <label htmlFor="kimi-api-key" className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.kimiApiKey}
+                        </span>
+                        <Input
+                          id="kimi-api-key"
+                          dir="ltr"
+                          type="password"
+                          value={kimiApiKey}
+                          onChange={(event) => updateSettings({ kimiApiKey: event.target.value })}
+                          placeholder="sk-kimi-..."
+                          autoComplete="new-password"
+                          spellCheck={false}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {copy.kimiApiDescription(isElectron)}
+                        </span>
+                      </label>
+                      <div className="flex justify-end">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() =>
+                            updateSettings({
+                              kimiBinaryPath: defaults.kimiBinaryPath,
+                              kimiApiKey: defaults.kimiApiKey,
+                            })
+                          }
+                        >
+                          {copy.resetKimiOverrides}
+                        </Button>
+                      </div>
+                    </div>
+                  </CollapsiblePanel>
+                </Collapsible>
+
+                {/* MiniMax */}
+                <Collapsible
+                  open={expandedProvider === "minimax"}
+                  onOpenChange={(open) => setExpandedProvider(open ? "minimax" : null)}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5">
+                    <ChevronRightIcon
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${expandedProvider === "minimax" ? "rotate-90" : ""}`}
+                    />
+                    <span className="flex-1 text-start text-sm font-medium text-foreground">
+                      {copy.minimaxTitle}
+                    </span>
+                    <span
+                      className={`text-xs ${minimaxApiKey ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
+                    >
+                      {minimaxApiKey ? "Configured" : "Not configured"}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <div className="space-y-4 px-5 pb-4">
+                      <p className="text-xs text-muted-foreground">{copy.minimaxDescription}</p>
+                      <label htmlFor="minimax-api-key" className="block space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {copy.minimaxApiKey}
+                        </span>
+                        <Input
+                          id="minimax-api-key"
+                          dir="ltr"
+                          type="password"
+                          value={minimaxApiKey}
+                          onChange={(event) =>
+                            updateSettings({ minimaxApiKey: event.target.value })
+                          }
+                          placeholder="Enter MiniMax API key"
+                          spellCheck={false}
+                          autoComplete="off"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {copy.minimaxApiDescription(isElectron)}
+                        </span>
+                      </label>
+                      <div className="flex justify-end">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() => updateSettings({ minimaxApiKey: defaults.minimaxApiKey })}
+                        >
+                          {copy.resetMinimaxOverrides}
+                        </Button>
+                      </div>
+                    </div>
+                  </CollapsiblePanel>
+                </Collapsible>
+
+                {/* Pi */}
+                <Collapsible
+                  open={expandedProvider === "pi"}
+                  onOpenChange={(open) => setExpandedProvider(open ? "pi" : null)}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5">
+                    <ChevronRightIcon
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${expandedProvider === "pi" ? "rotate-90" : ""}`}
+                    />
+                    <span className="flex-1 text-start text-sm font-medium text-foreground">
+                      {copy.piTitle}
+                    </span>
+                    <span className="text-xs text-muted-foreground">Embedded</span>
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <div className="px-5 pb-4">
+                      <p className="text-xs text-muted-foreground">{copy.piDescription}</p>
+                    </div>
+                  </CollapsiblePanel>
+                </Collapsible>
+              </section>
+            )}
+
+            {activeSettingsTab === "general" && (
+              <>
+                <section className="rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-4">
+                    <h2 className="text-sm font-medium text-foreground">{copy.threadsTitle}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">{copy.threadsDescription}</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {copy.defaultToNewWorktree}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {copy.defaultToNewWorktreeDescription}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.defaultThreadEnvMode === "worktree"}
+                        onCheckedChange={(checked) =>
+                          updateSettings({
+                            defaultThreadEnvMode: checked ? "worktree" : "local",
+                          })
+                        }
+                        aria-label={copy.defaultToNewWorktree}
                       />
                     </div>
-                  ) : (
-                    <div className="aspect-[16/7] bg-[linear-gradient(135deg,var(--color-neutral-200),transparent_55%),linear-gradient(180deg,var(--background),color-mix(in_srgb,var(--background)_80%,var(--primary)))] dark:bg-[linear-gradient(135deg,var(--color-neutral-800),transparent_55%),linear-gradient(180deg,var(--background),color-mix(in_srgb,var(--background)_88%,var(--primary)))]" />
-                  )}
 
-                  <div className="border-t border-border/70 px-3 py-2 text-xs text-muted-foreground">
-                    <p>
-                      {copy.status}:{" "}
-                      <span className="font-medium text-foreground">
-                        {hasChatBackgroundImage ? copy.customImageActive : copy.defaultBackground}
-                      </span>
-                    </p>
-                    <p className="mt-1">
-                      {copy.file}:{" "}
-                      <span className="font-medium text-foreground">
-                        {settings.chatBackgroundImageName || copy.none}
-                      </span>
-                    </p>
-                    <p className="mt-1">
-                      {copy.fade}:{" "}
-                      <span className="font-medium text-foreground">
-                        {chatBackgroundFadePercent}%
-                      </span>
-                    </p>
-                    <p className="mt-1">
-                      {copy.blur}:{" "}
-                      <span className="font-medium text-foreground">{chatBackgroundBlurPx}px</span>
-                    </p>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {copy.threadShareMode}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {copy.threadShareModeDescription}
+                        </p>
+                      </div>
+                      <Select
+                        value={settings.threadShareMode}
+                        onValueChange={(value) =>
+                          updateSettings({
+                            threadShareMode: value as (typeof THREAD_SHARE_MODE_OPTIONS)[number],
+                          })
+                        }
+                      >
+                        <SelectTrigger className="w-36" aria-label={copy.threadShareMode}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectPopup>
+                          <SelectItem value="manual">
+                            {copy.threadShareModeOptions.manual}
+                          </SelectItem>
+                          <SelectItem value="auto">{copy.threadShareModeOptions.auto}</SelectItem>
+                          <SelectItem value="disabled">
+                            {copy.threadShareModeOptions.disabled}
+                          </SelectItem>
+                        </SelectPopup>
+                      </Select>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={openChatBackgroundPicker}
-                    disabled={isUpdatingChatBackground}
-                  >
-                    {isUpdatingChatBackground ? (
-                      <LoaderCircleIcon className="size-4 animate-spin" />
-                    ) : (
-                      <ImagePlusIcon className="size-4" />
-                    )}
-                    {hasChatBackgroundImage ? copy.changeBackground : copy.addBackground}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={removeChatBackgroundImage}
-                    disabled={!hasChatBackgroundImageSource || isUpdatingChatBackground}
-                  >
-                    <Trash2Icon className="size-4" />
-                    {copy.removeBackground}
-                  </Button>
-                </div>
-
-                <div className="space-y-4 rounded-xl border border-border bg-background/50 px-3 py-3">
-                  <label className="block space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-medium text-foreground">{copy.fade}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {chatBackgroundFadePercent}%
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={chatBackgroundFadePercent}
-                      disabled={!hasChatBackgroundImageSource}
-                      onChange={(event) =>
-                        updateSettings({
-                          chatBackgroundImageFadePercent: clampChatBackgroundFadePercent(
-                            Number(event.target.value),
-                          ),
-                        })
-                      }
-                      className="w-full accent-primary disabled:cursor-not-allowed disabled:opacity-45"
-                      aria-label={copy.fade}
-                    />
-                    <p className="text-xs text-muted-foreground">{copy.fadeDescription}</p>
-                  </label>
-
-                  <label className="block space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-medium text-foreground">{copy.blur}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {chatBackgroundBlurPx}px
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={MAX_CHAT_BACKGROUND_IMAGE_BLUR_PX}
-                      step={1}
-                      value={chatBackgroundBlurPx}
-                      disabled={!hasChatBackgroundImageSource}
-                      onChange={(event) =>
-                        updateSettings({
-                          chatBackgroundImageBlurPx: clampChatBackgroundBlurPx(
-                            Number(event.target.value),
-                          ),
-                        })
-                      }
-                      className="w-full accent-primary disabled:cursor-not-allowed disabled:opacity-45"
-                      aria-label={copy.blur}
-                    />
-                    <p className="text-xs text-muted-foreground">{copy.blurDescription}</p>
-                  </label>
-
-                  {(chatBackgroundFadePercent !== DEFAULT_CHAT_BACKGROUND_IMAGE_FADE_PERCENT ||
-                    chatBackgroundBlurPx !== DEFAULT_CHAT_BACKGROUND_IMAGE_BLUR_PX) && (
-                    <div className="flex justify-end">
+                  {settings.defaultThreadEnvMode !== defaults.defaultThreadEnvMode ||
+                  settings.threadShareMode !== defaults.threadShareMode ? (
+                    <div className="mt-3 flex justify-end">
                       <Button
-                        type="button"
                         size="xs"
                         variant="outline"
                         onClick={() =>
                           updateSettings({
-                            chatBackgroundImageFadePercent:
-                              DEFAULT_CHAT_BACKGROUND_IMAGE_FADE_PERCENT,
-                            chatBackgroundImageBlurPx: DEFAULT_CHAT_BACKGROUND_IMAGE_BLUR_PX,
+                            defaultThreadEnvMode: defaults.defaultThreadEnvMode,
+                            threadShareMode: defaults.threadShareMode,
                           })
                         }
                       >
-                        {copy.resetImageEffects}
+                        {copy.restoreDefault}
                       </Button>
                     </div>
-                  )}
-                </div>
+                  ) : null}
+                </section>
 
-                <p className="text-xs text-muted-foreground">
-                  {copy.imageStorageNote(CHAT_BACKGROUND_IMAGE_SIZE_LIMIT_LABEL)}
-                </p>
-                {chatBackgroundError ? (
-                  <p className="text-xs text-destructive">{chatBackgroundError}</p>
-                ) : null}
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.codexTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.codexDescription}</p>
-              </div>
-
-              <div className="space-y-4">
-                <label htmlFor="codex-binary-path" className="block space-y-1">
-                  <span className="text-xs font-medium text-foreground">
-                    {copy.codexBinaryPath}
-                  </span>
-                  <Input
-                    id="codex-binary-path"
-                    dir="ltr"
-                    value={codexBinaryPath}
-                    onChange={(event) => updateSettings({ codexBinaryPath: event.target.value })}
-                    placeholder="codex"
-                    spellCheck={false}
-                  />
-                  <span className="text-xs text-muted-foreground">{copy.leaveBlankCodex}</span>
-                </label>
-
-                <label htmlFor="codex-home-path" className="block space-y-1">
-                  <span className="text-xs font-medium text-foreground">{copy.codexHomePath}</span>
-                  <Input
-                    id="codex-home-path"
-                    dir="ltr"
-                    value={codexHomePath}
-                    onChange={(event) => updateSettings({ codexHomePath: event.target.value })}
-                    placeholder="/Users/you/.codex"
-                    spellCheck={false}
-                  />
-                  <span className="text-xs text-muted-foreground">{copy.codexHomeDescription}</span>
-                </label>
-
-                <div className="flex flex-col gap-3 text-xs text-muted-foreground sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p>{copy.binarySource}</p>
-                    <p className="mt-1 break-all font-mono text-[11px] text-foreground">
-                      {codexBinaryPath || "PATH"}
+                <section className="rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-4">
+                    <h2 className="text-sm font-medium text-foreground">{copy.responsesTitle}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {copy.responsesDescription}
                     </p>
                   </div>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    className="self-start"
-                    onClick={() =>
-                      updateSettings({
-                        codexBinaryPath: defaults.codexBinaryPath,
-                        codexHomePath: defaults.codexHomePath,
-                      })
-                    }
-                  >
-                    {copy.resetCodexOverrides}
-                  </Button>
-                </div>
-              </div>
-            </section>
 
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.openRouterTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.openRouterDescription}</p>
-              </div>
-
-              <div className="space-y-4">
-                <label htmlFor="openrouter-api-key" className="block space-y-1">
-                  <span className="text-xs font-medium text-foreground">
-                    {copy.openRouterApiKey}
-                  </span>
-                  <Input
-                    id="openrouter-api-key"
-                    dir="ltr"
-                    type="password"
-                    value={openRouterApiKey}
-                    onChange={(event) => updateSettings({ openRouterApiKey: event.target.value })}
-                    placeholder="sk-or-..."
-                    autoComplete="new-password"
-                    spellCheck={false}
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    {copy.openRouterKeyDescription(isElectron)}
-                  </span>
-                </label>
-
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <p>
-                    {openRouterApiKey.trim().length > 0
-                      ? copy.openRouterConfigured
-                      : copy.openRouterMissing}
-                  </p>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    onClick={() =>
-                      updateSettings({
-                        openRouterApiKey: defaults.openRouterApiKey,
-                      })
-                    }
-                  >
-                    {copy.resetOpenRouterKey}
-                  </Button>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.copilotTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.copilotDescription}</p>
-              </div>
-
-              <div className="space-y-4">
-                <label htmlFor="copilot-binary-path" className="block space-y-1">
-                  <span className="text-xs font-medium text-foreground">
-                    {copy.copilotBinaryPath}
-                  </span>
-                  <Input
-                    id="copilot-binary-path"
-                    dir="ltr"
-                    value={copilotBinaryPath}
-                    onChange={(event) => updateSettings({ copilotBinaryPath: event.target.value })}
-                    placeholder="copilot"
-                    spellCheck={false}
-                  />
-                  <span className="text-xs text-muted-foreground">{copy.leaveBlankCopilot}</span>
-                </label>
-
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <p>
-                    Binary source:{" "}
-                    <span className="font-medium text-foreground">
-                      {copilotBinaryPath || "PATH"}
-                    </span>
-                  </p>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    onClick={() =>
-                      updateSettings({
-                        copilotBinaryPath: defaults.copilotBinaryPath,
-                      })
-                    }
-                  >
-                    {copy.resetCopilotOverrides}
-                  </Button>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.opencodeTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.opencodeDescription}</p>
-              </div>
-
-              <div className="space-y-4">
-                <label htmlFor="opencode-binary-path" className="block space-y-1">
-                  <span className="text-xs font-medium text-foreground">
-                    {copy.opencodeBinaryPath}
-                  </span>
-                  <Input
-                    id="opencode-binary-path"
-                    dir="ltr"
-                    value={opencodeBinaryPath}
-                    onChange={(event) => updateSettings({ opencodeBinaryPath: event.target.value })}
-                    placeholder="opencode"
-                    spellCheck={false}
-                  />
-                  <span className="text-xs text-muted-foreground">{copy.leaveBlankOpencode}</span>
-                </label>
-
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <p>
-                    Binary source:{" "}
-                    <span className="font-medium text-foreground">
-                      {opencodeBinaryPath || "PATH"}
-                    </span>
-                  </p>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    onClick={() =>
-                      updateSettings({
-                        opencodeBinaryPath: defaults.opencodeBinaryPath,
-                      })
-                    }
-                  >
-                    {copy.resetOpencodeOverrides}
-                  </Button>
-                </div>
-
-                <div className="pt-4 border-t border-border">
-                  <OpenCodeCredentialsManager />
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.kimiTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.kimiDescription}</p>
-              </div>
-
-              <div className="space-y-4">
-                <label htmlFor="kimi-binary-path" className="block space-y-1">
-                  <span className="text-xs font-medium text-foreground">{copy.kimiBinaryPath}</span>
-                  <Input
-                    id="kimi-binary-path"
-                    dir="ltr"
-                    value={kimiBinaryPath}
-                    onChange={(event) => updateSettings({ kimiBinaryPath: event.target.value })}
-                    placeholder="kimi"
-                    spellCheck={false}
-                  />
-                  <span className="text-xs text-muted-foreground">{copy.leaveBlankKimi}</span>
-                </label>
-
-                <label htmlFor="kimi-api-key" className="block space-y-1">
-                  <span className="text-xs font-medium text-foreground">{copy.kimiApiKey}</span>
-                  <Input
-                    id="kimi-api-key"
-                    dir="ltr"
-                    type="password"
-                    value={kimiApiKey}
-                    onChange={(event) => updateSettings({ kimiApiKey: event.target.value })}
-                    placeholder="sk-kimi-..."
-                    autoComplete="new-password"
-                    spellCheck={false}
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    {copy.kimiApiDescription(isElectron)}
-                  </span>
-                </label>
-
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <p>
-                    Binary source:{" "}
-                    <span className="font-medium text-foreground">{kimiBinaryPath || "PATH"}</span>
-                  </p>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    onClick={() =>
-                      updateSettings({
-                        kimiBinaryPath: defaults.kimiBinaryPath,
-                        kimiApiKey: defaults.kimiApiKey,
-                      })
-                    }
-                  >
-                    {copy.resetKimiOverrides}
-                  </Button>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.piTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.piDescription}</p>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.modelsTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.modelsDescription}</p>
-              </div>
-
-              <div className="space-y-5">
-                <label className="block space-y-1">
-                  <span className="text-xs font-medium text-foreground">
-                    {copy.defaultServiceTier}
-                  </span>
-                  <Select
-                    items={APP_SERVICE_TIER_OPTIONS.map((option) => ({
-                      label: copy.serviceTierOptions[option.value].label,
-                      value: option.value,
-                    }))}
-                    value={codexServiceTier}
-                    onValueChange={(value) => {
-                      if (!value) return;
-                      updateSettings({ codexServiceTier: value });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectPopup alignItemWithTrigger={false}>
-                      {APP_SERVICE_TIER_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <div className="flex min-w-0 items-center gap-2">
-                            {option.value === "fast" ? (
-                              <ZapIcon className="size-3.5 text-amber-500" />
-                            ) : (
-                              <span className="size-3.5 shrink-0" aria-hidden="true" />
-                            )}
-                            <span className="truncate">
-                              {copy.serviceTierOptions[option.value].label}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectPopup>
-                  </Select>
-                  <span className="text-xs text-muted-foreground">
-                    {copy.serviceTierOptions[codexServiceTier].description}
-                  </span>
-                </label>
-
-                <div className="rounded-xl border border-border bg-background/50 p-4">
-                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <h3 className="text-sm font-medium text-foreground">
-                        {copy.openRouterFreeModelsTitle}
-                      </h3>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {copy.openRouterFreeModelsDescription(OPENROUTER_FREE_ROUTER_MODEL)}
-                      </p>
-                    </div>
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      onClick={() => void openRouterCatalogQuery.refetch()}
-                      disabled={openRouterCatalogQuery.isFetching}
-                    >
-                      {openRouterCatalogQuery.isFetching ? (
-                        <LoaderCircleIcon className="size-3.5 animate-spin" />
-                      ) : (
-                        <RefreshCwIcon className="size-3.5" />
-                      )}
-                      {copy.refreshList}
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="rounded-lg border border-border bg-background px-3 py-3 text-xs text-muted-foreground">
-                      <p>{openRouterCatalogStatusMessage}</p>
-                      {openRouterCatalogQuery.data?.status === "available" ? (
-                        <p className="mt-1">
-                          {copy.openRouterFilteringNote(OPENROUTER_FREE_ROUTER_MODEL)}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {copy.streamAssistantMessages}
                         </p>
-                      ) : null}
-                      {lastCheckedOpenRouterCatalogLabel ? (
-                        <p className="mt-1">
-                          {copy.lastCheckedAt(lastCheckedOpenRouterCatalogLabel)}
+                        <p className="text-xs text-muted-foreground">
+                          {copy.streamAssistantMessagesDescription}
                         </p>
-                      ) : null}
-                      {openRouterCatalogError ? (
-                        <p
-                          className={cn(
-                            "mt-2",
-                            openRouterCatalogQuery.data?.status === "available"
-                              ? "text-amber-600 dark:text-amber-400"
-                              : "text-destructive",
-                          )}
-                        >
-                          {openRouterCatalogError}
+                      </div>
+                      <Switch
+                        checked={settings.enableAssistantStreaming}
+                        onCheckedChange={(checked) =>
+                          updateSettings({
+                            enableAssistantStreaming: Boolean(checked),
+                          })
+                        }
+                        aria-label={copy.streamAssistantMessages}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {copy.showToolDetails}
                         </p>
-                      ) : null}
+                        <p className="text-xs text-muted-foreground">
+                          {copy.showToolDetailsDescription}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.showToolDetails}
+                        onCheckedChange={(checked) =>
+                          updateSettings({
+                            showToolDetails: Boolean(checked),
+                          })
+                        }
+                        aria-label={copy.showToolDetails}
+                      />
                     </div>
 
-                    <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg border border-border bg-background p-2">
-                      {compatibleOpenRouterFreeModels.map((model) => {
-                        const isBuiltIn = model.slug === OPENROUTER_FREE_ROUTER_MODEL;
-                        const isSaved = savedOpenRouterModels.includes(model.slug);
-                        return (
-                          <div
-                            key={model.slug}
-                            className="flex flex-col gap-3 rounded-lg border border-border bg-background/70 px-3 py-3 sm:flex-row sm:items-start sm:justify-between"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                <span className="text-sm font-medium text-foreground">
-                                  {model.name}
-                                </span>
-                                {model.source === "router" ? renderCapabilityBadge("Router") : null}
-                                {model.contextLength !== null
-                                  ? renderCapabilityBadge(
-                                      `${formatCompactTokenCount(model.contextLength)} ctx`,
-                                    )
-                                  : null}
-                                {model.supportsTools ? renderCapabilityBadge("Tools") : null}
-                                {model.supportsReasoning
-                                  ? renderCapabilityBadge("Reasoning")
-                                  : null}
-                                {model.supportsImages ? renderCapabilityBadge("Vision") : null}
-                              </div>
-                              <code className="mt-1 block min-w-0 truncate text-xs text-muted-foreground">
-                                {model.slug}
-                              </code>
-                              {model.description ? (
-                                <p className="mt-2 text-xs text-muted-foreground">
-                                  {model.description}
-                                </p>
-                              ) : null}
-                            </div>
-
-                            <Button
-                              size="xs"
-                              variant={isBuiltIn || isSaved ? "outline" : "secondary"}
-                              disabled={isBuiltIn || isSaved}
-                              onClick={() => addOpenRouterCatalogModel(model.slug)}
-                            >
-                              {isBuiltIn ? copy.builtIn : isSaved ? copy.saved : copy.addToPicker}
-                            </Button>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                      <label
-                        htmlFor="custom-model-slug-openrouter"
-                        className="block flex-1 space-y-1"
-                      >
-                        <span className="text-xs font-medium text-foreground">
-                          {copy.additionalCodexModelSlug}
-                        </span>
-                        <Input
-                          id="custom-model-slug-openrouter"
-                          dir="ltr"
-                          value={openRouterCustomModelInput}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setCustomModelInputByProvider((existing) => ({
-                              ...existing,
-                              codex: value,
-                            }));
-                            if (openRouterCustomModelError) {
-                              setCustomModelErrorByProvider((existing) => ({
-                                ...existing,
-                                codex: null,
-                              }));
-                            }
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key !== "Enter") return;
-                            event.preventDefault();
-                            addCustomModel("codex");
-                          }}
-                          placeholder="meta-llama/llama-3.3-70b-instruct:free"
-                          spellCheck={false}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {copy.additionalCodexModelHelp}
-                        </span>
-                      </label>
-
-                      <Button
-                        className="sm:mt-6"
-                        type="button"
-                        onClick={() => addCustomModel("codex")}
-                      >
-                        {copy.addModel}
-                      </Button>
-                    </div>
-
-                    {openRouterCustomModelError ? (
-                      <p className="text-xs text-destructive">{openRouterCustomModelError}</p>
-                    ) : null}
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                        <p>{copy.savedCodexOpenRouterCount(savedOpenRouterModels.length)}</p>
-                        {savedOpenRouterModels.length > 0 ? (
-                          <Button size="xs" variant="outline" onClick={resetOpenRouterCustomModels}>
-                            {copy.resetSavedCodexOpenRouter}
-                          </Button>
+                    {/* Desktop notifications */}
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {copy.desktopNotifications}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {copy.desktopNotificationsDescription}
+                        </p>
+                        {notificationPermission === "unsupported" ? (
+                          <p className="pt-1 text-[11px] text-muted-foreground/80">
+                            {copy.desktopNotificationsUnsupported}
+                          </p>
+                        ) : notificationPermission === "denied" ? (
+                          <p className="pt-1 text-[11px] text-muted-foreground/80">
+                            {copy.desktopNotificationsBlocked}
+                          </p>
+                        ) : notificationPermission === "granted" ? (
+                          <p className="pt-1 text-[11px] text-muted-foreground/80">
+                            {copy.desktopNotificationsGranted}
+                          </p>
                         ) : null}
                       </div>
-
-                      {savedOpenRouterModels.length > 0 ? (
-                        <div className="space-y-2">
-                          {savedOpenRouterModels.map((slug) => {
-                            const warning = savedOpenRouterModelWarnings.get(slug) ?? null;
-                            return (
-                              <div
-                                key={`openrouter:${slug}`}
-                                className="flex items-start justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <code className="block min-w-0 truncate text-xs text-foreground">
-                                    {slug}
-                                  </code>
-                                  {warning ? (
-                                    <p className="mt-1 text-[11px] text-destructive">{warning}</p>
-                                  ) : null}
-                                </div>
-                                <Button
-                                  size="xs"
-                                  variant="ghost"
-                                  onClick={() => removeCustomModel("codex", slug)}
-                                >
-                                  {copy.remove}
-                                </Button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="rounded-lg border border-dashed border-border bg-background px-3 py-4 text-xs text-muted-foreground">
-                          {copy.noSavedCodexOpenRouter}
-                        </div>
-                      )}
+                      <Switch
+                        checked={settings.enableDesktopNotifications}
+                        disabled={
+                          isRequestingNotificationPermission ||
+                          notificationPermission === "unsupported" ||
+                          notificationPermission === "denied"
+                        }
+                        onCheckedChange={(checked) => {
+                          void handleDesktopNotificationsChange(Boolean(checked));
+                        }}
+                        aria-label={copy.desktopNotifications}
+                      />
                     </div>
                   </div>
-                </div>
 
-                {MODEL_PROVIDER_SETTINGS.map(renderCustomModelsCard)}
-              </div>
-            </section>
+                  {settings.enableAssistantStreaming !== defaults.enableAssistantStreaming ||
+                  settings.showToolDetails !== defaults.showToolDetails ||
+                  settings.enableDesktopNotifications !== defaults.enableDesktopNotifications ? (
+                    <div className="mt-3 flex justify-end">
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() =>
+                          updateSettings({
+                            enableAssistantStreaming: defaults.enableAssistantStreaming,
+                            showToolDetails: defaults.showToolDetails,
+                            enableDesktopNotifications: defaults.enableDesktopNotifications,
+                          })
+                        }
+                      >
+                        {copy.restoreDefault}
+                      </Button>
+                    </div>
+                  ) : null}
+                </section>
+              </>
+            )}
 
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.threadsTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.threadsDescription}</p>
-              </div>
+            {activeSettingsTab === "advanced" && (
+              <>
+                <PermissionPoliciesSection
+                  rules={settings.approvalRules}
+                  defaultRules={defaults.approvalRules}
+                  projects={projects}
+                  activeProjectId={activeProjectId}
+                  onChangeRules={(approvalRules) => updateSettings({ approvalRules })}
+                />
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {copy.defaultToNewWorktree}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.defaultToNewWorktreeDescription}
+                <section className="rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-4">
+                    <h2 className="text-sm font-medium text-foreground">{copy.modelsTitle}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">{copy.modelsDescription}</p>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div className="rounded-xl border border-border bg-background/50 p-4">
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h3 className="text-sm font-medium text-foreground">
+                            {copy.openRouterFreeModelsTitle}
+                          </h3>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {copy.openRouterFreeModelsDescription(OPENROUTER_FREE_ROUTER_MODEL)}
+                          </p>
+                        </div>
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() => void openRouterCatalogQuery.refetch()}
+                          disabled={openRouterCatalogQuery.isFetching}
+                        >
+                          {openRouterCatalogQuery.isFetching ? (
+                            <LoaderCircleIcon className="size-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCwIcon className="size-3.5" />
+                          )}
+                          {copy.refreshList}
+                        </Button>
+                      </div>
+
+                      <div className="text-xs text-muted-foreground">
+                        <p>{openRouterCatalogStatusMessage}</p>
+                        {lastCheckedOpenRouterCatalogLabel ? (
+                          <p className="mt-1">
+                            {copy.lastCheckedAt(lastCheckedOpenRouterCatalogLabel)}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-background p-1">
+                      {MODEL_PROVIDER_SETTINGS.map((entry) => (
+                        <button
+                          key={entry.provider}
+                          type="button"
+                          onClick={() => setCustomModelSelectedProvider(entry.provider)}
+                          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                            customModelSelectedProvider === entry.provider
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {entry.title}
+                        </button>
+                      ))}
+                    </div>
+                    {(() => {
+                      const selectedEntry = MODEL_PROVIDER_SETTINGS.find(
+                        (e) => e.provider === customModelSelectedProvider,
+                      );
+                      return selectedEntry ? renderCustomModelsCard(selectedEntry) : null;
+                    })()}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-4">
+                    <h2 className="text-sm font-medium text-foreground">{copy.keybindingsTitle}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {copy.keybindingsDescription}
                     </p>
                   </div>
-                  <Switch
-                    checked={settings.defaultThreadEnvMode === "worktree"}
-                    onCheckedChange={(checked) =>
-                      updateSettings({
-                        defaultThreadEnvMode: checked ? "worktree" : "local",
-                      })
-                    }
-                    aria-label={copy.defaultToNewWorktree}
-                  />
-                </div>
 
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">{copy.threadShareMode}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.threadShareModeDescription}
-                    </p>
-                  </div>
-                  <Select
-                    value={settings.threadShareMode}
-                    onValueChange={(value) =>
-                      updateSettings({
-                        threadShareMode: value as (typeof THREAD_SHARE_MODE_OPTIONS)[number],
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-36" aria-label={copy.threadShareMode}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectPopup>
-                      <SelectItem value="manual">{copy.threadShareModeOptions.manual}</SelectItem>
-                      <SelectItem value="auto">{copy.threadShareModeOptions.auto}</SelectItem>
-                      <SelectItem value="disabled">
-                        {copy.threadShareModeOptions.disabled}
-                      </SelectItem>
-                    </SelectPopup>
-                  </Select>
-                </div>
-              </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground">{copy.configFilePath}</p>
+                        <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                          {keybindingsConfigPath ?? copy.resolvingKeybindingsPath}
+                        </p>
+                      </div>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        disabled={!keybindingsConfigPath || isOpeningKeybindings}
+                        onClick={openKeybindingsFile}
+                      >
+                        {isOpeningKeybindings ? copy.opening : copy.openKeybindings}
+                      </Button>
+                    </div>
 
-              {settings.defaultThreadEnvMode !== defaults.defaultThreadEnvMode ||
-              settings.threadShareMode !== defaults.threadShareMode ? (
-                <div className="mt-3 flex justify-end">
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    onClick={() =>
-                      updateSettings({
-                        defaultThreadEnvMode: defaults.defaultThreadEnvMode,
-                        threadShareMode: defaults.threadShareMode,
-                      })
-                    }
-                  >
-                    {copy.restoreDefault}
-                  </Button>
-                </div>
-              ) : null}
-            </section>
-
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.responsesTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.responsesDescription}</p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {copy.streamAssistantMessages}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.streamAssistantMessagesDescription}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settings.enableAssistantStreaming}
-                    onCheckedChange={(checked) =>
-                      updateSettings({
-                        enableAssistantStreaming: Boolean(checked),
-                      })
-                    }
-                    aria-label={copy.streamAssistantMessages}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{copy.showToolDetails}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.showToolDetailsDescription}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settings.showToolDetails}
-                    onCheckedChange={(checked) =>
-                      updateSettings({
-                        showToolDetails: Boolean(checked),
-                      })
-                    }
-                    aria-label={copy.showToolDetails}
-                  />
-                </div>
-
-                {/* Desktop notifications */}
-                <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {copy.desktopNotifications}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.desktopNotificationsDescription}
-                    </p>
-                    {notificationPermission === "unsupported" ? (
-                      <p className="pt-1 text-[11px] text-muted-foreground/80">
-                        {copy.desktopNotificationsUnsupported}
-                      </p>
-                    ) : notificationPermission === "denied" ? (
-                      <p className="pt-1 text-[11px] text-muted-foreground/80">
-                        {copy.desktopNotificationsBlocked}
-                      </p>
-                    ) : notificationPermission === "granted" ? (
-                      <p className="pt-1 text-[11px] text-muted-foreground/80">
-                        {copy.desktopNotificationsGranted}
-                      </p>
+                    <p className="text-xs text-muted-foreground">{copy.opensInPreferredEditor}</p>
+                    {openKeybindingsError ? (
+                      <p className="text-xs text-destructive">{openKeybindingsError}</p>
                     ) : null}
                   </div>
-                  <Switch
-                    checked={settings.enableDesktopNotifications}
-                    disabled={
-                      isRequestingNotificationPermission ||
-                      notificationPermission === "unsupported" ||
-                      notificationPermission === "denied"
-                    }
-                    onCheckedChange={(checked) => {
-                      void handleDesktopNotificationsChange(Boolean(checked));
-                    }}
-                    aria-label={copy.desktopNotifications}
-                  />
-                </div>
-              </div>
+                </section>
+              </>
+            )}
 
-              {settings.enableAssistantStreaming !== defaults.enableAssistantStreaming ||
-              settings.showToolDetails !== defaults.showToolDetails ||
-              settings.enableDesktopNotifications !== defaults.enableDesktopNotifications ? (
-                <div className="mt-3 flex justify-end">
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    onClick={() =>
-                      updateSettings({
-                        enableAssistantStreaming: defaults.enableAssistantStreaming,
-                        showToolDetails: defaults.showToolDetails,
-                        enableDesktopNotifications: defaults.enableDesktopNotifications,
-                      })
-                    }
-                  >
-                    {copy.restoreDefault}
-                  </Button>
-                </div>
-              ) : null}
-            </section>
-
-            <PermissionPoliciesSection
-              rules={settings.approvalRules}
-              defaultRules={defaults.approvalRules}
-              projects={projects}
-              activeProjectId={activeProjectId}
-              onChangeRules={(approvalRules) => updateSettings({ approvalRules })}
-            />
-
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.keybindingsTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.keybindingsDescription}</p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-foreground">{copy.configFilePath}</p>
-                    <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
-                      {keybindingsConfigPath ?? copy.resolvingKeybindingsPath}
-                    </p>
+            {activeSettingsTab === "general" && (
+              <>
+                <section className="rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-4">
+                    <h2 className="text-sm font-medium text-foreground">{copy.safetyTitle}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">{copy.safetyDescription}</p>
                   </div>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    disabled={!keybindingsConfigPath || isOpeningKeybindings}
-                    onClick={openKeybindingsFile}
-                  >
-                    {isOpeningKeybindings ? copy.opening : copy.openKeybindings}
-                  </Button>
-                </div>
 
-                <p className="text-xs text-muted-foreground">{copy.opensInPreferredEditor}</p>
-                {openKeybindingsError ? (
-                  <p className="text-xs text-destructive">{openKeybindingsError}</p>
-                ) : null}
-              </div>
-            </section>
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {copy.confirmThreadDeletion}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {copy.confirmThreadDeletionDescription}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings.confirmThreadDelete}
+                      onCheckedChange={(checked) =>
+                        updateSettings({
+                          confirmThreadDelete: Boolean(checked),
+                        })
+                      }
+                      aria-label={copy.confirmThreadDeletion}
+                    />
+                  </div>
 
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.safetyTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.safetyDescription}</p>
-              </div>
+                  {settings.confirmThreadDelete !== defaults.confirmThreadDelete ? (
+                    <div className="mt-3 flex justify-end">
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() =>
+                          updateSettings({
+                            confirmThreadDelete: defaults.confirmThreadDelete,
+                          })
+                        }
+                      >
+                        {copy.restoreDefault}
+                      </Button>
+                    </div>
+                  ) : null}
+                </section>
+                <section className="rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-4">
+                    <h2 className="text-sm font-medium text-foreground">{copy.aboutTitle}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">{copy.aboutDescription}</p>
+                  </div>
 
-              <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {copy.confirmThreadDeletion}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {copy.confirmThreadDeletionDescription}
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.confirmThreadDelete}
-                  onCheckedChange={(checked) =>
-                    updateSettings({
-                      confirmThreadDelete: Boolean(checked),
-                    })
-                  }
-                  aria-label={copy.confirmThreadDeletion}
-                />
-              </div>
-
-              {settings.confirmThreadDelete !== defaults.confirmThreadDelete ? (
-                <div className="mt-3 flex justify-end">
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    onClick={() =>
-                      updateSettings({
-                        confirmThreadDelete: defaults.confirmThreadDelete,
-                      })
-                    }
-                  >
-                    {copy.restoreDefault}
-                  </Button>
-                </div>
-              ) : null}
-            </section>
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4">
-                <h2 className="text-sm font-medium text-foreground">{copy.aboutTitle}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">{copy.aboutDescription}</p>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{copy.version}</p>
-                  <p className="text-xs text-muted-foreground">{copy.versionDescription}</p>
-                </div>
-                <code className="text-xs font-medium text-muted-foreground">{APP_VERSION}</code>
-              </div>
-            </section>
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{copy.version}</p>
+                      <p className="text-xs text-muted-foreground">{copy.versionDescription}</p>
+                    </div>
+                    <code className="text-xs font-medium text-muted-foreground">{APP_VERSION}</code>
+                  </div>
+                </section>
+              </>
+            )}
           </div>
         </div>
       </div>

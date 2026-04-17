@@ -1,12 +1,23 @@
-import { memo } from "react";
+import { memo, useState, useCallback } from "react";
 
 import type { ProjectSkill, ProjectSkillName } from "@t3tools/contracts";
-import { CheckIcon, SparklesIcon } from "lucide-react";
+import { CheckIcon, PlusIcon, SparklesIcon } from "lucide-react";
 
+import { readNativeApi } from "~/nativeApi";
 import { Badge } from "../ui/badge";
-import { buttonVariants } from "../ui/button";
+import { Button, buttonVariants } from "../ui/button";
+import { Input } from "../ui/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { cn } from "~/lib/utils";
+
+const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+function toSkillName(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 64);
+}
 
 export const ComposerSkillPicker = memo(function ComposerSkillPicker(props: {
   skills: ReadonlyArray<ProjectSkill>;
@@ -14,7 +25,9 @@ export const ComposerSkillPicker = memo(function ComposerSkillPicker(props: {
   issuesCount: number;
   disabled: boolean;
   compact: boolean;
+  projectCwd?: string | undefined;
   onToggleSkill: (skillName: ProjectSkillName) => void;
+  onSkillCreated?: () => void;
 }) {
   const selectedCount = props.selectedSkillNames.length;
 
@@ -93,6 +106,9 @@ export const ComposerSkillPicker = memo(function ComposerSkillPicker(props: {
             </div>
           )}
         </div>
+        {props.projectCwd && (
+          <SkillCreatorSection projectCwd={props.projectCwd} onCreated={props.onSkillCreated} />
+        )}
         {props.issuesCount > 0 ? (
           <div className="border-t border-border/60 px-4 py-2 text-muted-foreground text-xs">
             {props.issuesCount} invalid skill file{props.issuesCount === 1 ? "" : "s"} ignored.
@@ -102,3 +118,20 @@ export const ComposerSkillPicker = memo(function ComposerSkillPicker(props: {
     </Popover>
   );
 });
+
+function SkillCreatorSection({
+  projectCwd: _projectCwd,
+  onCreated: _onCreated,
+}: {
+  projectCwd: string;
+  onCreated?: (() => void) | undefined;
+}) {
+  return (
+    <div className="border-t border-border/60">
+      <div className="px-4 py-2.5 text-xs text-muted-foreground">
+        <SparklesIcon className="size-3 inline mr-1" />
+        Use the Context tab in the right sidebar to generate skills with AI.
+      </div>
+    </div>
+  );
+}

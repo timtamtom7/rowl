@@ -4,7 +4,7 @@
   <img src="./CUT3.png" alt="Rowl" width="144" />
 </p>
 
-Rowl is a minimal web GUI for coding agents. It currently supports Codex, GitHub Copilot, OpenCode, Kimi Code, and the Pi agent harness. The picker also shows Gemini as coming soon, while Claude Code and Cursor remain unavailable placeholders.
+Rowl is a minimal web GUI for coding agents. It currently supports Codex, GitHub Copilot, KiloCode, Kimi Code, MiniMax, OpenCode, and the Pi agent harness. The picker also shows Gemini as coming soon, while Claude Code and Cursor remain unavailable placeholders.
 
 > **Note**: Rowl is based on [CUT3](https://github.com/yappologistic/t3code). This is a fork with custom integrations and features.
 
@@ -16,8 +16,10 @@ Rowl is a minimal web GUI for coding agents. It currently supports Codex, GitHub
 
 - Codex
 - GitHub Copilot
-- OpenCode
+- KiloCode
 - Kimi Code
+- MiniMax
+- OpenCode
 - Pi
 
 Gemini is intentionally shown as coming soon in the provider picker. Claude Code and Cursor are also visible there as unavailable placeholders. None of those three are wired up for sessions yet.
@@ -25,12 +27,14 @@ Gemini is intentionally shown as coming soon in the provider picker. Claude Code
 ## How to use
 
 > [!WARNING]
-> Install at least one supported provider runtime before starting Rowl. Codex, GitHub Copilot, OpenCode, and Kimi Code still depend on their native CLIs plus whatever auth or API keys they require. Pi is embedded directly in Rowl, but it still needs Pi auth/config under `~/.pi/agent` (or the equivalent Pi environment variables) before Pi-backed sessions can start:
+> Install at least one supported provider runtime before starting Rowl. Codex, GitHub Copilot, KiloCode, OpenCode, and Kimi Code depend on their native CLIs plus whatever auth or API keys they require. MiniMax uses a direct API connection and only needs an API key configured in Settings. Pi is embedded directly in Rowl, but it still needs Pi auth/config under `~/.pi/agent` (or the equivalent Pi environment variables) before Pi-backed sessions can start:
 >
 > - [Codex CLI](https://github.com/openai/codex)
 > - [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent)
+> - [KiloCode CLI](https://kilocode.ai) (`kilo acp` for ACP sessions)
 > - [OpenCode CLI](https://opencode.ai/docs)
 > - [Kimi Code CLI](https://www.kimi.com/code/docs/en/)
+> - MiniMax (API key only — no CLI required)
 > - [Pi agent harness](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
 
 ```bash
@@ -51,7 +55,7 @@ If this fork does not currently publish desktop releases, build one locally with
 
 For the full local packaging and release notes, see [docs/release.md](docs/release.md) and [.docs/scripts.md](.docs/scripts.md).
 
-Once the app is running, choose Codex, GitHub Copilot, OpenCode, Kimi Code, or Pi from the provider picker before starting a session. If this is your first run and Rowl does not know any projects yet, the empty chat view now walks you through adding a project folder and immediately opens the first draft thread for it.
+Once the app is running, choose Codex, GitHub Copilot, KiloCode, Kimi Code, MiniMax, OpenCode, or Pi from the provider picker before starting a session. If this is your first run and Rowl does not know any projects yet, the empty chat view now walks you through adding a project folder and immediately opens the first draft thread for it.
 
 ## Workspace instructions and slash commands
 
@@ -107,9 +111,9 @@ Open Settings in the app to configure provider-specific behavior on the current 
 
 - **Appearance**: choose the base light/dark/system mode, switch to integrated presets like Lilac, and configure a custom chat background image with adjustable fade and blur.
 - **Language**: switch the settings experience and shared app shell between English and Persian. Persian also flips document direction and locale-aware time/date formatting in the web UI.
-- **Provider overrides**: set custom binary paths for Codex, Copilot, OpenCode, or Kimi, plus an optional Codex home path, a shared OpenRouter API key, and a Kimi API key. Pi is embedded through Rowl's Node dependency instead of a separate binary override; Rowl reads Pi auth/models config from `~/.pi/agent`, keeps Pi packages, AGENTS files, system prompts, extensions, skills, prompt templates, and themes disabled so workspace instructions still come only from Rowl, and now surfaces authenticated Pi provider/model ids directly in the picker and `/model` suggestions instead of only showing a static `pi/default` placeholder. OpenCode account authentication still happens outside Rowl through `opencode auth login` and `opencode auth logout`, while MCP server auth/debug remains server-specific through commands like `opencode mcp auth <server>` and `opencode mcp debug <server>`. The OpenCode settings panel inspects the resolved OpenCode config paths plus `opencode auth list`, `opencode mcp list`, and `opencode mcp auth list` so Rowl can show current credentials, provider-specific MCP status (including disabled and auth-gated entries), and copyable recovery commands. Kimi CLI authentication can use either `kimi login` or the in-shell `/login` flow when you are not using an API key, and new OpenCode sessions now inherit that shared OpenRouter key as `OPENROUTER_API_KEY` when the OpenCode provider config expects it.
+- **Provider overrides**: set custom binary paths for Codex, Copilot, KiloCode, OpenCode, or Kimi, plus an optional Codex home path, a shared OpenRouter API key, a Kimi API key, and a MiniMax API key. Pi is embedded through Rowl's Node dependency instead of a separate binary override; Rowl reads Pi auth/models config from `~/.pi/agent`, keeps Pi packages, AGENTS files, system prompts, extensions, skills, prompt templates, and themes disabled so workspace instructions still come only from Rowl, and now surfaces authenticated Pi provider/model ids directly in the picker and `/model` suggestions instead of only showing a static `pi/default` placeholder. OpenCode account authentication still happens outside Rowl through `opencode auth login` and `opencode auth logout`, while MCP server auth/debug remains server-specific through commands like `opencode mcp auth <server>` and `opencode mcp debug <server>`. The OpenCode settings panel inspects the resolved OpenCode config paths plus `opencode auth list`, `opencode mcp list`, and `opencode mcp auth list` so Rowl can show current credentials, provider-specific MCP status (including disabled and auth-gated entries), and copyable recovery commands. Kimi CLI authentication can use either `kimi login` or the in-shell `/login` flow when you are not using an API key, and new OpenCode sessions now inherit that shared OpenRouter key as `OPENROUTER_API_KEY` when the OpenCode provider config expects it.
 - **OpenRouter free models**: review the current OpenRouter entries that are explicitly free-locked and compatible with Rowl's native tool-calling path (`tools` plus `tool_choice`), keep the built-in `openrouter/free` router handy, and pin any listed model into the picker. Rowl now keeps a last-known-good OpenRouter free-model catalog locally so the picker and settings can stay usable even when the next live catalog refresh fails.
-- **Custom model slugs**: save extra model ids for GitHub Copilot, OpenCode, Kimi, Pi provider/model ids such as `github-copilot/claude-sonnet-4.5`, custom Codex models, or current OpenRouter `:free` slugs so they appear in the model picker and `/model` suggestions.
+- **Custom model slugs**: save extra model ids for GitHub Copilot, KiloCode, OpenCode, Kimi, MiniMax, Pi provider/model ids such as `github-copilot/claude-sonnet-4.5`, custom Codex models, or current OpenRouter `:free` slugs so they appear in the model picker and `/model` suggestions.
 - **Picker controls**: the chat composer now uses a searchable grouped model picker with direct `Usage`, `Provider readiness`, and `Manage models` actions.
 - **Favorites, recents, and visibility**: pin favorite models so they stay at the top of the picker, let Rowl surface recent model choices ahead of the long tail, and hide or restore discovered/saved models without deleting them. Hidden models are removed from both the picker and `/model` suggestions until you show them again.
 - **Thread defaults**: choose whether new draft threads start in `Local` or `New worktree`, and set thread sharing to `Manual`, `Auto` (create a share link after a new server-backed thread settles), or `Disabled` for new links.

@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rowl-dev",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5733
+    },
+    {
+      "name": "rowl-server",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev:server"],
+      "port": 3773
+    },
+    {
+      "name": "rowl-web",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev:web"],
+      "port": 5733
+    },
+    {
+      "name": "rowl-marketing",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev:marketing"],
+      "port": 4321
+    }
+  ]
+}

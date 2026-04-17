@@ -103,6 +103,7 @@ import {
   getModelOptionContextLabel,
   getProviderPickerSectionDescription,
 } from "~/lib/modelPickerHelpers";
+import { summarizeTurnDiffInPlainLanguage } from "~/lib/turnDiffTree";
 import { buildComposerMcpServerItems, providerSupportsMcp } from "../mcpServers";
 import { buildModelOptionsForSend } from "../chatDispatchOptions";
 
@@ -135,6 +136,7 @@ import {
   deriveActivePlanState,
   getProviderPickerBackingProvider,
   getProviderPickerKindForSelection,
+  resolveProviderForModel,
   findLatestProposedPlan,
   PROVIDER_OPTIONS,
   type AvailableProviderPickerKind,
@@ -168,7 +170,7 @@ import {
   resolvePlanFollowUpSubmission,
 } from "../proposedPlan";
 import { getPlanUiCopy } from "../planUiCopy";
-import { truncateTitle } from "../truncateTitle";
+import { deriveSmartThreadTitle, truncateTitle } from "../truncateTitle";
 import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
@@ -267,6 +269,13 @@ import { EmptyChatOnboarding } from "./chat/EmptyChatOnboarding";
 import { ThreadExportDialog } from "./chat/ThreadExportDialog";
 import { ThreadShareDialog } from "./chat/ThreadShareDialog";
 import { ComposerSkillPicker } from "./chat/ComposerSkillPicker";
+import { FeaturePicker } from "./chat/FeaturePicker";
+import { OverseerAlert } from "./chat/OverseerAlerts";
+
+// Lightweight inline version for chat timeline
+function OverseerAlertInline({ activity }: { activity: any }) {
+  return <OverseerAlert activity={activity} />;
+}
 import { UsageDashboardDialog } from "./chat/UsageDashboardDialog";
 import {
   commandForProjectScript,
@@ -363,6 +372,8 @@ const EMPTY_PROVIDER_STATUS_MODEL_OPTIONS_BY_PROVIDER = {
   codex: [],
   copilot: [],
   kimi: [],
+  kilocode: [],
+  minimax: [],
   opencode: [],
   pi: [],
 } as const satisfies Record<ProviderKind, ReadonlyArray<PickerModelOption>>;
@@ -382,6 +393,8 @@ function buildProviderOptionsForDispatch(input: {
     readonly opencodeBinaryPath: string;
     readonly kimiBinaryPath: string;
     readonly kimiApiKey: string;
+    readonly kilocodeBinaryPath: string;
+    readonly minimaxApiKey: string;
   };
 }) {
   const codexBinaryPath = input.settings.codexBinaryPath.trim();
@@ -391,6 +404,8 @@ function buildProviderOptionsForDispatch(input: {
   const opencodeBinaryPath = input.settings.opencodeBinaryPath.trim();
   const kimiBinaryPath = input.settings.kimiBinaryPath.trim();
   const kimiApiKey = input.settings.kimiApiKey.trim();
+  const kilocodeBinaryPath = input.settings.kilocodeBinaryPath.trim();
+  const minimaxApiKey = input.settings.minimaxApiKey.trim();
 
   switch (input.provider) {
     case "codex":
@@ -411,12 +426,11 @@ function buildProviderOptionsForDispatch(input: {
             },
           }
         : undefined;
-    case "opencode":
-      return opencodeBinaryPath || openRouterApiKey
+    case "kilocode":
+      return kilocodeBinaryPath
         ? {
-            opencode: {
-              ...(opencodeBinaryPath ? { binaryPath: opencodeBinaryPath } : {}),
-              ...(openRouterApiKey ? { openRouterApiKey } : {}),
+            kilocode: {
+              binaryPath: kilocodeBinaryPath,
             },
           }
         : undefined;
@@ -426,6 +440,23 @@ function buildProviderOptionsForDispatch(input: {
             kimi: {
               ...(kimiBinaryPath ? { binaryPath: kimiBinaryPath } : {}),
               ...(kimiApiKey ? { apiKey: kimiApiKey } : {}),
+            },
+          }
+        : undefined;
+    case "minimax":
+      return minimaxApiKey
+        ? {
+            minimax: {
+              apiKey: minimaxApiKey,
+            },
+          }
+        : undefined;
+    case "opencode":
+      return opencodeBinaryPath || openRouterApiKey
+        ? {
+            opencode: {
+              ...(opencodeBinaryPath ? { binaryPath: opencodeBinaryPath } : {}),
+              ...(openRouterApiKey ? { openRouterApiKey } : {}),
             },
           }
         : undefined;
@@ -445,10 +476,14 @@ function getCustomModelsForProvider(
       return settings.customCodexModels;
     case "copilot":
       return settings.customCopilotModels;
-    case "opencode":
-      return settings.customOpencodeModels;
+    case "kilocode":
+      return settings.customKilocodeModels;
     case "kimi":
       return settings.customKimiModels;
+    case "minimax":
+      return settings.customMinimaxModels;
+    case "opencode":
+      return settings.customOpencodeModels;
     case "pi":
       return settings.customPiModels;
     default:
@@ -459,8 +494,10 @@ function getCustomModelsForProvider(
 type ProviderCustomModelSettings = {
   readonly customCodexModels: readonly string[];
   readonly customCopilotModels: readonly string[];
-  readonly customOpencodeModels: readonly string[];
+  readonly customKilocodeModels: readonly string[];
   readonly customKimiModels: readonly string[];
+  readonly customMinimaxModels: readonly string[];
+  readonly customOpencodeModels: readonly string[];
   readonly customPiModels: readonly string[];
 };
 
@@ -468,8 +505,10 @@ type ProviderFavoriteModelSettings = Pick<
   AppSettings,
   | "favoriteCodexModels"
   | "favoriteCopilotModels"
-  | "favoriteOpencodeModels"
+  | "favoriteKilocodeModels"
   | "favoriteKimiModels"
+  | "favoriteMinimaxModels"
+  | "favoriteOpencodeModels"
   | "favoritePiModels"
 >;
 
@@ -477,8 +516,10 @@ type ProviderRecentModelSettings = Pick<
   AppSettings,
   | "recentCodexModels"
   | "recentCopilotModels"
-  | "recentOpencodeModels"
+  | "recentKilocodeModels"
   | "recentKimiModels"
+  | "recentMinimaxModels"
+  | "recentOpencodeModels"
   | "recentPiModels"
 >;
 
@@ -486,8 +527,10 @@ type ProviderHiddenModelSettings = Pick<
   AppSettings,
   | "hiddenCodexModels"
   | "hiddenCopilotModels"
-  | "hiddenOpencodeModels"
+  | "hiddenKilocodeModels"
   | "hiddenKimiModels"
+  | "hiddenMinimaxModels"
+  | "hiddenOpencodeModels"
   | "hiddenPiModels"
 >;
 
@@ -500,10 +543,14 @@ function getFavoriteModelsForProvider(
       return settings.favoriteCodexModels;
     case "copilot":
       return settings.favoriteCopilotModels;
-    case "opencode":
-      return settings.favoriteOpencodeModels;
+    case "kilocode":
+      return settings.favoriteKilocodeModels;
     case "kimi":
       return settings.favoriteKimiModels;
+    case "minimax":
+      return settings.favoriteMinimaxModels;
+    case "opencode":
+      return settings.favoriteOpencodeModels;
     case "pi":
       return settings.favoritePiModels;
     default:
@@ -520,10 +567,14 @@ function getRecentModelsForProvider(
       return settings.recentCodexModels;
     case "copilot":
       return settings.recentCopilotModels;
-    case "opencode":
-      return settings.recentOpencodeModels;
+    case "kilocode":
+      return settings.recentKilocodeModels;
     case "kimi":
       return settings.recentKimiModels;
+    case "minimax":
+      return settings.recentMinimaxModels;
+    case "opencode":
+      return settings.recentOpencodeModels;
     case "pi":
       return settings.recentPiModels;
     default:
@@ -540,10 +591,14 @@ function getHiddenModelsForProvider(
       return settings.hiddenCodexModels;
     case "copilot":
       return settings.hiddenCopilotModels;
-    case "opencode":
-      return settings.hiddenOpencodeModels;
+    case "kilocode":
+      return settings.hiddenKilocodeModels;
     case "kimi":
       return settings.hiddenKimiModels;
+    case "minimax":
+      return settings.hiddenMinimaxModels;
+    case "opencode":
+      return settings.hiddenOpencodeModels;
     case "pi":
       return settings.hiddenPiModels;
     default:
@@ -560,10 +615,14 @@ function patchFavoriteModels(
       return { favoriteCodexModels: [...favoriteModels] };
     case "copilot":
       return { favoriteCopilotModels: [...favoriteModels] };
-    case "opencode":
-      return { favoriteOpencodeModels: [...favoriteModels] };
+    case "kilocode":
+      return { favoriteKilocodeModels: [...favoriteModels] };
     case "kimi":
       return { favoriteKimiModels: [...favoriteModels] };
+    case "minimax":
+      return { favoriteMinimaxModels: [...favoriteModels] };
+    case "opencode":
+      return { favoriteOpencodeModels: [...favoriteModels] };
     case "pi":
       return { favoritePiModels: [...favoriteModels] };
     default:
@@ -580,10 +639,14 @@ function patchRecentModels(
       return { recentCodexModels: [...recentModels] };
     case "copilot":
       return { recentCopilotModels: [...recentModels] };
-    case "opencode":
-      return { recentOpencodeModels: [...recentModels] };
+    case "kilocode":
+      return { recentKilocodeModels: [...recentModels] };
     case "kimi":
       return { recentKimiModels: [...recentModels] };
+    case "minimax":
+      return { recentMinimaxModels: [...recentModels] };
+    case "opencode":
+      return { recentOpencodeModels: [...recentModels] };
     case "pi":
       return { recentPiModels: [...recentModels] };
     default:
@@ -600,10 +663,14 @@ function patchHiddenModels(
       return { hiddenCodexModels: [...hiddenModels] };
     case "copilot":
       return { hiddenCopilotModels: [...hiddenModels] };
-    case "opencode":
-      return { hiddenOpencodeModels: [...hiddenModels] };
+    case "kilocode":
+      return { hiddenKilocodeModels: [...hiddenModels] };
     case "kimi":
       return { hiddenKimiModels: [...hiddenModels] };
+    case "minimax":
+      return { hiddenMinimaxModels: [...hiddenModels] };
+    case "opencode":
+      return { hiddenOpencodeModels: [...hiddenModels] };
     case "pi":
       return { hiddenPiModels: [...hiddenModels] };
     default:
@@ -1018,9 +1085,13 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const prompt = composerDraft.prompt;
   const composerImages = composerDraft.images;
   const selectedSkillNames = composerDraft.selectedSkills;
+  const activeFeatureId = composerDraft.activeFeatureId;
   const nonPersistedComposerImageIds = composerDraft.nonPersistedImageIds;
   const setComposerDraftPrompt = useComposerDraftStore((store) => store.setPrompt);
   const setComposerDraftSelectedSkills = useComposerDraftStore((store) => store.setSelectedSkills);
+  const setComposerDraftActiveFeatureId = useComposerDraftStore(
+    (store) => store.setActiveFeatureId,
+  );
   const setComposerDraftProvider = useComposerDraftStore((store) => store.setProvider);
   const setComposerDraftModel = useComposerDraftStore((store) => store.setModel);
   const setComposerDraftRuntimeMode = useComposerDraftStore((store) => store.setRuntimeMode);
@@ -1421,7 +1492,13 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const lockedProvider: ProviderKind | null = hasThreadStarted
     ? (sessionProvider ?? selectedProviderByThreadId ?? null)
     : null;
-  const selectedProvider: ProviderKind = lockedProvider ?? selectedProviderByThreadId ?? "codex";
+  const selectedProviderRaw: ProviderKind = lockedProvider ?? selectedProviderByThreadId ?? "codex";
+  // Auto-correct provider when the model clearly belongs to a different provider
+  // (e.g., "MiniMax-M2.7" stored under "codex" from before MiniMax was added)
+  const modelForProviderResolution = composerDraft.model ?? activeThread?.model;
+  const selectedProvider: ProviderKind = modelForProviderResolution
+    ? resolveProviderForModel(selectedProviderRaw, modelForProviderResolution as ModelSlug)
+    : selectedProviderRaw;
   const [providerStatusModelOptionsByProvider, setProviderStatusModelOptionsByProvider] = useState<
     Record<ProviderKind, ReadonlyArray<PickerModelOption>>
   >(EMPTY_PROVIDER_STATUS_MODEL_OPTIONS_BY_PROVIDER);
@@ -1429,14 +1506,18 @@ export default function ChatView({ threadId }: ChatViewProps) {
     () => ({
       favoriteCodexModels: settings.favoriteCodexModels,
       favoriteCopilotModels: settings.favoriteCopilotModels,
-      favoriteOpencodeModels: settings.favoriteOpencodeModels,
+      favoriteKilocodeModels: settings.favoriteKilocodeModels,
       favoriteKimiModels: settings.favoriteKimiModels,
+      favoriteMinimaxModels: settings.favoriteMinimaxModels,
+      favoriteOpencodeModels: settings.favoriteOpencodeModels,
       favoritePiModels: settings.favoritePiModels,
     }),
     [
       settings.favoriteCodexModels,
       settings.favoriteCopilotModels,
+      settings.favoriteKilocodeModels,
       settings.favoriteKimiModels,
+      settings.favoriteMinimaxModels,
       settings.favoriteOpencodeModels,
       settings.favoritePiModels,
     ],
@@ -1445,14 +1526,18 @@ export default function ChatView({ threadId }: ChatViewProps) {
     () => ({
       recentCodexModels: settings.recentCodexModels,
       recentCopilotModels: settings.recentCopilotModels,
-      recentOpencodeModels: settings.recentOpencodeModels,
+      recentKilocodeModels: settings.recentKilocodeModels,
       recentKimiModels: settings.recentKimiModels,
+      recentMinimaxModels: settings.recentMinimaxModels,
+      recentOpencodeModels: settings.recentOpencodeModels,
       recentPiModels: settings.recentPiModels,
     }),
     [
       settings.recentCodexModels,
       settings.recentCopilotModels,
+      settings.recentKilocodeModels,
       settings.recentKimiModels,
+      settings.recentMinimaxModels,
       settings.recentOpencodeModels,
       settings.recentPiModels,
     ],
@@ -1461,14 +1546,18 @@ export default function ChatView({ threadId }: ChatViewProps) {
     () => ({
       hiddenCodexModels: settings.hiddenCodexModels,
       hiddenCopilotModels: settings.hiddenCopilotModels,
-      hiddenOpencodeModels: settings.hiddenOpencodeModels,
+      hiddenKilocodeModels: settings.hiddenKilocodeModels,
       hiddenKimiModels: settings.hiddenKimiModels,
+      hiddenMinimaxModels: settings.hiddenMinimaxModels,
+      hiddenOpencodeModels: settings.hiddenOpencodeModels,
       hiddenPiModels: settings.hiddenPiModels,
     }),
     [
       settings.hiddenCodexModels,
       settings.hiddenCopilotModels,
+      settings.hiddenKilocodeModels,
       settings.hiddenKimiModels,
+      settings.hiddenMinimaxModels,
       settings.hiddenOpencodeModels,
       settings.hiddenPiModels,
     ],
@@ -1485,6 +1574,14 @@ export default function ChatView({ threadId }: ChatViewProps) {
         "opencode",
       ),
       kimi: deriveConfiguredModelOptions(activeThread?.activities ?? EMPTY_ACTIVITIES, "kimi"),
+      kilocode: deriveConfiguredModelOptions(
+        activeThread?.activities ?? EMPTY_ACTIVITIES,
+        "kilocode",
+      ),
+      minimax: deriveConfiguredModelOptions(
+        activeThread?.activities ?? EMPTY_ACTIVITIES,
+        "minimax",
+      ),
       pi: deriveConfiguredModelOptions(activeThread?.activities ?? EMPTY_ACTIVITIES, "pi"),
     }),
     [activeThread?.activities],
@@ -1530,6 +1627,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
         allModelOptionsByProvider.kimi,
         providerHiddenModelSettings.hiddenKimiModels,
       ),
+      kilocode: filterHiddenModelOptions(allModelOptionsByProvider.kilocode, []),
+      minimax: filterHiddenModelOptions(allModelOptionsByProvider.minimax, []),
       pi: filterHiddenModelOptions(
         allModelOptionsByProvider.pi,
         providerHiddenModelSettings.hiddenPiModels,
@@ -2786,6 +2885,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
       copilot: getProviderStatusModelOptions(findProviderStatus(providerStatuses, "copilot")),
       opencode: getProviderStatusModelOptions(findProviderStatus(providerStatuses, "opencode")),
       kimi: getProviderStatusModelOptions(findProviderStatus(providerStatuses, "kimi")),
+      kilocode: getProviderStatusModelOptions(findProviderStatus(providerStatuses, "kilocode")),
+      minimax: getProviderStatusModelOptions(findProviderStatus(providerStatuses, "minimax")),
       pi: getProviderStatusModelOptions(findProviderStatus(providerStatuses, "pi")),
     }),
     [providerStatuses],
@@ -4407,11 +4508,24 @@ export default function ChatView({ threadId }: ChatViewProps) {
         setThreadError(activeThread.id, "Interrupt the current turn before reverting checkpoints.");
         return;
       }
+      const turnsToRemove = turnDiffSummaries.filter(
+        (s) => s.checkpointTurnCount !== undefined && s.checkpointTurnCount > turnCount,
+      );
+      const turnCountToRemove = turnsToRemove.length;
+      const changeSummaries = turnsToRemove
+        .map((s) => summarizeTurnDiffInPlainLanguage(s.files))
+        .filter((s) => s !== "No files changed.");
+      const changeDetail =
+        changeSummaries.length > 0
+          ? `\nChanges that will be removed:\n${changeSummaries.map((s) => `  • ${s}`).join("\n")}`
+          : "";
       const confirmed = await api.dialogs.confirm(
         [
-          `Revert this thread to checkpoint ${turnCount}?`,
-          "This will discard newer messages and turn diffs in this thread.",
-          "This action cannot be undone.",
+          turnCountToRemove > 0
+            ? `Undo the last ${turnCountToRemove === 1 ? "turn" : `${turnCountToRemove} turns`}?`
+            : `Revert to checkpoint ${turnCount}?`,
+          changeDetail,
+          "\nThis action cannot be undone.",
         ].join("\n"),
       );
       if (!confirmed) {
@@ -4436,7 +4550,15 @@ export default function ChatView({ threadId }: ChatViewProps) {
       }
       setIsRevertingCheckpoint(false);
     },
-    [activeThread, isConnecting, isRevertingCheckpoint, isSendBusy, phase, setThreadError],
+    [
+      activeThread,
+      isConnecting,
+      isRevertingCheckpoint,
+      isSendBusy,
+      phase,
+      setThreadError,
+      turnDiffSummaries,
+    ],
   );
 
   const stageExpandedTemplateInComposer = useCallback(
@@ -4878,11 +5000,13 @@ export default function ChatView({ threadId }: ChatViewProps) {
         return null;
       }
 
-      const providerForSend = templateOverridesForSend?.provider ?? selectedProvider;
+      const rawProviderForSend = templateOverridesForSend?.provider ?? selectedProvider;
+      const rawModelForSend = (templateOverridesForSend?.model ?? selectedModel) as ModelSlug;
+      const providerForSend = resolveProviderForModel(rawProviderForSend, rawModelForSend);
       const modelForSend = resolveAppModelSelection(
         providerForSend,
         allModelOptionsByProvider[providerForSend].map((option) => option.slug),
-        templateOverridesForSend?.model ?? selectedModel,
+        rawModelForSend,
       ) as ModelSlug;
       const runtimeModeForSend = templateOverridesForSend?.runtimeMode ?? runtimeMode;
       const interactionModeForSend = templateOverridesForSend?.interactionMode ?? interactionMode;
@@ -5374,14 +5498,25 @@ export default function ChatView({ threadId }: ChatViewProps) {
           firstComposerImageName = firstComposerImage.name;
         }
       }
-      let titleSeed = trimmed;
-      titleSeed = textForSend;
-      if (!titleSeed) {
-        if (firstComposerImageName) {
-          titleSeed = `Image: ${firstComposerImageName}`;
-        } else {
-          titleSeed = "New thread";
-        }
+      // Smart title: prefer feature name > thread goal > message text
+      let titleSeed: string;
+      const linkedFeature = activeFeatureId
+        ? (
+            await readNativeApi()
+              ?.features.get({ id: activeFeatureId as any })
+              .catch(() => null)
+          )?.feature
+        : null;
+      if (linkedFeature) {
+        titleSeed = (linkedFeature as any).name;
+      } else if (activeThread.goal && activeThread.goal.trim().length > 0) {
+        titleSeed = activeThread.goal;
+      } else if (textForSend) {
+        titleSeed = textForSend;
+      } else if (firstComposerImageName) {
+        titleSeed = `Image: ${firstComposerImageName}`;
+      } else {
+        titleSeed = "New thread";
       }
       const title = truncateTitle(titleSeed);
       let threadCreateModel: ModelSlug =
@@ -5438,6 +5573,32 @@ export default function ChatView({ threadId }: ChatViewProps) {
           threadId: threadIdForSend,
           title,
         });
+      }
+
+      // Smart re-title after 3rd user message — use goal/feature if available
+      const userMessageCount = activeThread.messages.filter((m) => m.role === "user").length + 1;
+      if (userMessageCount === 3 && isServerThread) {
+        let smartTitle: string | null = null;
+        // Prefer feature name or thread goal over word-frequency
+        if (linkedFeature) {
+          smartTitle = truncateTitle((linkedFeature as any).name, 50);
+        } else if (activeThread.goal && activeThread.goal.trim().length > 0) {
+          smartTitle = truncateTitle(activeThread.goal, 50);
+        } else {
+          const userMessages = activeThread.messages
+            .filter((m) => m.role === "user")
+            .map((m) => m.text)
+            .concat(textForSend);
+          smartTitle = deriveSmartThreadTitle(userMessages);
+        }
+        if (smartTitle && smartTitle !== activeThread.title) {
+          await api.orchestration.dispatchCommand({
+            type: "thread.meta.update",
+            commandId: newCommandId(),
+            threadId: threadIdForSend,
+            title: smartTitle,
+          });
+        }
       }
 
       if (isServerThread) {
@@ -6087,15 +6248,19 @@ export default function ChatView({ threadId }: ChatViewProps) {
     () => ({
       customCodexModels: settings.customCodexModels,
       customCopilotModels: settings.customCopilotModels,
-      customOpencodeModels: settings.customOpencodeModels,
+      customKilocodeModels: settings.customKilocodeModels,
       customKimiModels: settings.customKimiModels,
+      customMinimaxModels: settings.customMinimaxModels,
+      customOpencodeModels: settings.customOpencodeModels,
       customPiModels: settings.customPiModels,
     }),
     [
       settings.customCodexModels,
       settings.customCopilotModels,
-      settings.customOpencodeModels,
+      settings.customKilocodeModels,
       settings.customKimiModels,
+      settings.customMinimaxModels,
+      settings.customOpencodeModels,
       settings.customPiModels,
     ],
   );
@@ -6783,6 +6948,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
               >
                 <MessagesTimeline
                   key={activeThread.id}
+                  threadId={activeThread.id}
                   hasMessages={timelineEntries.length > 0}
                   isWorking={isWorking}
                   activeTurnInProgress={isWorking || !latestTurnSettled}
@@ -6826,6 +6992,23 @@ export default function ChatView({ threadId }: ChatViewProps) {
               )}
             </div>
           </div>
+
+          {/* Overseer alerts */}
+          {activeThread && (() => {
+            const alerts = (activeThread.activities ?? [])
+              .filter((a: any) => typeof a.kind === "string" && a.kind.startsWith("overseer."))
+              .slice(-3); // Show max 3 most recent
+            if (alerts.length === 0) return null;
+            return (
+              <div className="px-3 sm:px-5">
+                <div className="mx-auto max-w-3xl">
+                  {alerts.map((a: any) => (
+                    <OverseerAlertInline key={a.id ?? a.createdAt} activity={a} />
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Input bar */}
           <div
@@ -7226,6 +7409,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
                           copilot: providerFavoriteModelSettings.favoriteCopilotModels,
                           opencode: providerFavoriteModelSettings.favoriteOpencodeModels,
                           kimi: providerFavoriteModelSettings.favoriteKimiModels,
+                          kilocode: [],
+                          minimax: [],
                           pi: providerFavoriteModelSettings.favoritePiModels,
                         }}
                         recentModelsByProvider={{
@@ -7233,6 +7418,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
                           copilot: providerRecentModelSettings.recentCopilotModels,
                           opencode: providerRecentModelSettings.recentOpencodeModels,
                           kimi: providerRecentModelSettings.recentKimiModels,
+                          kilocode: [],
+                          minimax: [],
                           pi: providerRecentModelSettings.recentPiModels,
                         }}
                         projectDefaultModel={activeProject?.model ?? null}
@@ -7259,8 +7446,48 @@ export default function ChatView({ threadId }: ChatViewProps) {
                         issuesCount={projectSkillIssues.length}
                         disabled={!activeWorkspaceCwd || isConnecting || phase === "running"}
                         compact={isComposerFooterCompact}
+                        projectCwd={activeWorkspaceCwd ?? undefined}
                         onToggleSkill={toggleSelectedSkill}
+                        onSkillCreated={() => {
+                          void queryClient.invalidateQueries({
+                            queryKey: projectQueryKeys.skills(activeWorkspaceCwd),
+                          });
+                        }}
                       />
+
+                      {activeProject && (
+                        <FeaturePicker
+                          projectId={activeProject.id}
+                          activeFeatureId={activeFeatureId}
+                          disabled={isConnecting || phase === "running"}
+                          compact={isComposerFooterCompact}
+                          onSelectFeature={(featureId, featureName) => {
+                            setComposerDraftActiveFeatureId(threadId, featureId);
+                            // Auto-set thread goal to the feature name
+                            if (featureName && activeThread) {
+                              const api = readNativeApi();
+                              if (api) {
+                                void api.orchestration.dispatchCommand({
+                                  type: "thread.meta.update",
+                                  commandId: newCommandId(),
+                                  threadId: activeThread.id,
+                                  goal: featureName,
+                                });
+                              }
+                            }
+                            // Auto-move feature to in_progress
+                            if (featureId) {
+                              const api = readNativeApi();
+                              if (api) {
+                                void api.features.updateStage({
+                                  id: featureId as any,
+                                  stage: "in_progress",
+                                });
+                              }
+                            }
+                          }}
+                        />
+                      )}
 
                       <ComposerContextWindowStatus
                         compact={isComposerFooterCompact}
@@ -8886,6 +9113,20 @@ function getCustomModelOptionsByProvider(
       mergeModelOptions(providerStatusModelsByProvider.kimi, configuredModelsByProvider.kimi),
       getAppModelOptions("kimi", settings.customKimiModels),
     ),
+    kilocode: mergeModelOptions(
+      mergeModelOptions(
+        providerStatusModelsByProvider.kilocode ?? [],
+        configuredModelsByProvider.kilocode ?? [],
+      ),
+      getAppModelOptions("kilocode", []),
+    ),
+    minimax: mergeModelOptions(
+      mergeModelOptions(
+        providerStatusModelsByProvider.minimax ?? [],
+        configuredModelsByProvider.minimax ?? [],
+      ),
+      getAppModelOptions("minimax", []),
+    ),
     pi:
       options?.hidePiDefaultFallback === true
         ? piOptions.filter((option) => option.slug !== DEFAULT_MODEL_BY_PROVIDER.pi)
@@ -9137,7 +9378,14 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
                   strokeLinecap="round"
                   strokeDasharray={ringCircumference}
                   strokeDashoffset={ringOffset}
-                  className="text-foreground/55 transition-[stroke-dashoffset,stroke-opacity] duration-300 ease-out"
+                  className={cn(
+                    "transition-[stroke-dashoffset,stroke-opacity] duration-300 ease-out",
+                    percentUsed >= 95
+                      ? "text-red-500"
+                      : percentUsed >= 80
+                        ? "text-amber-500"
+                        : "text-foreground/55",
+                  )}
                 />
               ) : null}
             </svg>

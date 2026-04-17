@@ -107,6 +107,7 @@ interface ComposerThreadDraftState {
   nonPersistedImageIds: string[];
   persistedAttachments: PersistedComposerImageAttachment[];
   selectedSkills: ProjectSkillName[];
+  activeFeatureId: string | null;
   provider: ProviderKind | null;
   model: string | null;
   runtimeMode: RuntimeMode | null;
@@ -178,6 +179,7 @@ interface ComposerDraftStoreState {
     provider?: ProviderKind | null | undefined,
   ) => void;
   setCodexFastMode: (threadId: ThreadId, enabled: boolean | null | undefined) => void;
+  setActiveFeatureId: (threadId: ThreadId, featureId: string | null | undefined) => void;
   addImage: (threadId: ThreadId, image: ComposerImageAttachment) => void;
   addImages: (threadId: ThreadId, images: ComposerImageAttachment[]) => void;
   removeImage: (threadId: ThreadId, imageId: string) => void;
@@ -210,6 +212,7 @@ const EMPTY_THREAD_DRAFT = Object.freeze({
   nonPersistedImageIds: EMPTY_IDS,
   persistedAttachments: EMPTY_PERSISTED_ATTACHMENTS,
   selectedSkills: EMPTY_SELECTED_SKILLS,
+  activeFeatureId: null,
   provider: null,
   model: null,
   runtimeMode: null,
@@ -228,6 +231,7 @@ function createEmptyThreadDraft(): ComposerThreadDraftState {
     nonPersistedImageIds: [],
     persistedAttachments: [],
     selectedSkills: [],
+    activeFeatureId: null,
     provider: null,
     model: null,
     runtimeMode: null,
@@ -603,6 +607,7 @@ function toHydratedThreadDraft(
     nonPersistedImageIds: [],
     persistedAttachments: persistedDraft.attachments,
     selectedSkills: persistedDraft.skills ?? [],
+    activeFeatureId: null,
     provider: persistedDraft.provider ?? null,
     model: persistedDraft.model ?? null,
     runtimeMode: persistedDraft.runtimeMode ?? null,
@@ -1059,6 +1064,30 @@ export const useComposerDraftStore = create<ComposerDraftStoreState>()(
           const nextDraft: ComposerThreadDraftState = {
             ...base,
             codexFastMode: nextCodexFastMode,
+          };
+          const nextDraftsByThreadId = { ...state.draftsByThreadId };
+          if (shouldRemoveDraft(nextDraft)) {
+            delete nextDraftsByThreadId[threadId];
+          } else {
+            nextDraftsByThreadId[threadId] = nextDraft;
+          }
+          return { draftsByThreadId: nextDraftsByThreadId };
+        });
+      },
+      setActiveFeatureId: (threadId, featureId) => {
+        if (threadId.length === 0) {
+          return;
+        }
+        const nextFeatureId = featureId ?? null;
+        set((state) => {
+          const existing = state.draftsByThreadId[threadId];
+          if (!existing && nextFeatureId === null) {
+            return state;
+          }
+          const base = existing ?? createEmptyThreadDraft();
+          const nextDraft: ComposerThreadDraftState = {
+            ...base,
+            activeFeatureId: nextFeatureId,
           };
           const nextDraftsByThreadId = { ...state.draftsByThreadId };
           if (shouldRemoveDraft(nextDraft)) {

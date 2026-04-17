@@ -65,7 +65,9 @@ const MODELS_WITH_FAST_SUPPORT = new Set(["gpt-5.4"]);
 const PROVIDERS_WITH_CUSTOM_MODEL_SUPPORT = new Set<ProviderKind>([
   "codex",
   "copilot",
+  "kilocode",
   "kimi",
+  "minimax",
   "opencode",
   "pi",
 ]);
@@ -73,7 +75,9 @@ const VALID_HIDDEN_PROVIDER_PICKER_KINDS = new Set([
   "codex",
   "openrouter",
   "copilot",
+  "kilocode",
   "kimi",
+  "minimax",
   "opencode",
   "pi",
 ]);
@@ -102,6 +106,8 @@ const BUILT_IN_MODEL_SLUGS_BY_PROVIDER: Record<ProviderKind, ReadonlySet<string>
   codex: new Set(getModelOptions("codex").map((option) => option.slug)),
   copilot: new Set(getModelOptions("copilot").map((option) => option.slug)),
   kimi: new Set(getModelOptions("kimi").map((option) => option.slug)),
+  kilocode: new Set(getModelOptions("kilocode").map((option) => option.slug)),
+  minimax: new Set(getModelOptions("minimax").map((option) => option.slug)),
   opencode: new Set(getModelOptions("opencode").map((option) => option.slug)),
   pi: new Set(getModelOptions("pi").map((option) => option.slug)),
 };
@@ -122,10 +128,16 @@ const AppSettingsSchema = Schema.Struct({
   opencodeBinaryPath: Schema.String.check(Schema.isMaxLength(4096)).pipe(
     Schema.withConstructorDefault(() => Option.some("")),
   ),
+  kilocodeBinaryPath: Schema.String.check(Schema.isMaxLength(4096)).pipe(
+    Schema.withConstructorDefault(() => Option.some("")),
+  ),
   kimiBinaryPath: Schema.String.check(Schema.isMaxLength(4096)).pipe(
     Schema.withConstructorDefault(() => Option.some("")),
   ),
   kimiApiKey: Schema.String.check(Schema.isMaxLength(4096)).pipe(
+    Schema.withConstructorDefault(() => Option.some("")),
+  ),
+  minimaxApiKey: Schema.String.check(Schema.isMaxLength(4096)).pipe(
     Schema.withConstructorDefault(() => Option.some("")),
   ),
   enableCatppuccinTheme: Schema.Boolean.pipe(
@@ -190,10 +202,16 @@ const AppSettingsSchema = Schema.Struct({
   customCopilotModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
-  customOpencodeModels: Schema.Array(Schema.String).pipe(
+  customKilocodeModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
   customKimiModels: Schema.Array(Schema.String).pipe(
+    Schema.withConstructorDefault(() => Option.some([])),
+  ),
+  customMinimaxModels: Schema.Array(Schema.String).pipe(
+    Schema.withConstructorDefault(() => Option.some([])),
+  ),
+  customOpencodeModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
   customPiModels: Schema.Array(Schema.String).pipe(
@@ -205,10 +223,16 @@ const AppSettingsSchema = Schema.Struct({
   favoriteCopilotModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
-  favoriteOpencodeModels: Schema.Array(Schema.String).pipe(
+  favoriteKilocodeModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
   favoriteKimiModels: Schema.Array(Schema.String).pipe(
+    Schema.withConstructorDefault(() => Option.some([])),
+  ),
+  favoriteMinimaxModels: Schema.Array(Schema.String).pipe(
+    Schema.withConstructorDefault(() => Option.some([])),
+  ),
+  favoriteOpencodeModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
   favoritePiModels: Schema.Array(Schema.String).pipe(
@@ -220,10 +244,16 @@ const AppSettingsSchema = Schema.Struct({
   recentCopilotModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
-  recentOpencodeModels: Schema.Array(Schema.String).pipe(
+  recentKilocodeModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
   recentKimiModels: Schema.Array(Schema.String).pipe(
+    Schema.withConstructorDefault(() => Option.some([])),
+  ),
+  recentMinimaxModels: Schema.Array(Schema.String).pipe(
+    Schema.withConstructorDefault(() => Option.some([])),
+  ),
+  recentOpencodeModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
   recentPiModels: Schema.Array(Schema.String).pipe(
@@ -235,10 +265,16 @@ const AppSettingsSchema = Schema.Struct({
   hiddenCopilotModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
-  hiddenOpencodeModels: Schema.Array(Schema.String).pipe(
+  hiddenKilocodeModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
   hiddenKimiModels: Schema.Array(Schema.String).pipe(
+    Schema.withConstructorDefault(() => Option.some([])),
+  ),
+  hiddenMinimaxModels: Schema.Array(Schema.String).pipe(
+    Schema.withConstructorDefault(() => Option.some([])),
+  ),
+  hiddenOpencodeModels: Schema.Array(Schema.String).pipe(
     Schema.withConstructorDefault(() => Option.some([])),
   ),
   hiddenPiModels: Schema.Array(Schema.String).pipe(

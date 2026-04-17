@@ -28,7 +28,15 @@ export const ORCHESTRATION_WS_CHANNELS = {
   domainEvent: "orchestration.domainEvent",
 } as const;
 
-export const ProviderKind = Schema.Literals(["codex", "copilot", "kimi", "opencode", "pi"]);
+export const ProviderKind = Schema.Literals([
+  "codex",
+  "copilot",
+  "kimi",
+  "kilocode",
+  "minimax",
+  "opencode",
+  "pi",
+]);
 export type ProviderKind = typeof ProviderKind.Type;
 export const ProviderApprovalPolicy = Schema.Literals([
   "untrusted",
@@ -83,10 +91,20 @@ const KimiProviderStartOptions = Schema.Struct({
   apiKey: Schema.optional(TrimmedNonEmptyString),
 });
 
+const KiloCodeProviderStartOptions = Schema.Struct({
+  binaryPath: Schema.optional(TrimmedNonEmptyString),
+});
+
+const MiniMaxProviderStartOptions = Schema.Struct({
+  apiKey: Schema.optional(TrimmedNonEmptyString),
+});
+
 export const ProviderStartOptions = Schema.Struct({
   codex: Schema.optional(CodexProviderStartOptions),
   copilot: Schema.optional(CopilotProviderStartOptions),
   kimi: Schema.optional(KimiProviderStartOptions),
+  kilocode: Schema.optional(KiloCodeProviderStartOptions),
+  minimax: Schema.optional(MiniMaxProviderStartOptions),
   opencode: Schema.optional(OpenCodeProviderStartOptions),
 });
 export type ProviderStartOptions = typeof ProviderStartOptions.Type;

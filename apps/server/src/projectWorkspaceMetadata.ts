@@ -368,6 +368,21 @@ export function readProjectAgentsFile(input: ProjectAgentsFileInput): ProjectAge
   };
 }
 
+const PROJECT_BRIEF_RELATIVE_PATH = ".rowl/project-brief.md";
+
+export function readProjectBriefFile(cwd: string): string | null {
+  try {
+    const absolutePath = path.join(cwd, PROJECT_BRIEF_RELATIVE_PATH);
+    if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+      return null;
+    }
+    const contents = fs.readFileSync(absolutePath, "utf8");
+    return contents.trim().length > 0 ? contents.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function draftProjectAgentsFile(
   input: ProjectDraftAgentsFileInput,
 ): ProjectDraftAgentsFileResult {
@@ -463,4 +478,87 @@ export function resolveProjectSkillSelection(input: {
   }
 
   return resolvedSkills;
+}
+
+// ── Source file scanning for Live Map ──────────────────────────────
+
+const SOURCE_EXTENSIONS = new Set([
+  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+  ".vue", ".svelte", ".astro",
+  ".css", ".scss", ".less",
+  ".json",
+  ".md", ".mdx",
+]);
+
+const IGNORED_DIRS = new Set([
+  "node_modules", ".git", "dist", "build", ".next", ".nuxt",
+  ".rowl", ".claude", ".vscode", "coverage", "__pycache__",
+  ".turbo", ".vercel", ".output", "release",
+]);
+
+const MAX_FILE_SIZE_BYTES = 100_000; // Skip files > 100KB
+const MAX_CONTENT_LINES_FOR_MAP = 80; // Only send first N lines (enough for import detection + function signatures)
+
+export function scanSourceFiles(
+  cwd: string,
+  maxFiles: number = 500,
+): { files: Array<{ relativePath: string; content: string; sizeBytes: number }>; truncated: boolean } {
+  const files: Array<{ relativePath: string; content: string; sizeBytes: number }> = [];
+  let truncated = false;
+
+  function walk(dir: string, relativeBase: string): void {
+    if (files.length >= maxFiles) {
+      truncated = true;
+      return;
+    }
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return; // Can't read directory — skip
+    }
+
+    for (const entry of entries) {
+      if (files.length >= maxFiles) {
+        truncated = true;
+        return;
+      }
+
+      const fullPath = path.join(dir, entry.name);
+      const relativePath = relativeBase ? `${relativeBase}/${entry.name}` : entry.name;
+
+      if (entry.isDirectory()) {
+        if (!IGNORED_DIRS.has(entry.name) && !entry.name.startsWith(".")) {
+          walk(fullPath, relativePath);
+        }
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (!SOURCE_EXTENSIONS.has(ext)) continue;
+
+        try {
+          const stat = fs.statSync(fullPath);
+          if (stat.size > MAX_FILE_SIZE_BYTES) continue;
+
+          const fullContent = fs.readFileSync(fullPath, "utf-8");
+          // Only send first N lines to reduce WebSocket payload
+          // This is enough for import detection + function signatures
+          const lines = fullContent.split("\n");
+          const truncatedContent = lines.length > MAX_CONTENT_LINES_FOR_MAP
+            ? lines.slice(0, MAX_CONTENT_LINES_FOR_MAP).join("\n") + "\n// ... truncated"
+            : fullContent;
+          files.push({
+            relativePath,
+            content: truncatedContent,
+            sizeBytes: stat.size,
+          });
+        } catch {
+          // Can't read file — skip
+        }
+      }
+    }
+  }
+
+  walk(cwd, "");
+  return { files, truncated };
 }

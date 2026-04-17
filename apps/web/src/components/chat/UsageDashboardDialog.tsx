@@ -85,7 +85,9 @@ function normalizeSnapshotProvider(
   switch (provider) {
     case "codex":
     case "copilot":
+    case "kilocode":
     case "kimi":
+    case "minimax":
     case "opencode":
     case "pi":
       return provider;
@@ -102,6 +104,10 @@ function providerLabel(provider: ProviderKind, language: AppLanguage): string {
       return "GitHub Copilot";
     case "kimi":
       return "Kimi Code";
+    case "kilocode":
+      return "KiloCode";
+    case "minimax":
+      return "MiniMax";
     case "opencode":
       return "OpenCode";
     case "pi":

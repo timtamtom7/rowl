@@ -61,7 +61,13 @@ export function useProjectCreationActions() {
   }, []);
 
   const addProjectFromPath = useCallback(
-    async (rawCwd: string): Promise<{ ok: true } | { ok: false; message: string }> => {
+    async (
+      rawCwd: string,
+      options?: { skipWizard?: boolean },
+    ): Promise<
+      | { ok: true; isNew?: boolean; projectId?: ProjectId; cwd?: string }
+      | { ok: false; message: string }
+    > => {
       const cwd = rawCwd.trim();
       if (!cwd || isAddingProject) {
         return { ok: false, message: "Workspace path is required." };
@@ -78,7 +84,7 @@ export function useProjectCreationActions() {
         if (existing) {
           await focusBestProjectTarget(existing.id);
           setNewCwd("");
-          return { ok: true };
+          return { ok: true, isNew: false };
         }
 
         const projectId = newProjectId();
@@ -88,9 +94,28 @@ export function useProjectCreationActions() {
           projectId,
           title: titleFromWorkspacePath(cwd),
           workspaceRoot: cwd,
-          defaultModel: DEFAULT_MODEL_BY_PROVIDER.codex,
+          defaultModel:
+            threads.toSorted(compareThreadsByRecency)[0]?.model ??
+            DEFAULT_MODEL_BY_PROVIDER.codex,
           createdAt: new Date().toISOString(),
         });
+        // Force an immediate snapshot sync so the new project appears in the
+        // store before we navigate. Without this, the throttled domain-event
+        // sync might not run before the route change, leaving the UI empty.
+        try {
+          const snapshot = await api.orchestration.getSnapshot();
+          useStore.getState().syncServerReadModel(snapshot);
+        } catch {
+          // Best-effort — the throttled sync will catch up eventually.
+        }
+
+        // If not skipping the wizard, return the new project info so the
+        // caller can show the setup wizard before opening a thread.
+        if (!options?.skipWizard) {
+          setNewCwd("");
+          return { ok: true, isNew: true, projectId, cwd };
+        }
+
         try {
           await openNewThread(projectId, {
             envMode: settings.defaultThreadEnvMode,
@@ -104,7 +129,7 @@ export function useProjectCreationActions() {
           return { ok: false, message };
         }
         setNewCwd("");
-        return { ok: true };
+        return { ok: true, isNew: true, projectId, cwd };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to add project.";
         setAddProjectError(message);

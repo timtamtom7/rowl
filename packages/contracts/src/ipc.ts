@@ -1,4 +1,93 @@
 import type {
+  CompressContextNodeInput,
+  CompressContextNodeResult,
+  CreateContextNodeInput,
+  CreateContextNodeResult,
+  DeleteContextNodeInput,
+  DeleteContextNodeResult,
+  GetContextBudgetInput,
+  GetContextBudgetResult,
+  GetContextNodeInput,
+  GetContextNodeResult,
+  ListContextNodesByProjectInput,
+  ListContextNodesByProjectResult,
+  ListContextNodesByThreadInput,
+  ListContextNodesByThreadResult,
+  RestoreContextNodeInput,
+  RestoreContextNodeResult,
+} from "./context";
+import type {
+  CreateMemoryInput,
+  CreateMemoryResult,
+  DeleteMemoryInput,
+  DeleteMemoryResult,
+  ListMemoryByProjectInput,
+  ListMemoryByProjectResult,
+  SearchMemoryInput,
+  SearchMemoryResult,
+} from "./memory";
+import type {
+  GetCodebaseHealthInput,
+  GetCodebaseHealthResult,
+  UpdateCodebaseHealthInput,
+  UpdateCodebaseHealthResult,
+} from "./codebaseHealth";
+import type {
+  GetAgentOverviewInput,
+  GetAgentOverviewResult,
+  SpawnAgentForFeatureInput,
+  SpawnAgentForFeatureResult,
+  DetectConflictsInput,
+  DetectConflictsResult,
+} from "./multiAgent";
+import type {
+  ListPromptsInput,
+  ListPromptsResult,
+  CreatePromptInput,
+  CreatePromptResult,
+  UpdatePromptInput,
+  UpdatePromptResult,
+  DeletePromptInput,
+  DeletePromptResult,
+  ListHarnessPresetsResult,
+  ActivateHarnessInput,
+  ActivateHarnessResult,
+  DeactivateHarnessInput,
+  DeactivateHarnessResult,
+} from "./projectPrompts";
+import type {
+  CreateFeatureInput,
+  CreateFeatureResult,
+  DeleteFeatureInput,
+  DeleteFeatureResult,
+  GetFeatureInput,
+  GetFeatureResult,
+  ListFeaturesByProjectInput,
+  ListFeaturesByProjectResult,
+  UpdateFeatureInput,
+  UpdateFeatureResult,
+  UpdateFeatureStageInput,
+  UpdateFeatureStageResult,
+} from "./features";
+import type {
+  CreateGoalInput,
+  CreateGoalResult,
+  DeleteGoalInput,
+  DeleteGoalResult,
+  GetGoalInput,
+  GetGoalResult,
+  LinkThreadToGoalInput,
+  LinkThreadToGoalResult,
+  ListGoalsByProjectInput,
+  ListGoalsByProjectResult,
+  SetMainGoalInput,
+  SetMainGoalResult,
+  UnlinkThreadFromGoalInput,
+  UnlinkThreadFromGoalResult,
+  UpdateGoalTextInput,
+  UpdateGoalTextResult,
+} from "./goals";
+import type {
   GitCheckoutInput,
   GitCreateBranchInput,
   GitPreparePullRequestThreadInput,
@@ -26,9 +115,13 @@ import type {
   ProjectListCommandTemplatesInput,
   ProjectListCommandTemplatesResult,
   ProjectListSkillsInput,
+  ProjectListSourceFilesInput,
+  ProjectListSourceFilesResult,
   ProjectListSkillsResult,
   ProjectSearchEntriesInput,
   ProjectSearchEntriesResult,
+  ProjectReadFileInput,
+  ProjectReadFileResult,
   ProjectWriteFileInput,
   ProjectWriteFileResult,
   ProjectDeleteFileInput,
@@ -177,6 +270,10 @@ export interface NativeApi {
       input: ProjectListCommandTemplatesInput,
     ) => Promise<ProjectListCommandTemplatesResult>;
     listSkills: (input: ProjectListSkillsInput) => Promise<ProjectListSkillsResult>;
+    listSourceFiles: (
+      input: ProjectListSourceFilesInput,
+    ) => Promise<ProjectListSourceFilesResult>;
+    readFile: (input: ProjectReadFileInput) => Promise<ProjectReadFileResult>;
     writeFile: (input: ProjectWriteFileInput) => Promise<ProjectWriteFileResult>;
     deleteFile: (input: ProjectDeleteFileInput) => Promise<ProjectDeleteFileResult>;
   };
@@ -190,6 +287,84 @@ export interface NativeApi {
     undo: (input: ThreadUndoInput) => Promise<ThreadUndoResult>;
     redo: (input: ThreadRedoInput) => Promise<ThreadRedoResult>;
     getRedoStatus: (input: ThreadRedoStatusInput) => Promise<ThreadRedoStatusResult>;
+  };
+  review: {
+    approve: (input: { threadId: string; turnId: string }) => Promise<{ success: boolean }>;
+    reject: (input: {
+      threadId: string;
+      turnId: string;
+      turnCount: number;
+    }) => Promise<{ success: boolean }>;
+  };
+  context: {
+    createNode: (input: CreateContextNodeInput) => Promise<CreateContextNodeResult>;
+    getNode: (input: GetContextNodeInput) => Promise<GetContextNodeResult>;
+    listByProject: (
+      input: ListContextNodesByProjectInput,
+    ) => Promise<ListContextNodesByProjectResult>;
+    listByThread: (input: ListContextNodesByThreadInput) => Promise<ListContextNodesByThreadResult>;
+    compressNode: (input: CompressContextNodeInput) => Promise<CompressContextNodeResult>;
+    restoreNode: (input: RestoreContextNodeInput) => Promise<RestoreContextNodeResult>;
+    deleteNode: (input: DeleteContextNodeInput) => Promise<DeleteContextNodeResult>;
+    getBudget: (input: GetContextBudgetInput) => Promise<GetContextBudgetResult>;
+  };
+  memory: {
+    create: (input: CreateMemoryInput) => Promise<CreateMemoryResult>;
+    search: (input: SearchMemoryInput) => Promise<SearchMemoryResult>;
+    listByProject: (input: ListMemoryByProjectInput) => Promise<ListMemoryByProjectResult>;
+    delete: (input: DeleteMemoryInput) => Promise<DeleteMemoryResult>;
+  };
+  codebaseHealth: {
+    getSummary: (input: GetCodebaseHealthInput) => Promise<GetCodebaseHealthResult>;
+    updateHealth: (input: UpdateCodebaseHealthInput) => Promise<UpdateCodebaseHealthResult>;
+  };
+  prompts: {
+    list: (input: ListPromptsInput) => Promise<ListPromptsResult>;
+    create: (input: CreatePromptInput) => Promise<CreatePromptResult>;
+    update: (input: UpdatePromptInput) => Promise<UpdatePromptResult>;
+    delete: (input: DeletePromptInput) => Promise<DeletePromptResult>;
+  };
+  harness: {
+    listPresets: () => Promise<ListHarnessPresetsResult>;
+    activate: (input: ActivateHarnessInput) => Promise<ActivateHarnessResult>;
+    deactivate: (input: DeactivateHarnessInput) => Promise<DeactivateHarnessResult>;
+    getActive: (input: { threadId: string }) => Promise<{ preset: { id: string; name: string } | null }>;
+  };
+  featureThreadLinks: {
+    link: (input: { featureId: string; threadId: string }) => Promise<unknown>;
+    unlink: (input: { featureId: string; threadId: string }) => Promise<unknown>;
+    getLinks: (input: {
+      projectId: string;
+    }) => Promise<{
+      readonly links: ReadonlyArray<{
+        readonly featureId: string;
+        readonly threadId: string;
+        readonly createdAt: string;
+      }>;
+    }>;
+  };
+  agents: {
+    getOverview: (input: GetAgentOverviewInput) => Promise<GetAgentOverviewResult>;
+    spawnForFeature: (input: SpawnAgentForFeatureInput) => Promise<SpawnAgentForFeatureResult>;
+    detectConflicts: (input: DetectConflictsInput) => Promise<DetectConflictsResult>;
+  };
+  features: {
+    create: (input: CreateFeatureInput) => Promise<CreateFeatureResult>;
+    get: (input: GetFeatureInput) => Promise<GetFeatureResult>;
+    listByProject: (input: ListFeaturesByProjectInput) => Promise<ListFeaturesByProjectResult>;
+    update: (input: UpdateFeatureInput) => Promise<UpdateFeatureResult>;
+    updateStage: (input: UpdateFeatureStageInput) => Promise<UpdateFeatureStageResult>;
+    delete: (input: DeleteFeatureInput) => Promise<DeleteFeatureResult>;
+  };
+  goals: {
+    create: (input: CreateGoalInput) => Promise<CreateGoalResult>;
+    get: (input: GetGoalInput) => Promise<GetGoalResult>;
+    listByProject: (input: ListGoalsByProjectInput) => Promise<ListGoalsByProjectResult>;
+    setMain: (input: SetMainGoalInput) => Promise<SetMainGoalResult>;
+    linkThread: (input: LinkThreadToGoalInput) => Promise<LinkThreadToGoalResult>;
+    unlinkThread: (input: UnlinkThreadFromGoalInput) => Promise<UnlinkThreadFromGoalResult>;
+    updateText: (input: UpdateGoalTextInput) => Promise<UpdateGoalTextResult>;
+    delete: (input: DeleteGoalInput) => Promise<DeleteGoalResult>;
   };
   shell: {
     openInEditor: (cwd: string, editor: EditorId) => Promise<void>;

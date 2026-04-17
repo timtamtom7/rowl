@@ -1,4 +1,6 @@
-# ROWL Roadmap
+# ROWL Roadmap (SUPERSEDED)
+
+> ⚠️ **This document is superseded.** All decisions and priorities are now tracked in `ROWL_ROADMAP_V2.md`. Do not reference this document for planning — it is kept for historical reference only.
 
 ## Implementation Roadmap for the Agentic Engineering Control Room
 

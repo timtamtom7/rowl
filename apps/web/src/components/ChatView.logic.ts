@@ -156,6 +156,8 @@ export function getCustomModelOptionsByProvider(settings: {
     copilot: getAppModelOptions("copilot", settings.customCopilotModels),
     opencode: getAppModelOptions("opencode", settings.customOpencodeModels),
     kimi: getAppModelOptions("kimi", settings.customKimiModels),
+    kilocode: getAppModelOptions("kilocode", []),
+    minimax: getAppModelOptions("minimax", []),
     pi: getAppModelOptions("pi", settings.customPiModels),
   };
 }

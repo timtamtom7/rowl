@@ -362,10 +362,19 @@ function attachmentPreviewRoutePath(attachmentId: string): string {
 // ── Pure state transition functions ────────────────────────────────────
 
 export function syncServerReadModel(state: AppState, readModel: OrchestrationReadModel): AppState {
-  const projects = mapProjectsFromReadModel(
-    readModel.projects.filter((project) => project.deletedAt === null),
-    state.projects,
-  );
+  // Deduplicate projects with the same workspace root — keep the most recently updated one
+  const activeProjects = readModel.projects.filter((project) => project.deletedAt === null);
+  const deduplicatedProjects: typeof activeProjects = [];
+  const seenWorkspaceRoots = new Set<string>();
+  for (const project of activeProjects.toSorted(
+    (a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
+  )) {
+    if (!seenWorkspaceRoots.has(project.workspaceRoot)) {
+      seenWorkspaceRoots.add(project.workspaceRoot);
+      deduplicatedProjects.push(project);
+    }
+  }
+  const projects = mapProjectsFromReadModel(deduplicatedProjects, state.projects);
   const existingThreadById = new Map(state.threads.map((thread) => [thread.id, thread] as const));
   const threads = readModel.threads
     .filter((thread) => thread.deletedAt === null)

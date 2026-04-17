@@ -17,7 +17,9 @@ import {
 } from "../Services/ProviderAdapterRegistry.ts";
 import { CopilotAdapter } from "../Services/CopilotAdapter.ts";
 import { CodexAdapter } from "../Services/CodexAdapter.ts";
+import { KiloCodeAdapter } from "../Services/KiloCodeAdapter.ts";
 import { KimiAdapter } from "../Services/KimiAdapter.ts";
+import { MiniMaxAdapter } from "../Services/MiniMaxAdapter.ts";
 import { OpenCodeAdapter } from "../Services/OpenCodeAdapter.ts";
 import { PiAdapter } from "../Services/PiAdapter.ts";
 
@@ -33,7 +35,9 @@ const makeProviderAdapterRegistry = (options?: ProviderAdapterRegistryLiveOption
         : [
             yield* CodexAdapter,
             yield* CopilotAdapter,
+            yield* KiloCodeAdapter,
             yield* KimiAdapter,
+            yield* MiniMaxAdapter,
             yield* OpenCodeAdapter,
             yield* PiAdapter,
           ];

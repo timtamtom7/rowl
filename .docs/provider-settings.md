@@ -37,6 +37,9 @@ The **Providers** section supports local overrides for each provider runtime:
   - Optional OpenRouter API key used only for Codex sessions that route through OpenRouter
 - **GitHub Copilot**
   - Custom binary path
+- **KiloCode**
+  - Custom binary path for the `kilo` CLI
+  - Authentication handled through Kilo Gateway OAuth flow outside Rowl
 - **OpenCode**
   - Custom binary path
   - OpenCode account authentication stays in OpenCode itself via `opencode auth login` and `opencode auth logout`; Rowl does not store those credentials in this phase
@@ -47,6 +50,9 @@ The **Providers** section supports local overrides for each provider runtime:
   - Custom binary path
   - Optional API key stored locally and injected into new Kimi CLI sessions
   - Without an API key, authenticate in Kimi Code CLI itself with `kimi login` or by starting `kimi` and running `/login`
+- **MiniMax**
+  - API key required for direct API sessions (MiniMax-M2.7)
+  - No CLI binary needed; MiniMax uses a direct OpenAI-compatible API connection
 - **Pi**
   - No separate binary override in Rowl; Pi is embedded through `@mariozechner/pi-coding-agent`
   - Pi auth and model discovery still come from `~/.pi/agent` (`auth.json`, `models.json`, Pi env vars, or the external `pi` / `/login` flow)
@@ -108,8 +114,10 @@ Rowl now shows OpenRouter free models in their own settings card and their own t
 Rowl supports saved custom model ids for:
 
 - **GitHub Copilot**
+- **KiloCode**
 - **OpenCode** provider/model ids such as `z-ai/glm-4.5` or `minimax/MiniMax-M2.7`
 - **Kimi Code**
+- **MiniMax**
 - **Pi** provider/model ids such as `github-copilot/claude-sonnet-4.5` or `openai/gpt-5-mini`
 - Additional Codex model ids you want to save manually
 - Additional OpenRouter `:free` model ids from the current live catalog

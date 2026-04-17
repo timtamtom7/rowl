@@ -11,7 +11,7 @@ The key constraint is billing and quota semantics, not just model compatibility.
 
 ## Status update
 
-The generic `opencode` provider described in this plan is now implemented in CUT3.
+The generic `opencode` provider described in this plan is now implemented in CUT3. Additionally, KiloCode and MiniMax now have dedicated first-class provider integrations that bypass the OpenCode routing approach originally recommended in this plan.
 
 Current shipped state:
 
@@ -20,6 +20,8 @@ Current shipped state:
 - OpenCode model lists flow back into CUT3 through ACP `session.configured` events, and CUT3 also ships a built-in `Default` sentinel under OpenCode so the first session can start without guessing a vendor-specific `provider/model` id.
 - `approval-required` runtime mode currently maps to OpenCode permission prompts for `edit` and `bash` through `OPENCODE_CONFIG_CONTENT`.
 - Authentication still stays outside CUT3 through `opencode auth login`, while CUT3 now inspects resolved OpenCode config/auth/MCP state in `server.getConfig` so the app can show credential and MCP health without storing those credentials itself.
+- **KiloCode** is now a dedicated provider with its own ACP manager (`apps/server/src/kilocodeAcpManager.ts`), spawning `kilo acp` as a subprocess. It has full adapter layers, services, registry wiring, health checks, and web UI integration. Authentication uses Kilo Gateway OAuth.
+- **MiniMax** is now a dedicated provider with a direct API manager (`apps/server/src/minimaxApiManager.ts`), using MiniMax-M2.7 via OpenAI-compatible SSE streaming. It is the first non-subprocess, non-SDK provider in CUT3. It has full adapter layers, services, registry wiring, health checks, and web UI integration. Authentication uses an API key configured in Settings.
 
 ## What the upstream docs imply
 

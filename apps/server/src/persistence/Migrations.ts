@@ -28,6 +28,13 @@ import Migration0013 from "./Migrations/013_ProjectionThreadProposedPlans.ts";
 import Migration0014 from "./Migrations/014_ProjectionThreadSessionTokenUsage.ts";
 import Migration0015 from "./Migrations/015_SanitizePersistedProviderOptions.ts";
 import Migration0016 from "./Migrations/016_ProjectionThreadSessionStartedAt.ts";
+import Migration0017 from "./Migrations/017_ProjectionGoals.ts";
+import Migration0018 from "./Migrations/018_ProjectionFeatures.ts";
+import Migration0019 from "./Migrations/019_ProjectionContextNodes.ts";
+import Migration0020 from "./Migrations/020_MemoryEntries.ts";
+import Migration0021 from "./Migrations/021_CodebaseHealth.ts";
+import Migration0022 from "./Migrations/022_ProjectPrompts.ts";
+import Migration0023 from "./Migrations/023_FeatureThreadLinks.ts";
 import { Effect } from "effect";
 
 /**
@@ -57,6 +64,13 @@ const loader = Migrator.fromRecord({
   "14_ProjectionThreadSessionTokenUsage": Migration0014,
   "15_SanitizePersistedProviderOptions": Migration0015,
   "16_ProjectionThreadSessionStartedAt": Migration0016,
+  "17_ProjectionGoals": Migration0017,
+  "18_ProjectionFeatures": Migration0018,
+  "19_ProjectionContextNodes": Migration0019,
+  "20_MemoryEntries": Migration0020,
+  "21_CodebaseHealth": Migration0021,
+  "22_ProjectPrompts": Migration0022,
+  "23_FeatureThreadLinks": Migration0023,
 });
 
 /**

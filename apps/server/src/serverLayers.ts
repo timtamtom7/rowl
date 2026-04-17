@@ -21,7 +21,9 @@ import { RuntimeReceiptBusLive } from "./orchestration/Layers/RuntimeReceiptBus"
 import { ProviderUnsupportedError } from "./provider/Errors";
 import { makeCopilotAdapterLive } from "./provider/Layers/CopilotAdapter";
 import { makeCodexAdapterLive } from "./provider/Layers/CodexAdapter";
+import { makeKiloCodeAdapterLive } from "./provider/Layers/KiloCodeAdapter";
 import { makeKimiAdapterLive } from "./provider/Layers/KimiAdapter";
+import { makeMiniMaxAdapterLive } from "./provider/Layers/MiniMaxAdapter";
 import { makeOpenCodeAdapterLive } from "./provider/Layers/OpenCodeAdapter";
 import { makePiAdapterLive } from "./provider/Layers/PiAdapter";
 import { OpenCodeStateLive } from "./provider/Layers/OpenCodeState";
@@ -31,6 +33,25 @@ import { ProviderSessionDirectoryLive } from "./provider/Layers/ProviderSessionD
 import { ProviderService } from "./provider/Services/ProviderService";
 import { makeEventNdjsonLogger } from "./provider/Layers/EventNdjsonLogger";
 
+import { CodebaseIntelligenceLive } from "./orchestration/Layers/CodebaseIntelligenceLive";
+import { ContextBudgetCalculatorLive } from "./orchestration/Layers/ContextBudgetCalculatorLive";
+import { ContextServiceLive } from "./orchestration/Layers/ContextServiceLive";
+import { ContextTrimmerLive } from "./orchestration/Layers/ContextTrimmerLive";
+import { HandoffServiceLive } from "./orchestration/Layers/HandoffServiceLive";
+import { EmbeddingServiceLive } from "./orchestration/Layers/EmbeddingServiceLive";
+import { MemoryServiceLive } from "./orchestration/Layers/MemoryServiceLive";
+import { MultiAgentCoordinatorLive } from "./orchestration/Layers/MultiAgentCoordinatorLive";
+import { EvaluatorServiceLive } from "./orchestration/Layers/EvaluatorServiceLive";
+import { FeatureThreadLinkServiceLive } from "./orchestration/Layers/FeatureThreadLinkServiceLive";
+import { ProjectPromptsServiceLive } from "./orchestration/Layers/ProjectPromptsServiceLive";
+import { MemoryEntryRepositoryLive } from "./persistence/Layers/MemoryEntries";
+import { OverseerReactorLive } from "./orchestration/Layers/OverseerReactor";
+import { FeatureServiceLive } from "./orchestration/Layers/FeatureServiceLive";
+import { GoalsServiceLive } from "./orchestration/Layers/GoalsServiceLive";
+import { PMChatContextServiceLive } from "./orchestration/Layers/PMChatContextServiceLive";
+import { ProjectionContextNodeRepositoryLive } from "./persistence/Layers/ProjectionContextNodes";
+import { ProjectionFeatureRepositoryLive } from "./persistence/Layers/ProjectionFeatures";
+import { ProjectionGoalRepositoryLive } from "./persistence/Layers/ProjectionGoals";
 import { TerminalManagerLive } from "./terminal/Layers/Manager";
 import { KeybindingsLive } from "./keybindings";
 import { GitManagerLive } from "./git/Layers/GitManager";
@@ -82,13 +103,17 @@ export function makeServerProviderLayer(): Layer.Layer<
       nativeEventLogger ? { nativeEventLogger } : undefined,
     );
     const copilotAdapterLayer = makeCopilotAdapterLive();
+    const kilocodeAdapterLayer = makeKiloCodeAdapterLive();
     const kimiAdapterLayer = makeKimiAdapterLive();
+    const minimaxAdapterLayer = makeMiniMaxAdapterLive();
     const opencodeAdapterLayer = makeOpenCodeAdapterLive();
     const piAdapterLayer = makePiAdapterLive();
     const adapterRegistryLayer = ProviderAdapterRegistryLive.pipe(
       Layer.provide(codexAdapterLayer),
       Layer.provide(copilotAdapterLayer),
+      Layer.provide(kilocodeAdapterLayer),
       Layer.provide(kimiAdapterLayer),
+      Layer.provide(minimaxAdapterLayer),
       Layer.provide(opencodeAdapterLayer),
       Layer.provide(piAdapterLayer),
       Layer.provideMerge(providerSessionDirectoryLayer),
@@ -124,18 +149,70 @@ export function makeServerRuntimeServicesLayer() {
   const runtimeIngestionLayer = ProviderRuntimeIngestionLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
   );
+
+  // Service layers (defined before reactors that depend on them)
+  const contextServiceLayer = ContextServiceLive.pipe(
+    Layer.provide(ProjectionContextNodeRepositoryLive),
+  );
+  const featureServiceLayer = FeatureServiceLive.pipe(
+    Layer.provide(ProjectionFeatureRepositoryLive),
+  );
+  const goalsServiceLayer = GoalsServiceLive.pipe(Layer.provide(ProjectionGoalRepositoryLive));
+  const pmChatContextServiceLayer = PMChatContextServiceLive.pipe(
+    Layer.provide(orchestrationLayer),
+    Layer.provide(goalsServiceLayer),
+    Layer.provide(featureServiceLayer),
+    Layer.provide(contextServiceLayer),
+  );
+  const contextBudgetCalculatorLayer = ContextBudgetCalculatorLive.pipe(
+    Layer.provide(orchestrationLayer),
+    Layer.provide(goalsServiceLayer),
+    Layer.provide(featureServiceLayer),
+  );
+  const memoryServiceLayer = MemoryServiceLive.pipe(
+    Layer.provide(MemoryEntryRepositoryLive),
+    Layer.provide(EmbeddingServiceLive),
+  );
+  const multiAgentCoordinatorLayer = MultiAgentCoordinatorLive.pipe(
+    Layer.provide(orchestrationLayer),
+  );
+
+  const handoffServiceLayer = HandoffServiceLive.pipe(
+    Layer.provide(orchestrationLayer),
+    Layer.provide(goalsServiceLayer),
+    Layer.provide(featureServiceLayer),
+    Layer.provide(memoryServiceLayer),
+  );
+
   const providerCommandReactorLayer = ProviderCommandReactorLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
     Layer.provideMerge(gitCoreLayer),
     Layer.provideMerge(textGenerationLayer),
+    Layer.provideMerge(goalsServiceLayer),
+    Layer.provideMerge(featureServiceLayer),
+    Layer.provideMerge(ContextTrimmerLive),
+    Layer.provideMerge(memoryServiceLayer),
+    Layer.provideMerge(ProjectPromptsServiceLive),
   );
   const checkpointReactorLayer = CheckpointReactorLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
+  );
+  const evaluatorServiceLayer = EvaluatorServiceLive.pipe(
+    Layer.provide(orchestrationLayer),
+  );
+  const overseerReactorLayer = OverseerReactorLive.pipe(
+    Layer.provideMerge(runtimeServicesLayer),
+    Layer.provideMerge(contextServiceLayer),
+    Layer.provideMerge(memoryServiceLayer),
+    Layer.provideMerge(CodebaseIntelligenceLive),
+    Layer.provideMerge(handoffServiceLayer),
+    Layer.provideMerge(evaluatorServiceLayer),
   );
   const orchestrationReactorLayer = OrchestrationReactorLive.pipe(
     Layer.provideMerge(runtimeIngestionLayer),
     Layer.provideMerge(providerCommandReactorLayer),
     Layer.provideMerge(checkpointReactorLayer),
+    Layer.provideMerge(overseerReactorLayer),
   );
 
   const terminalLayer = TerminalManagerLive.pipe(
@@ -159,5 +236,16 @@ export function makeServerRuntimeServicesLayer() {
     terminalLayer,
     OpenCodeStateLive,
     KeybindingsLive,
+    contextServiceLayer,
+    CodebaseIntelligenceLive,
+    contextBudgetCalculatorLayer,
+    featureServiceLayer,
+    goalsServiceLayer,
+    FeatureThreadLinkServiceLive,
+    handoffServiceLayer,
+    memoryServiceLayer,
+    multiAgentCoordinatorLayer,
+    ProjectPromptsServiceLive,
+    pmChatContextServiceLayer,
   ).pipe(Layer.provideMerge(NodeServices.layer));
 }

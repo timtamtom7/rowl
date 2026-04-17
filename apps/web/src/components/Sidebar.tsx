@@ -676,7 +676,7 @@ export default function Sidebar() {
   );
 
   const handleAddProject = () => {
-    void addProjectFromPath(newCwd).then((result) => {
+    void addProjectFromPath(newCwd, { skipWizard: true }).then((result) => {
       if (result.ok) {
         setAddingProject(false);
         return;
@@ -694,7 +694,7 @@ export default function Sidebar() {
   const handlePickFolder = async () => {
     const pickedPath = await pickProjectFolder();
     if (pickedPath) {
-      const result = await addProjectFromPath(pickedPath);
+      const result = await addProjectFromPath(pickedPath, { skipWizard: true });
       if (!result.ok) {
         toastManager.add({
           type: "error",

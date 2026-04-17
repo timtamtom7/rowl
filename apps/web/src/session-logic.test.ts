@@ -1242,7 +1242,9 @@ describe("PROVIDER_OPTIONS", () => {
       { value: "codex", label: "Codex", available: true },
       { value: "openrouter", label: "OpenRouter", available: true },
       { value: "copilot", label: "GitHub Copilot", available: true },
+      { value: "kilocode", label: "KiloCode", available: true },
       { value: "kimi", label: "Kimi Code", available: true },
+      { value: "minimax", label: "MiniMax", available: true },
       { value: "opencode", label: "OpenCode", available: true },
       { value: "pi", label: "Pi", available: true },
       { value: "claudeCode", label: "Claude Code", available: false },
@@ -1266,7 +1268,9 @@ describe("getProviderPickerBackingProvider", () => {
     expect(getProviderPickerBackingProvider("codex")).toBe("codex");
     expect(getProviderPickerBackingProvider("openrouter")).toBe("codex");
     expect(getProviderPickerBackingProvider("copilot")).toBe("copilot");
+    expect(getProviderPickerBackingProvider("kilocode")).toBe("kilocode");
     expect(getProviderPickerBackingProvider("kimi")).toBe("kimi");
+    expect(getProviderPickerBackingProvider("minimax")).toBe("minimax");
     expect(getProviderPickerBackingProvider("opencode")).toBe("opencode");
     expect(getProviderPickerBackingProvider("pi")).toBe("pi");
     expect(getProviderPickerBackingProvider("claudeCode")).toBeNull();

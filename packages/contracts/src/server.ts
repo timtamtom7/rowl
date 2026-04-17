@@ -288,3 +288,137 @@ export const ServerOpenCodeCredentialResult = Schema.Struct({
   message: Schema.optional(TrimmedNonEmptyString),
 });
 export type ServerOpenCodeCredentialResult = typeof ServerOpenCodeCredentialResult.Type;
+
+export const ServerMiniMaxCredentialAuthType = Schema.Literals(["api", "unknown"]);
+export type ServerMiniMaxCredentialAuthType = typeof ServerMiniMaxCredentialAuthType.Type;
+
+export const ServerMiniMaxCredential = Schema.Struct({
+  name: TrimmedNonEmptyString,
+  authType: ServerMiniMaxCredentialAuthType,
+});
+export type ServerMiniMaxCredential = typeof ServerMiniMaxCredential.Type;
+
+const ServerMiniMaxCredentials = Schema.Array(ServerMiniMaxCredential);
+
+export const ServerMiniMaxModel = Schema.Struct({
+  slug: TrimmedNonEmptyString,
+  name: TrimmedNonEmptyString,
+  supportsReasoning: Schema.optional(Schema.Boolean),
+  supportsImageInput: Schema.optional(Schema.Boolean),
+  contextWindowTokens: Schema.optional(NonNegativeNumber),
+});
+export type ServerMiniMaxModel = typeof ServerMiniMaxModel.Type;
+
+const ServerMiniMaxModels = Schema.Array(ServerMiniMaxModel);
+
+export const ServerMiniMaxStateInput = Schema.Struct({
+  cwd: Schema.optional(TrimmedNonEmptyString),
+  apiKey: Schema.optional(TrimmedNonEmptyString),
+});
+export type ServerMiniMaxStateInput = typeof ServerMiniMaxStateInput.Type;
+
+const ServerMiniMaxStateAvailable = Schema.Struct({
+  status: Schema.Literal("available"),
+  fetchedAt: IsoDateTime,
+  checkedCwd: TrimmedNonEmptyString,
+  credentials: ServerMiniMaxCredentials,
+  models: ServerMiniMaxModels,
+  message: Schema.optional(TrimmedNonEmptyString),
+});
+
+const ServerMiniMaxStateUnavailable = Schema.Struct({
+  status: Schema.Literal("unavailable"),
+  fetchedAt: IsoDateTime,
+  checkedCwd: TrimmedNonEmptyString,
+  credentials: ServerMiniMaxCredentials,
+  models: ServerMiniMaxModels,
+  message: TrimmedNonEmptyString,
+});
+
+export const ServerMiniMaxState = Schema.Union([
+  ServerMiniMaxStateAvailable,
+  ServerMiniMaxStateUnavailable,
+]);
+export type ServerMiniMaxState = typeof ServerMiniMaxState.Type;
+
+export const ServerMiniMaxAddCredentialInput = Schema.Struct({
+  apiKey: TrimmedNonEmptyString,
+});
+export type ServerMiniMaxAddCredentialInput = typeof ServerMiniMaxAddCredentialInput.Type;
+
+export const ServerMiniMaxRemoveCredentialInput = Schema.Struct({});
+export type ServerMiniMaxRemoveCredentialInput = typeof ServerMiniMaxRemoveCredentialInput.Type;
+
+export const ServerMiniMaxCredentialResult = Schema.Struct({
+  success: Schema.Boolean,
+  message: Schema.optional(TrimmedNonEmptyString),
+});
+export type ServerMiniMaxCredentialResult = typeof ServerMiniMaxCredentialResult.Type;
+
+export const ServerKiloCodeCredentialAuthType = Schema.Literals(["oauth", "unknown"]);
+export type ServerKiloCodeCredentialAuthType = typeof ServerKiloCodeCredentialAuthType.Type;
+
+export const ServerKiloCodeCredential = Schema.Struct({
+  name: TrimmedNonEmptyString,
+  authType: ServerKiloCodeCredentialAuthType,
+});
+export type ServerKiloCodeCredential = typeof ServerKiloCodeCredential.Type;
+
+const ServerKiloCodeCredentials = Schema.Array(ServerKiloCodeCredential);
+
+export const ServerKiloCodeModel = Schema.Struct({
+  slug: TrimmedNonEmptyString,
+  name: TrimmedNonEmptyString,
+  supportsReasoning: Schema.optional(Schema.Boolean),
+  supportsImageInput: Schema.optional(Schema.Boolean),
+  contextWindowTokens: Schema.optional(NonNegativeNumber),
+});
+export type ServerKiloCodeModel = typeof ServerKiloCodeModel.Type;
+
+const ServerKiloCodeModels = Schema.Array(ServerKiloCodeModel);
+
+export const ServerKiloCodeStateInput = Schema.Struct({
+  cwd: Schema.optional(TrimmedNonEmptyString),
+  binaryPath: Schema.optional(TrimmedNonEmptyString),
+});
+export type ServerKiloCodeStateInput = typeof ServerKiloCodeStateInput.Type;
+
+const ServerKiloCodeStateAvailable = Schema.Struct({
+  status: Schema.Literal("available"),
+  fetchedAt: IsoDateTime,
+  checkedCwd: TrimmedNonEmptyString,
+  binaryPath: TrimmedNonEmptyString,
+  credentials: ServerKiloCodeCredentials,
+  models: ServerKiloCodeModels,
+  message: Schema.optional(TrimmedNonEmptyString),
+});
+
+const ServerKiloCodeStateUnavailable = Schema.Struct({
+  status: Schema.Literal("unavailable"),
+  fetchedAt: IsoDateTime,
+  checkedCwd: TrimmedNonEmptyString,
+  binaryPath: TrimmedNonEmptyString,
+  credentials: ServerKiloCodeCredentials,
+  models: ServerKiloCodeModels,
+  message: TrimmedNonEmptyString,
+});
+
+export const ServerKiloCodeState = Schema.Union([
+  ServerKiloCodeStateAvailable,
+  ServerKiloCodeStateUnavailable,
+]);
+export type ServerKiloCodeState = typeof ServerKiloCodeState.Type;
+
+export const ServerKiloCodeAddCredentialInput = Schema.Struct({
+  binaryPath: Schema.optional(TrimmedNonEmptyString),
+});
+export type ServerKiloCodeAddCredentialInput = typeof ServerKiloCodeAddCredentialInput.Type;
+
+export const ServerKiloCodeRemoveCredentialInput = Schema.Struct({});
+export type ServerKiloCodeRemoveCredentialInput = typeof ServerKiloCodeRemoveCredentialInput.Type;
+
+export const ServerKiloCodeCredentialResult = Schema.Struct({
+  success: Schema.Boolean,
+  message: Schema.optional(TrimmedNonEmptyString),
+});
+export type ServerKiloCodeCredentialResult = typeof ServerKiloCodeCredentialResult.Type;

@@ -88,6 +88,8 @@ export const PROVIDER_ICON_BY_PROVIDER: Record<ProviderPickerKind, Icon> = {
   openrouter: OpenRouterIcon,
   copilot: GitHubIcon,
   kimi: KimiIcon,
+  kilocode: BotIcon,
+  minimax: BotIcon,
   opencode: OpenCodeIcon,
   pi: BotIcon,
   claudeCode: ClaudeAI,
@@ -600,19 +602,17 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
     },
   );
 
-  // Auto-expand selected provider when popover opens
+  // When picker opens, show only the current provider expanded (collapse all others)
   useEffect(() => {
     if (isOpen && !normalizedQuery) {
-      setCollapsedSections((prev) => {
-        if (prev.has(props.providerPickerKind)) {
-          const next = new Set(prev);
-          next.delete(props.providerPickerKind);
-          return next;
-        }
-        return prev;
-      });
+      const allOtherSections = new Set(
+        providerSections
+          .map((s) => s.option.value)
+          .filter((value) => value !== props.providerPickerKind),
+      );
+      setCollapsedSections(allOtherSections);
     }
-  }, [isOpen, props.providerPickerKind, normalizedQuery]);
+  }, [isOpen, props.providerPickerKind, normalizedQuery, providerSections]);
 
   // Persist collapsed state
   useEffect(() => {
