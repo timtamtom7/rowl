@@ -242,25 +242,33 @@ export const OverseerReactorLive = Layer.effect(
         }
 
         yield* orchestrationEngine.dispatch({
-        type: "thread.activity.append",
-        commandId: `overseer:${kind}:${randomUUID()}` as any,
-        threadId: threadId as any,
-        activity: {
-          id: EventId.makeUnsafe(randomUUID()),
-          tone: severity === "CRITICAL" ? "error" as const : "info" as const,
-          kind: `overseer.${kind}`,
-          summary: `Overseer: ${summary}`,
-          payload: {
-            severity,
-            blocking: severity === "CRITICAL",
-            dismissed: false,
-            ...(payload ?? {}),
+          type: "thread.activity.append",
+          commandId: `overseer:${kind}:${randomUUID()}` as any,
+          threadId: threadId as any,
+          activity: {
+            id: EventId.makeUnsafe(randomUUID()),
+            tone: severity === "CRITICAL" ? "error" as const : "info" as const,
+            kind: `overseer.${kind}`,
+            summary: `Overseer: ${summary}`,
+            payload: {
+              severity,
+              blocking: severity === "CRITICAL",
+              dismissed: false,
+              ...(payload ?? {}),
+            },
+            turnId: (turnId as any) ?? null,
+            createdAt: new Date().toISOString(),
           },
-          turnId: (turnId as any) ?? null,
           createdAt: new Date().toISOString(),
-        },
-        createdAt: new Date().toISOString(),
-      });
+        });
+
+        // For CRITICAL dangerous-command alerts, interrupt the provider turn
+        // immediately so the dangerous command never executes.
+        if (severity === "CRITICAL" && kind === "dangerous-command" && turnId) {
+          yield* providerService
+            .interruptTurn({ threadId: threadId as any, turnId: turnId as any })
+            .pipe(Effect.catch(() => Effect.void));
+        }
       }).pipe(Effect.catch(() => Effect.void));
     }
 
