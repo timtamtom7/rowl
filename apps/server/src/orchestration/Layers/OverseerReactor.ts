@@ -16,6 +16,7 @@ import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 
 import { CodebaseIntelligence } from "../Services/CodebaseIntelligence.ts";
 import { ContextService } from "../Services/ContextService.ts";
+import { ContextTrimmer } from "../Services/ContextTrimmer.ts";
 import { EvaluatorService } from "../Services/EvaluatorService.ts";
 import { HandoffService } from "../Services/HandoffService.ts";
 import { MemoryService } from "../Services/MemoryService.ts";
@@ -169,6 +170,7 @@ const ALERT_SEVERITY: Record<string, "CRITICAL" | "WARNING" | "INFO"> = {
   "technical-delegation": "WARNING",
   "premature-completion": "WARNING",
   "context-budget-high": "WARNING",
+  "context-compression": "INFO",
   "evaluation-result": "WARNING",
   "certainty-warning": "INFO",
 };
@@ -216,6 +218,7 @@ export const OverseerReactorLive = Layer.effect(
     const evaluatorService = yield* EvaluatorService;
     const handoffService = yield* HandoffService;
     const memoryService = yield* MemoryService;
+    const contextTrimmer = yield* ContextTrimmer;
 
     const textBuffers = new Map<string, string>();
     const fileActivityBuffer: Array<{
@@ -231,20 +234,20 @@ export const OverseerReactorLive = Layer.effect(
       kind: string,
       summary: string,
       payload?: Record<string, unknown>,
-    ) {
-      // Skip INFO alerts if user previously dismissed this kind (within 10min)
-      const severity = getSeverity(kind);
-      if (severity === "INFO" && isDismissed(threadId, kind)) {
-        return Effect.void();
-      }
+    ): Effect.Effect<void> {
+      return Effect.gen(function* () {
+        const severity = getSeverity(kind);
+        if (severity === "INFO" && isDismissed(threadId, kind)) {
+          return;
+        }
 
-      return orchestrationEngine.dispatch({
+        yield* orchestrationEngine.dispatch({
         type: "thread.activity.append",
         commandId: `overseer:${kind}:${randomUUID()}` as any,
         threadId: threadId as any,
         activity: {
           id: EventId.makeUnsafe(randomUUID()),
-          tone: severity === "CRITICAL" ? "error" as const : severity === "WARNING" ? "warning" as const : "info" as const,
+          tone: severity === "CRITICAL" ? "error" as const : "info" as const,
           kind: `overseer.${kind}`,
           summary: `Overseer: ${summary}`,
           payload: {
@@ -258,6 +261,7 @@ export const OverseerReactorLive = Layer.effect(
         },
         createdAt: new Date().toISOString(),
       });
+      }).pipe(Effect.catch(() => Effect.void));
     }
 
     const processInput = (input: OverseerInput) =>
@@ -456,6 +460,36 @@ export const OverseerReactorLive = Layer.effect(
                   : typeof usage?.input_tokens === "number"
                     ? usage.input_tokens + (usage.output_tokens ?? 0)
                     : 0;
+
+              // Proactive compression: summarize old conversation turns before budget warning
+              // Trigger at 140K — gives headroom before 160K warning and 180K critical
+              if (totalTokens > 140_000) {
+                const readModel3 = yield* orchestrationEngine.getReadModel();
+                const compressThread = readModel3.threads.find(
+                  (t: any) => t.id === event.threadId,
+                );
+                if (compressThread) {
+                  // Get older messages that haven't been summarized yet
+                  const olderMessages = (compressThread as any).messages?.slice(0, -5) ?? [];
+                  if (olderMessages.length > 10) {
+                    const summary = yield* contextTrimmer
+                      .summarizeConversation({
+                        messages: olderMessages as Array<{ role: string; content: string }>,
+                        maxSummaryTokens: 500,
+                      })
+                      .pipe(Effect.catch(() => Effect.succeed({ summary: "", tokensSaved: 0 })));
+                    if (summary.tokensSaved > 100) {
+                      yield* appendActivity(
+                        event.threadId,
+                        event.turnId ?? null,
+                        "context-compression",
+                        `Older conversation summarized (saved ~${summary.tokensSaved} tokens). The key decisions and facts have been preserved as memories.`,
+                        { tokensSaved: summary.tokensSaved, summaryLength: summary.summary.length },
+                      );
+                    }
+                  }
+                }
+              }
 
               // Critical: auto-generate handoff briefing at 90%
               if (totalTokens > 180_000) {
