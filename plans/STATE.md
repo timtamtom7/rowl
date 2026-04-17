@@ -28,9 +28,9 @@ All four are license-compatible (MIT / Apache-2.0). The cloned reference repos l
 ## Where we are right now
 
 - **Sub-project:** #1 — [rowl-memory-first](./rowl-memory-first/)
-- **Phase:** pre-1a (spec under review; no code written yet)
+- **Phase:** 1a (plan written, ready to execute)
 - **Branch:** none yet
-- **Blocker:** user review of SPEC.md and RESEARCH.md
+- **Blocker:** user picks execution mode (subagent-driven vs inline) and kicks off implementation.
 
 ## Last session handoff
 

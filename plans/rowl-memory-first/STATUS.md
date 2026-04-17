@@ -12,7 +12,7 @@
 
 | Phase | Description | Status | Branch | Tag on ship | Notes |
 |---|---|---|---|---|---|
-| 1a | Core memory substrate | pending (awaiting spec approval) | — | — | Will be the first implementation milestone. |
+| 1a | Core memory substrate | plan-written (ready to execute) | — | — | Plan at `PHASE-1A-PLAN.md`. 15 tasks, TDD, bite-sized. |
 | 1b | Agent management (multi-agent, personalities, commands) | pending | — | — | Starts after 1a ships. |
 | 1c | Memory Palace + in-app `/memory` view (read-only) | pending | — | — | |
 | 1d | Editable memory + `/init` + `/doctor` | pending | — | — | |
