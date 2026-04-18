@@ -49,6 +49,7 @@ import { CodebaseIntelligence } from "../src/orchestration/Services/CodebaseInte
 import { ContextService } from "../src/orchestration/Services/ContextService.ts";
 import { EvaluatorService } from "../src/orchestration/Services/EvaluatorService.ts";
 import { HandoffService } from "../src/orchestration/Services/HandoffService.ts";
+import { CoreMemoryService } from "../src/memory/Services/CoreMemoryService.ts";
 import { MemoryService } from "../src/orchestration/Services/MemoryService.ts";
 import { ProjectPromptsService } from "../src/orchestration/Services/ProjectPromptsService.ts";
 import { FeatureService } from "../src/orchestration/Services/FeatureService.ts";
@@ -325,6 +326,14 @@ export const makeOrchestrationIntegrationHarness = (
         } as any),
       ),
       Layer.provideMerge(
+        Layer.succeed(CoreMemoryService, {
+          listGlobal: () => Effect.succeed([]),
+          listProject: () => Effect.succeed([]),
+          ensureGlobalSeeded: () => Effect.succeed(void 0),
+          ensureProjectSeeded: () => Effect.succeed(void 0),
+        } as any),
+      ),
+      Layer.provideMerge(
         Layer.succeed(ProjectPromptsService, {
           getContextForThread: () => Effect.succeed({ prompts: [], harnessContent: null }),
         } as any),
@@ -343,7 +352,14 @@ export const makeOrchestrationIntegrationHarness = (
     const stubCodebaseIntelligenceLayer = Layer.succeed(CodebaseIntelligence, {
       recordFileChange: () => Effect.void,
       updateProjectHealth: () => Effect.void,
-      getProjectHealthSummary: () => Effect.succeed({ totalFiles: 0, averageHealth: 100, criticalFiles: [], warningFiles: [], healthyFiles: 0 } as any),
+      getProjectHealthSummary: () =>
+        Effect.succeed({
+          totalFiles: 0,
+          averageHealth: 100,
+          criticalFiles: [],
+          warningFiles: [],
+          healthyFiles: 0,
+        } as any),
       getFileHealth: () => Effect.succeed(null),
     } as any);
     const overseerReactorLayer = OverseerReactorLive.pipe(

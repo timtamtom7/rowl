@@ -46,7 +46,10 @@ import { ContextTrimmer } from "../Services/ContextTrimmer.ts";
 import { FeatureService } from "../Services/FeatureService.ts";
 import { MemoryService } from "../Services/MemoryService.ts";
 import { CoreMemoryService } from "../../memory/Services/CoreMemoryService.ts";
+import { commitMemoryChanges } from "../../memory/memoryGit.ts";
+import { DEFAULT_AGENT_ID, globalAgentMemoryDir, projectMemoryDir } from "../../memory/paths.ts";
 import { assembleMemoryPreamble } from "../../memory/preamble.ts";
+import { ServerConfig } from "../../config.ts";
 import { ProjectPromptsService } from "../Services/ProjectPromptsService.ts";
 import { GoalsService } from "../Services/GoalsService.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
@@ -262,6 +265,7 @@ const make = Effect.gen(function* () {
   const featureService = yield* FeatureService;
   const memoryService = yield* MemoryService;
   const coreMemoryService = yield* CoreMemoryService;
+  const serverConfig = yield* ServerConfig;
   const projectPromptsService = yield* ProjectPromptsService;
   const git = yield* GitCore;
   const textGeneration = yield* TextGeneration;
@@ -813,6 +817,20 @@ If you're unsure, say so clearly instead of claiming success.
       ...(input.modelOptions !== undefined ? { modelOptions: input.modelOptions } : {}),
       ...(input.interactionMode !== undefined ? { interactionMode: input.interactionMode } : {}),
     });
+
+    // Commit any agent edits to memory files. Safe to run even if no changes
+    // were made (commitMemoryChanges is a no-op then). Never blocks the turn.
+    yield* Effect.promise(() =>
+      commitMemoryChanges(
+        globalAgentMemoryDir(serverConfig.stateDir, DEFAULT_AGENT_ID),
+        "rowl: memory update",
+      ).catch(() => {}),
+    );
+    if (workspaceCwd) {
+      yield* Effect.promise(() =>
+        commitMemoryChanges(projectMemoryDir(workspaceCwd), "rowl: memory update").catch(() => {}),
+      );
+    }
 
     const updatedThread = yield* resolveThread(input.threadId);
     const sessionProvider =

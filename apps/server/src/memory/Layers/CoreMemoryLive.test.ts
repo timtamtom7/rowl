@@ -33,8 +33,8 @@ describe("CoreMemoryLive", () => {
     );
 
     const globalDir = path.join(stateDir, "agents", "default", "memory");
-    const files = (await fs.readdir(globalDir)).sort();
-    expect(files).toEqual(["human.md", "persona.md", "preferences.md"]);
+    const mdFiles = (await fs.readdir(globalDir)).filter((f) => f.endsWith(".md")).sort();
+    expect(mdFiles).toEqual(["human.md", "persona.md", "preferences.md"]);
   });
 
   it("ensureGlobalSeeded is idempotent", async () => {
@@ -46,8 +46,8 @@ describe("CoreMemoryLive", () => {
       }).pipe(Effect.provide(layer())),
     );
     const globalDir = path.join(stateDir, "agents", "default", "memory");
-    const files = await fs.readdir(globalDir);
-    expect(files).toHaveLength(3);
+    const mdFiles = (await fs.readdir(globalDir)).filter((f) => f.endsWith(".md"));
+    expect(mdFiles).toHaveLength(3);
   });
 
   it("ensureGlobalSeeded preserves user edits", async () => {
@@ -78,8 +78,8 @@ describe("CoreMemoryLive", () => {
       }).pipe(Effect.provide(layer())),
     );
     const projMem = path.join(projectRoot, ".rowl", "memory");
-    const files = (await fs.readdir(projMem)).sort();
-    expect(files).toEqual([
+    const mdFiles = (await fs.readdir(projMem)).filter((f) => f.endsWith(".md")).sort();
+    expect(mdFiles).toEqual([
       "architecture.md",
       "conventions.md",
       "current-focus.md",

@@ -8,6 +8,7 @@ import fs from "node:fs/promises";
 import { Effect, Layer } from "effect";
 import { listBlocksInDir, writeBlockToDir } from "../blockFiles.ts";
 import { DEFAULT_GLOBAL_BLOCKS, DEFAULT_PROJECT_BLOCKS } from "../defaultBlocks.ts";
+import { commitMemoryChanges, ensureMemoryRepo } from "../memoryGit.ts";
 import { DEFAULT_AGENT_ID, globalAgentMemoryDir, projectMemoryDir } from "../paths.ts";
 import { CoreMemoryService } from "../Services/CoreMemoryService.ts";
 
@@ -40,6 +41,8 @@ export function CoreMemoryLive(config: {
         for (const block of DEFAULT_GLOBAL_BLOCKS) {
           await writeBlockToDir(dir, block);
         }
+        await ensureMemoryRepo(dir);
+        await commitMemoryChanges(dir, "rowl: seed default blocks");
       }),
 
     ensureProjectSeeded: (input) =>
@@ -49,6 +52,8 @@ export function CoreMemoryLive(config: {
         for (const block of DEFAULT_PROJECT_BLOCKS) {
           await writeBlockToDir(dir, block);
         }
+        await ensureMemoryRepo(dir);
+        await commitMemoryChanges(dir, "rowl: seed default blocks");
       }),
   });
 }

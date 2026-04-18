@@ -246,7 +246,6 @@ export function makeServerRuntimeServicesLayer() {
     FeatureThreadLinkServiceLive,
     handoffServiceLayer,
     memoryServiceLayer,
-    coreMemoryLayer,
     multiAgentCoordinatorLayer,
     ProjectPromptsServiceLive,
     pmChatContextServiceLayer,
@@ -258,6 +257,7 @@ export function makeServerRuntimeServicesLayer() {
     // only deeper in the orchestration reactor chain.
     Layer.provideMerge(gitCoreLayer),
     Layer.provideMerge(ContextTrimmerLive),
+    Layer.provideMerge(coreMemoryLayer),
     Layer.provideMerge(NodeServices.layer),
   );
 }
