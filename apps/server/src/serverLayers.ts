@@ -197,9 +197,7 @@ export function makeServerRuntimeServicesLayer() {
   const checkpointReactorLayer = CheckpointReactorLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
   );
-  const evaluatorServiceLayer = EvaluatorServiceLive.pipe(
-    Layer.provide(orchestrationLayer),
-  );
+  const evaluatorServiceLayer = EvaluatorServiceLive.pipe(Layer.provide(orchestrationLayer));
   const overseerReactorLayer = OverseerReactorLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
     Layer.provideMerge(contextServiceLayer),
@@ -231,7 +229,6 @@ export function makeServerRuntimeServicesLayer() {
 
   return Layer.mergeAll(
     orchestrationReactorLayer,
-    gitCoreLayer,
     gitManagerLayer,
     terminalLayer,
     OpenCodeStateLive,
@@ -247,5 +244,14 @@ export function makeServerRuntimeServicesLayer() {
     multiAgentCoordinatorLayer,
     ProjectPromptsServiceLive,
     pmChatContextServiceLayer,
-  ).pipe(Layer.provideMerge(NodeServices.layer));
+  ).pipe(
+    // Provide shared ambient services *after* the mergeAll so peer layers that
+    // transitively require them can resolve them. Putting them inside the
+    // mergeAll made Effect build layers in parallel, so peer layers could not
+    // see them. Covers GitCore and ContextTrimmer, both previously provided
+    // only deeper in the orchestration reactor chain.
+    Layer.provideMerge(gitCoreLayer),
+    Layer.provideMerge(ContextTrimmerLive),
+    Layer.provideMerge(NodeServices.layer),
+  );
 }
