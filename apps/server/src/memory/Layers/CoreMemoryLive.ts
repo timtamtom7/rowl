@@ -5,6 +5,7 @@
  * Git-init and write-through-git are layered on top in a later task.
  */
 import fs from "node:fs/promises";
+import path from "node:path";
 import { Effect, Layer } from "effect";
 import { listBlocksInDir, writeBlockToDir } from "../blockFiles.ts";
 import { DEFAULT_GLOBAL_BLOCKS, DEFAULT_PROJECT_BLOCKS } from "../defaultBlocks.ts";
@@ -20,6 +21,28 @@ async function dirHasAnyBlocks(dir: string): Promise<boolean> {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
     throw err;
   }
+}
+
+/**
+ * Ensure the project's .gitignore has `.rowl/memory/` listed. Project memory
+ * is gitignored by default in phase 1a (opt-in commit is phase 1b). This is
+ * idempotent and preserves existing gitignore content.
+ */
+async function ensureProjectGitignoresMemory(projectRoot: string): Promise<void> {
+  const gitignorePath = path.join(projectRoot, ".gitignore");
+  let existing = "";
+  try {
+    existing = await fs.readFile(gitignorePath, "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  }
+  const lines = existing.split(/\r?\n/);
+  if (lines.some((l) => l.trim() === ".rowl/memory/")) return;
+  const next =
+    existing.endsWith("\n") || existing.length === 0
+      ? `${existing}.rowl/memory/\n`
+      : `${existing}\n.rowl/memory/\n`;
+  await fs.writeFile(gitignorePath, next, "utf8");
 }
 
 export function CoreMemoryLive(config: {
@@ -47,6 +70,7 @@ export function CoreMemoryLive(config: {
 
     ensureProjectSeeded: (input) =>
       Effect.promise(async () => {
+        await ensureProjectGitignoresMemory(input.projectRoot);
         const dir = projectMemoryDir(input.projectRoot);
         if (await dirHasAnyBlocks(dir)) return;
         for (const block of DEFAULT_PROJECT_BLOCKS) {

@@ -99,6 +99,30 @@ describe("CoreMemoryLive", () => {
     expect(blocks.map((b) => b.label)).toEqual(["human", "persona", "preferences"]);
   });
 
+  it("ensureProjectSeeded adds .rowl/memory to the project's .gitignore", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* CoreMemoryService;
+        yield* svc.ensureProjectSeeded({ projectRoot });
+      }).pipe(Effect.provide(layer())),
+    );
+    const gitignore = await fs.readFile(path.join(projectRoot, ".gitignore"), "utf8");
+    expect(gitignore).toContain(".rowl/memory/");
+  });
+
+  it("ensureProjectSeeded does not duplicate the gitignore entry", async () => {
+    await fs.writeFile(path.join(projectRoot, ".gitignore"), ".rowl/memory/\n");
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* CoreMemoryService;
+        yield* svc.ensureProjectSeeded({ projectRoot });
+      }).pipe(Effect.provide(layer())),
+    );
+    const gitignore = await fs.readFile(path.join(projectRoot, ".gitignore"), "utf8");
+    const occurrences = gitignore.match(/\.rowl\/memory\//g)?.length ?? 0;
+    expect(occurrences).toBe(1);
+  });
+
   it("listProject returns [] when no memory dir exists", async () => {
     const blocks = await Effect.runPromise(
       Effect.gen(function* () {
