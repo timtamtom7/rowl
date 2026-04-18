@@ -40,6 +40,7 @@ import { ContextTrimmerLive } from "./orchestration/Layers/ContextTrimmerLive";
 import { HandoffServiceLive } from "./orchestration/Layers/HandoffServiceLive";
 import { EmbeddingServiceLive } from "./orchestration/Layers/EmbeddingServiceLive";
 import { MemoryServiceLive } from "./orchestration/Layers/MemoryServiceLive";
+import { CoreMemoryLive } from "./memory/Layers/CoreMemoryLive.ts";
 import { MultiAgentCoordinatorLive } from "./orchestration/Layers/MultiAgentCoordinatorLive";
 import { EvaluatorServiceLive } from "./orchestration/Layers/EvaluatorServiceLive";
 import { FeatureThreadLinkServiceLive } from "./orchestration/Layers/FeatureThreadLinkServiceLive";
@@ -173,6 +174,10 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provide(MemoryEntryRepositoryLive),
     Layer.provide(EmbeddingServiceLive),
   );
+  const coreMemoryLayer = Effect.gen(function* () {
+    const { stateDir } = yield* ServerConfig;
+    return CoreMemoryLive({ stateDir });
+  }).pipe(Layer.unwrap);
   const multiAgentCoordinatorLayer = MultiAgentCoordinatorLive.pipe(
     Layer.provide(orchestrationLayer),
   );
@@ -241,6 +246,7 @@ export function makeServerRuntimeServicesLayer() {
     FeatureThreadLinkServiceLive,
     handoffServiceLayer,
     memoryServiceLayer,
+    coreMemoryLayer,
     multiAgentCoordinatorLayer,
     ProjectPromptsServiceLive,
     pmChatContextServiceLayer,
