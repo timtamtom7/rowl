@@ -18,6 +18,7 @@ import {
   type ProjectSkillIssue,
   type ProjectSkillName,
 } from "@t3tools/contracts";
+import { parseFlatFrontmatter, parseFrontmatterSection } from "@t3tools/shared/frontmatter";
 import { Schema } from "effect";
 
 const AGENTS_FILE_NAME = "AGENTS.md";
@@ -180,62 +181,6 @@ function mergeAgentsFileContents(existingContents: string | null, cwd: string): 
   }
 
   return `${existingContents.trimEnd()}\n\n${managedSection}\n`;
-}
-
-function parseFrontmatterSection(raw: string): { frontmatter: string; body: string } {
-  if (!raw.startsWith("---")) {
-    throw new Error("Expected YAML frontmatter fenced by ---.");
-  }
-  const lines = raw.split(/\r?\n/g);
-  if (lines[0] !== "---") {
-    throw new Error("Frontmatter must start on the first line.");
-  }
-  const closingIndex = lines.findIndex((line, index) => index > 0 && line === "---");
-  if (closingIndex < 0) {
-    throw new Error("Frontmatter is missing a closing --- line.");
-  }
-  return {
-    frontmatter: lines.slice(1, closingIndex).join("\n"),
-    body: lines
-      .slice(closingIndex + 1)
-      .join("\n")
-      .trim(),
-  };
-}
-
-function parseFrontmatterValue(rawValue: string): string | boolean {
-  const trimmed = rawValue.trim();
-  if (trimmed === "true") {
-    return true;
-  }
-  if (trimmed === "false") {
-    return false;
-  }
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
-}
-
-function parseFlatFrontmatter(frontmatter: string): Record<string, string | boolean> {
-  const result: Record<string, string | boolean> = {};
-  for (const line of frontmatter.split(/\r?\n/g)) {
-    const trimmed = line.trim();
-    if (trimmed.length === 0 || trimmed.startsWith("#")) {
-      continue;
-    }
-    const separatorIndex = trimmed.indexOf(":");
-    if (separatorIndex <= 0) {
-      throw new Error(`Invalid frontmatter line '${trimmed}'.`);
-    }
-    const key = trimmed.slice(0, separatorIndex).trim();
-    const rawValue = trimmed.slice(separatorIndex + 1);
-    result[key] = parseFrontmatterValue(rawValue);
-  }
-  return result;
 }
 
 function parseCommandTemplate(
@@ -483,17 +428,39 @@ export function resolveProjectSkillSelection(input: {
 // ── Source file scanning for Live Map ──────────────────────────────
 
 const SOURCE_EXTENSIONS = new Set([
-  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
-  ".vue", ".svelte", ".astro",
-  ".css", ".scss", ".less",
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".vue",
+  ".svelte",
+  ".astro",
+  ".css",
+  ".scss",
+  ".less",
   ".json",
-  ".md", ".mdx",
+  ".md",
+  ".mdx",
 ]);
 
 const IGNORED_DIRS = new Set([
-  "node_modules", ".git", "dist", "build", ".next", ".nuxt",
-  ".rowl", ".claude", ".vscode", "coverage", "__pycache__",
-  ".turbo", ".vercel", ".output", "release",
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  ".nuxt",
+  ".rowl",
+  ".claude",
+  ".vscode",
+  "coverage",
+  "__pycache__",
+  ".turbo",
+  ".vercel",
+  ".output",
+  "release",
 ]);
 
 const MAX_FILE_SIZE_BYTES = 100_000; // Skip files > 100KB
@@ -502,7 +469,10 @@ const MAX_CONTENT_LINES_FOR_MAP = 80; // Only send first N lines (enough for imp
 export function scanSourceFiles(
   cwd: string,
   maxFiles: number = 500,
-): { files: Array<{ relativePath: string; content: string; sizeBytes: number }>; truncated: boolean } {
+): {
+  files: Array<{ relativePath: string; content: string; sizeBytes: number }>;
+  truncated: boolean;
+} {
   const files: Array<{ relativePath: string; content: string; sizeBytes: number }> = [];
   let truncated = false;
 
@@ -544,9 +514,10 @@ export function scanSourceFiles(
           // Only send first N lines to reduce WebSocket payload
           // This is enough for import detection + function signatures
           const lines = fullContent.split("\n");
-          const truncatedContent = lines.length > MAX_CONTENT_LINES_FOR_MAP
-            ? lines.slice(0, MAX_CONTENT_LINES_FOR_MAP).join("\n") + "\n// ... truncated"
-            : fullContent;
+          const truncatedContent =
+            lines.length > MAX_CONTENT_LINES_FOR_MAP
+              ? lines.slice(0, MAX_CONTENT_LINES_FOR_MAP).join("\n") + "\n// ... truncated"
+              : fullContent;
           files.push({
             relativePath,
             content: truncatedContent,
