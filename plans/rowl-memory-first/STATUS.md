@@ -1,22 +1,22 @@
 # STATUS — Rowl Memory-First Agent
 
-**Overall status:** spec-draft (awaiting user review before phase-1a planning)
+**Overall status:** phase-1a shipped; phase-1b pending
 **Owner:** timtamtom7
-**Spec approved:** not yet
-**Plan written:** not yet
-**Current branch:** n/a (no code written yet)
+**Spec approved:** yes
+**Plan written:** `PHASE-1A-PLAN.md` (complete, executed)
+**Current branch:** `phase-1a/core-memory-substrate`
 
 ---
 
 ## Phase status tracker
 
-| Phase | Description | Status | Branch | Tag on ship | Notes |
-|---|---|---|---|---|---|
-| 1a | Core memory substrate | plan-written (ready to execute) | — | — | Plan at `PHASE-1A-PLAN.md`. 15 tasks, TDD, bite-sized. |
-| 1b | Agent management (multi-agent, personalities, commands) | pending | — | — | Starts after 1a ships. |
-| 1c | Memory Palace + in-app `/memory` view (read-only) | pending | — | — | |
-| 1d | Editable memory + `/init` + `/doctor` | pending | — | — | |
-| 1e | Consolidation (`/compact`, `/reflect`) — optional | pending | — | — | Can be cut if scope gets tight. |
+| Phase | Description                                             | Status                          | Branch | Tag on ship | Notes                                                  |
+| ----- | ------------------------------------------------------- | ------------------------------- | ------ | ----------- | ------------------------------------------------------ |
+| 1a    | Core memory substrate                                   | shipped                         | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions). |
+| 1b    | Agent management (multi-agent, personalities, commands) | pending                         | —      | —           | Starts after 1a ships.                                 |
+| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending                         | —      | —           |                                                        |
+| 1d    | Editable memory + `/init` + `/doctor`                   | pending                         | —      | —           |                                                        |
+| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending                         | —      | —           | Can be cut if scope gets tight.                        |
 
 ---
 
@@ -33,6 +33,7 @@
 - **2026-04-17** — State dir convention = `~/.t3/rowl/` (matches existing `ROWL_STATE_DIR` default per AGENTS.md), not `~/.rowl/`. Spec corrected.
 - **2026-04-17** — Existing `MemoryService` + `MemoryEntries` stub = future **archival memory** layer (SQLite/FTS5, type-categorized, query-searchable). Sub-project #1 does NOT implement it. Sub-project #1 adds a NEW, parallel `CoreMemoryService` for Letta-style named blocks injected every turn. Two-layer model (core + archival) matches Letta's architecture. See SPEC §12.
 - **2026-04-17** — `.rowl/project-brief.md` and `AGENTS.md` stay user-authored; they are NOT memory blocks. The reminder engine reads all three (project-brief, AGENTS.md, memory blocks) when assembling turn context.
+- **2026-04-17** — Phase 1a scope adjusted: memory edits via existing file-edit tools, not a dedicated memory tool. SPEC §6 updated. Dedicated `memory` tool + `memory-write` approval kind deferred to a later phase. Rationale: Rowl has no cross-provider tool registry; a dedicated tool would have required either a new abstraction layer or seven per-adapter implementations, both outside phase-1a scope.
 
 ---
 
@@ -50,6 +51,7 @@ From SPEC §11, repeated here for quick access:
 ## Session handoff (most recent)
 
 **Session end: 2026-04-17 (brainstorming complete)**
+
 - Brainstormed sub-project #1 scope, decomposition, architectural decisions
 - Cloned 4 ref repos to `/Users/mauriello/Dev/_reference/`
 - Confirmed Rowl's actual base = t3code fork
@@ -64,9 +66,27 @@ From SPEC §11, repeated here for quick access:
 
 ## Retro log
 
-_(empty — no phase has shipped yet)_
+### Phase 1a — Core memory substrate (shipped 2026-04-17)
+
+**What went well:**
+
+- Boring-by-design filesystem layer made unit testing trivial; all 35 memory unit tests run in <2s with no mocks.
+- TDD discipline (write failing test → verify fail → implement → verify pass → commit) per task caught a few off-by-one issues early (e.g., `.md`-filter in `listBlocksInDir` after git repo init).
+- Reusing existing file-edit tools for agent self-editing was the right call — the scope adjustment away from a dedicated `memory` tool dropped ~5 tasks of adapter-plumbing work without losing functionality for 1a.
+
+**What was painful:**
+
+- Effect-TS layer composition caught us twice: `coreMemoryLayer` depended on `ServerConfig` but sat inside `Layer.mergeAll`, so peer layers couldn't resolve it until we moved it into `provideMerge` post-merge (same pattern already used for `gitCoreLayer`). Worth documenting in AGENTS.md for future layer work.
+- Integration harness (`OrchestrationEngineHarness.integration.ts`) needed a hand-written stub for every new service we added to the reactor. Friction scales with reactor deps.
+
+**Notes for future phases:**
+
+- Dedicated memory tool still owed. Before phase 1b starts, either research a cross-provider tool layer or commit to per-adapter implementations. The current `/remember` slash command is a user-facing UX stand-in, not a substitute for first-class agent tool calls.
+- The post-turn git commit hook is best-effort (fires right after `providerService.sendTurn`). If a cleaner "turn-complete" event is added to the orchestration engine, re-wire this to run on actual turn completion rather than turn-kick-off.
+- Memory preamble assembly is provider-agnostic — any new provider adapter gets `<agent_memory>` for free via `applyThreadTurnContext`.
 
 Each phase, on ship:
+
 1. Add entry to "Retro log" below: what went well, what was painful, what future phases should know.
 2. Update phase status tracker above.
 3. Update `plans/STATE.md` at the plans root.

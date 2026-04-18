@@ -27,16 +27,17 @@ To keep this shippable, the following are **out of scope** for sub-project #1:
 
 ## 3. Architectural decisions (locked)
 
-| Decision | Choice | Why |
-|---|---|---|
-| Integration path for Letta pattern | **Port the pattern, no Letta dependency (Option C)** | Self-contained Rowl; full control over memory semantics; privacy by default. See RESEARCH.md §2. |
-| Memory scope | **Two tiers: global (cross-project) + project (per-codebase)** | Global holds persona/user preferences; project holds the *real* memory — architecture, decisions, conventions, gotchas. |
-| Agent ↔ thread relationship | **One agent per project. Threads belong to the project's agent.** | Matches Rowl's project-centric model. A project's agent accumulates project understanding; all threads in that project share it. |
-| Self-editing memory | **Yes, from phase 1a, gated by Rowl's existing approval system** | Without self-editing the agent cannot actually *learn* the project. Approval gates make it safe; git makes it reversible. |
-| Storage format | **Markdown files with YAML frontmatter (`.md`), git-backed** | Same pattern as Letta. Human-readable, diffable, portable. |
-| Global memory location | **`~/.t3/rowl/agents/{agentId}/memory/`** | Matches existing `ROWL_STATE_DIR` default (`~/.t3/rowl`) per AGENTS.md. Per-agent, cross-project. |
-| Project memory location | **`{projectRoot}/.rowl/memory/`** (gitignored by default) | Lives with the project but is private to the user unless opted in (`commitMemory: true`). |
-| File extension | **`.md`, not `.mdx`** | Rowl does not use MDX elsewhere; plain markdown is simpler. Frontmatter stays YAML. |
+| Decision                           | Choice                                                            | Why                                                                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Integration path for Letta pattern | **Port the pattern, no Letta dependency (Option C)**              | Self-contained Rowl; full control over memory semantics; privacy by default. See RESEARCH.md §2.                                 |
+| Memory scope                       | **Two tiers: global (cross-project) + project (per-codebase)**    | Global holds persona/user preferences; project holds the _real_ memory — architecture, decisions, conventions, gotchas.          |
+| Agent ↔ thread relationship        | **One agent per project. Threads belong to the project's agent.** | Matches Rowl's project-centric model. A project's agent accumulates project understanding; all threads in that project share it. |
+| Self-editing memory                | **Yes, from phase 1a, gated by Rowl's existing approval system**  | Without self-editing the agent cannot actually _learn_ the project. Approval gates make it safe; git makes it reversible.        |
+| Storage format                     | **Markdown files with YAML frontmatter (`.md`), git-backed**      | Same pattern as Letta. Human-readable, diffable, portable.                                                                       |
+| Global memory location             | **`~/.t3/rowl/agents/{agentId}/memory/`**                         | Matches existing `ROWL_STATE_DIR` default (`~/.t3/rowl`) per AGENTS.md. Per-agent, cross-project.                                |
+| Project memory location            | **`{projectRoot}/.rowl/memory/`** (gitignored by default)         | Lives with the project but is private to the user unless opted in (`commitMemory: true`).                                        |
+| File extension                     | **`.md`, not `.mdx`**                                             | Rowl does not use MDX elsewhere; plain markdown is simpler. Frontmatter stays YAML.                                              |
+| Memory-editing mechanism in 1a     | **Agent uses existing file-edit tools; dedicated memory tool deferred** | Rowl has no cross-provider tool registry. File-edit tools already have `file-change` approval. See §6 for deferral note.   |
 
 ## 4. Data model
 
@@ -59,6 +60,7 @@ version: 1
 ```
 
 Frontmatter fields:
+
 - `label` (required) — unique within its scope. Used as the block's identifier.
 - `description` (required) — one-line description, injected into the system prompt alongside the block body.
 - `read_only` (optional, default false) — if true, agent cannot edit via memory tool. User can always edit.
@@ -70,6 +72,7 @@ Block body is plain markdown. No hard length limit in phase 1a, but soft warning
 ### 4.2 Agent
 
 An agent is a named, persisted entity with:
+
 - `id` — uuid
 - `name` — user-assigned (default "Rowl")
 - `personality` — preset name (e.g., `rowl-default`, `linus`, `kawaii`) that seeds `persona` block
@@ -100,11 +103,13 @@ Project memory blocks live at `{projectRoot}/.rowl/memory/*.md`. This directory 
 On agent creation, these blocks are seeded:
 
 **Global:**
+
 - `persona` — who the agent is (seeded from personality preset)
 - `human` — who the user is (minimal seed; fills in over time)
 - `preferences` — general coding/communication preferences (empty seed)
 
 **Project (on first bind to a project):**
+
 - `overview` — one-paragraph description of what the project is (seeded from first exchange or manual input)
 - `architecture` — empty; fills in as the agent learns
 - `conventions` — empty
@@ -116,6 +121,7 @@ On agent creation, these blocks are seeded:
 On every turn, before the LLM call, assemble a **memory preamble** and inject it as part of the system prompt (or a system-reminder message, depending on provider format).
 
 Assembly order:
+
 1. Agent identity line — "You are {agent.name}, a memory-first coding agent."
 2. Global blocks, in order: `persona`, `human`, `preferences`, then any others alphabetically
 3. Project blocks, in order: `overview`, `architecture`, `conventions`, `decisions`, `current-focus`, then any others alphabetically
@@ -132,23 +138,27 @@ Total memory-preamble token budget: **soft cap 8k tokens per turn**. If exceeded
 
 ## 6. Memory tool (agent self-editing)
 
+> **Phase 1a implementation:** memory edits use the agent's existing file-edit tools, gated by the existing `file-change` approval. The dedicated `memory` tool (six subcommands, `memory-write` approval kind) described below is deferred to a later phase — we will either invent a cross-provider tool layer or prototype per-adapter. Rationale: Rowl has no central cross-provider tool registry (see RESEARCH.md §3 update), so a dedicated tool would have required either (a) a new abstraction layer or (b) seven per-adapter implementations, both outside phase-1a scope.
+
 A new tool `memory` is registered for agents that have memory. Subcommands:
 
-| Command | Args | Effect |
-|---|---|---|
-| `create` | `label`, `description`, `scope`, `body`, `reason` | Create new block in scope's memory dir |
-| `str_replace` | `label`, `scope`, `old`, `new`, `reason` | Exact string replace in block body |
-| `insert` | `label`, `scope`, `after_line`, `text`, `reason` | Insert text after given line |
-| `delete` | `label`, `scope`, `reason` | Delete entire block |
-| `rename` | `label`, `scope`, `new_label`, `reason` | Rename block |
-| `update_description` | `label`, `scope`, `new_description`, `reason` | Update frontmatter description |
+| Command              | Args                                              | Effect                                 |
+| -------------------- | ------------------------------------------------- | -------------------------------------- |
+| `create`             | `label`, `description`, `scope`, `body`, `reason` | Create new block in scope's memory dir |
+| `str_replace`        | `label`, `scope`, `old`, `new`, `reason`          | Exact string replace in block body     |
+| `insert`             | `label`, `scope`, `after_line`, `text`, `reason`  | Insert text after given line           |
+| `delete`             | `label`, `scope`, `reason`                        | Delete entire block                    |
+| `rename`             | `label`, `scope`, `new_label`, `reason`           | Rename block                           |
+| `update_description` | `label`, `scope`, `new_description`, `reason`     | Update frontmatter description         |
 
 Every call:
+
 1. Passes through Rowl's existing approval gate (new approval type: `memory-write`). Scopes: approve once / always-this-session / decline / cancel-turn.
 2. On approval: mutation applied, file saved, git commit made with message `{command}: {label} — {reason}`.
 3. Result returned to agent: success + new file hash, or error + reason.
 
 Pre-commit hook (local git repo hook inside the memory repo):
+
 - Validates YAML frontmatter parseable
 - Enforces `read_only` fields cannot be altered
 - Enforces `description` is non-empty
@@ -158,6 +168,7 @@ Pre-commit hook (local git repo hook inside the memory repo):
 `/palace` slash command generates a self-contained HTML file at `~/.t3/rowl/palaces/{agentId}-{timestamp}.html` and opens it in the default browser.
 
 Contents:
+
 - **Left pane:** file tree (global + project memory, grouped by scope)
 - **Center pane:** selected block rendered as markdown, with raw/rendered toggle
 - **Right pane:** commit history for the selected block (last 100 commits), diff viewer for each commit
@@ -175,10 +186,12 @@ Less rich than Palace, but fast, in-app, and doesn't require a browser.
 ## 9. Slash commands (phase by phase)
 
 Phase 1a commands:
+
 - `/remember {text}` — user tells agent to remember X. Creates or appends to appropriate block; asks agent which block.
 - `/memory` — opens in-app memory view
 
 Phase 1b commands:
+
 - `/agents` — list and switch between agents
 - `/new` — create a new thread (optionally create new agent)
 - `/rename` — rename current agent
@@ -186,13 +199,16 @@ Phase 1b commands:
 - `/pin`, `/unpin` — pin/unpin current agent
 
 Phase 1c commands:
+
 - `/palace` — open Memory Palace in browser
 
 Phase 1d commands:
+
 - `/init` — initialize or re-initialize project memory (seeds default project blocks by having agent read the repo)
 - `/doctor` — agent audits and refines memory structure
 
 Phase 1e commands (optional):
+
 - `/compact` — summarize long conversation into memory
 - `/reflect` — spawn subagent to review recent transcript and update memory
 
@@ -201,9 +217,11 @@ Phase 1e commands (optional):
 Each phase ships a working app. No phase starts until the prior ships (all tests pass, manual smoke, retro written).
 
 ### Phase 1a — Core memory substrate
+
 **Goal:** agents have persistent global + project memory; memory is injected each turn; agent can edit memory via approval-gated tool.
 
 Scope:
+
 - Memory block format, storage, git repos (global + project)
 - Agent data model (JSON file), project-to-agent binding
 - Default blocks seeded on agent creation and project binding
@@ -214,14 +232,17 @@ Scope:
 - Migration: existing threads assigned to a default agent bound to their project
 
 Out of scope for 1a:
+
 - Multi-agent management UI (only one implicit default agent)
 - Memory Palace UI (only raw file inspection via file explorer)
 - Personality presets beyond "rowl-default"
 
 ### Phase 1b — Agent management
+
 **Goal:** multi-agent support with named agents, personality presets, agent switching UI.
 
 Scope:
+
 - `/agents`, `/new`, `/rename`, `/description`, `/pin`, `/unpin` commands
 - Agent selector in main UI (sidebar or header)
 - Personality presets: `rowl-default`, `linus`, `kawaii`, `claude`, `codex`
@@ -229,27 +250,33 @@ Scope:
 - Multi-agent per project (one is "active", user can switch)
 
 ### Phase 1c — Memory Palace (read-only)
+
 **Goal:** inspectable, navigable memory via browser palace + in-app view.
 
 Scope:
+
 - `/palace` command generates HTML, opens in browser
 - `/memory` opens in-app sidebar view
 - Both are read-only
 - Palace includes file tree, content, commit history, diff viewer
 
 ### Phase 1d — Editable memory + `/init` + `/doctor`
+
 **Goal:** users can edit memory directly; agent can bootstrap project memory from repo scan.
 
 Scope:
+
 - Palace and in-app `/memory` view gain edit capability
 - Edits commit to git with user-provided reason (or auto reason "user edit")
 - `/init` command: agent scans repo, proposes initial project blocks, user approves
 - `/doctor` command: agent audits memory for redundancy, staleness, missing blocks; proposes fixes
 
 ### Phase 1e — Consolidation (optional, can defer)
+
 **Goal:** long conversations compress into memory; prevent context bloat.
 
 Scope:
+
 - `/compact` command: agent summarizes current transcript, writes key facts to project memory
 - `/reflect` command: spawn subagent that reads recent transcripts and refines memory blocks
 - Optional: automatic compaction when thread exceeds N tokens
@@ -278,6 +305,7 @@ The long-term model is Letta's two-layer memory: **core memory** (always in prom
 ## 13. Success criteria
 
 Sub-project #1 is "done" when:
+
 - An agent remembers the user's preferences across every project.
 - An agent accumulates project understanding across conversations within that project.
 - The user can inspect and edit memory through Palace and in-app.

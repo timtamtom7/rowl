@@ -3,9 +3,10 @@
 ## Session Start: Read the Plans Front Door
 
 **Before any work on Rowl, read `plans/STATE.md` first.** It is the living front door across all Rowl initiatives. It tells you:
+
 - What sub-project and phase are currently active
 - Where the last session left off
-- What to read next (current initiative's STATUS, PHASE-*-PLAN, SPEC, RESEARCH)
+- What to read next (current initiative's STATUS, PHASE-\*-PLAN, SPEC, RESEARCH)
 - Locked architectural decisions across the project
 
 Do not skip this. It exists so a fresh session with no prior context can orient in under a minute.
@@ -88,6 +89,12 @@ For future tool-backed providers, prefer runtimes with a native app-server or AC
 - `ROWL_REQUIRE_SIGNING`: Require signing for releases
 - `ROWL_ENABLE_PROVIDER_EVENT_LOGS`: Enable provider event logging
 
+## Memory
+
+Rowl agents have persistent memory at `~/.t3/rowl/agents/{agentId}/memory/` (global, per-agent) and `{projectRoot}/.rowl/memory/` (project, gitignored by default). Each directory is its own git repo — every change the agent or user makes is committed. Contents are injected into every turn as `<agent_memory>` via the provider-agnostic `applyThreadTurnContext` hook. Agents update memory by editing the `.md` files with their standard file-edit tool (gated by the normal `file-change` approval). A dedicated `memory` tool is deferred; see `plans/rowl-memory-first/SPEC.md` §6.
+
+The `/remember {text}` slash command in the composer is a UX convenience that expands to a normal user message asking the agent to update the appropriate block.
+
 ## Reference Repos
 
 - Open-source Codex repo: https://github.com/openai/codex
@@ -99,6 +106,7 @@ For future tool-backed providers, prefer runtimes with a native app-server or AC
 Rowl development plans live in `~/Dev/rowl/plans/`. Each initiative has its own folder with SPEC, RESEARCH, PLAN, and STATUS files.
 
 During a Rowl session:
+
 - Reference initiatives by path: "What's the status of the rowl-right-sidebar plan?"
 - After sessions: "Sync notes to the rowl-codebase-context STATUS.md"
 
