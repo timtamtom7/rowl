@@ -117,6 +117,7 @@ import {
   collapseExpandedComposerCursor,
   detectComposerTrigger,
   expandCollapsedComposerCursor,
+  expandRememberInvocation,
   getComposerSlashCommandAliases,
   parseStandaloneComposerSlashInvocation,
   parseStandaloneComposerSlashCommand,
@@ -3182,6 +3183,14 @@ export default function ChatView({ threadId }: ChatViewProps) {
             : "Show tool details in the timeline",
           aliases: getComposerSlashCommandAliases("details"),
         },
+        {
+          id: "slash:remember",
+          type: "slash-command",
+          command: "remember",
+          label: "/remember",
+          description: "Ask the agent to update a memory block with the given text",
+          aliases: getComposerSlashCommandAliases("remember"),
+        },
       ];
       if (composerMcpSupported) {
         slashCommandItems.splice(1, 0, {
@@ -4976,6 +4985,12 @@ export default function ChatView({ threadId }: ChatViewProps) {
         composerImages.length === 0 ? parseStandaloneComposerSlashInvocation(trimmed) : null;
       let textForSend = trimmed;
       let templateOverridesForSend = pendingTemplateOverrides;
+      // /remember TEXT — expand into a memory-guidance message for the agent.
+      const rememberExpansion =
+        composerImages.length === 0 ? expandRememberInvocation(trimmed) : null;
+      if (rememberExpansion) {
+        textForSend = rememberExpansion;
+      }
       if (standaloneSlashInvocation) {
         const template = resolveProjectCommandTemplate(
           projectCommandTemplates,
@@ -6994,21 +7009,22 @@ export default function ChatView({ threadId }: ChatViewProps) {
           </div>
 
           {/* Overseer alerts */}
-          {activeThread && (() => {
-            const alerts = (activeThread.activities ?? [])
-              .filter((a: any) => typeof a.kind === "string" && a.kind.startsWith("overseer."))
-              .slice(-3); // Show max 3 most recent
-            if (alerts.length === 0) return null;
-            return (
-              <div className="px-3 sm:px-5">
-                <div className="mx-auto max-w-3xl">
-                  {alerts.map((a: any) => (
-                    <OverseerAlertInline key={a.id ?? a.createdAt} activity={a} />
-                  ))}
+          {activeThread &&
+            (() => {
+              const alerts = (activeThread.activities ?? [])
+                .filter((a: any) => typeof a.kind === "string" && a.kind.startsWith("overseer."))
+                .slice(-3); // Show max 3 most recent
+              if (alerts.length === 0) return null;
+              return (
+                <div className="px-3 sm:px-5">
+                  <div className="mx-auto max-w-3xl">
+                    {alerts.map((a: any) => (
+                      <OverseerAlertInline key={a.id ?? a.createdAt} activity={a} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
 
           {/* Input bar */}
           <div

@@ -5,6 +5,7 @@ import {
   collapseExpandedComposerCursor,
   detectComposerTrigger,
   expandCollapsedComposerCursor,
+  expandRememberInvocation,
   isCollapsedCursorAdjacentToMention,
   parseStandaloneComposerSlashCommand,
   parseStandaloneComposerSlashInvocation,
@@ -285,5 +286,30 @@ describe("parseStandaloneComposerSlashInvocation", () => {
     expect(parseStandaloneComposerSlashInvocation("/mcp filesystem")).toBeNull();
     expect(parseStandaloneComposerSlashInvocation("/share")).toBeNull();
     expect(parseStandaloneComposerSlashInvocation("/clear")).toBeNull();
+  });
+});
+
+describe("expandRememberInvocation", () => {
+  it("expands /remember TEXT into a memory-guidance message", () => {
+    const out = expandRememberInvocation("/remember I prefer tabs");
+    expect(out).not.toBeNull();
+    expect(out).toContain("I prefer tabs");
+    expect(out).toMatch(/remember|\.rowl\/memory/i);
+  });
+
+  it("handles leading/trailing whitespace around the argument", () => {
+    const out = expandRememberInvocation("  /remember    use semicolons   ");
+    expect(out).toContain("use semicolons");
+  });
+
+  it("returns null when the argument is empty", () => {
+    expect(expandRememberInvocation("/remember")).toBeNull();
+    expect(expandRememberInvocation("/remember   ")).toBeNull();
+  });
+
+  it("returns null when the text is not a /remember invocation", () => {
+    expect(expandRememberInvocation("hello")).toBeNull();
+    expect(expandRememberInvocation("/plan")).toBeNull();
+    expect(expandRememberInvocation("/init foo")).toBeNull();
   });
 });
