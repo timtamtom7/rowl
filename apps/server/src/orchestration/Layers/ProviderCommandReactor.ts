@@ -45,6 +45,8 @@ import { parseLatestResumeContext, THREAD_SKILLS_ACTIVITY_KIND } from "../../thr
 import { ContextTrimmer } from "../Services/ContextTrimmer.ts";
 import { FeatureService } from "../Services/FeatureService.ts";
 import { MemoryService } from "../Services/MemoryService.ts";
+import { CoreMemoryService } from "../../memory/Services/CoreMemoryService.ts";
+import { assembleMemoryPreamble } from "../../memory/preamble.ts";
 import { ProjectPromptsService } from "../Services/ProjectPromptsService.ts";
 import { GoalsService } from "../Services/GoalsService.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
@@ -90,7 +92,7 @@ function applyWorkspaceAgentsInstructions(input: {
   ].join("\n");
 }
 
-function applyThreadTurnContext(input: {
+export function applyThreadTurnContext(input: {
   readonly agentsContents: string | undefined;
   readonly messageText: string;
   readonly resumeSummary?: string | undefined;
@@ -100,16 +102,19 @@ function applyThreadTurnContext(input: {
     readonly contents: string;
   }>;
   readonly projectContext?: string | undefined;
+  readonly agentMemory?: string | null | undefined;
 }): string {
   const normalizedResumeSummary = input.resumeSummary?.trim();
   const normalizedSkills = (input.selectedSkills ?? []).filter(
     (skill) => skill.contents.trim().length > 0,
   );
   const normalizedProjectContext = input.projectContext?.trim();
+  const normalizedAgentMemory = input.agentMemory?.trim();
   if (
     (!normalizedResumeSummary || normalizedResumeSummary.length === 0) &&
     normalizedSkills.length === 0 &&
-    (!normalizedProjectContext || normalizedProjectContext.length === 0)
+    (!normalizedProjectContext || normalizedProjectContext.length === 0) &&
+    (!normalizedAgentMemory || normalizedAgentMemory.length === 0)
   ) {
     return applyWorkspaceAgentsInstructions({
       agentsContents: input.agentsContents,
@@ -129,6 +134,9 @@ function applyThreadTurnContext(input: {
       agentsContents,
       "</workspace_instructions>",
     );
+  }
+  if (normalizedAgentMemory && normalizedAgentMemory.length > 0) {
+    sections.push("<agent_memory>", normalizedAgentMemory, "</agent_memory>");
   }
   if (normalizedProjectContext && normalizedProjectContext.length > 0) {
     sections.push("<project_context>", normalizedProjectContext, "</project_context>");
@@ -253,6 +261,7 @@ const make = Effect.gen(function* () {
   const goalsService = yield* GoalsService;
   const featureService = yield* FeatureService;
   const memoryService = yield* MemoryService;
+  const coreMemoryService = yield* CoreMemoryService;
   const projectPromptsService = yield* ProjectPromptsService;
   const git = yield* GitCore;
   const textGeneration = yield* TextGeneration;
@@ -671,9 +680,7 @@ const make = Effect.gen(function* () {
           const s = sibling as any;
           const status = s.session?.status ?? "idle";
           const goalText = s.goal ? ` goal="${s.goal}"` : "";
-          contextParts.push(
-            `  <thread title="${s.title}" status="${status}"${goalText} />`,
-          );
+          contextParts.push(`  <thread title="${s.title}" status="${status}"${goalText} />`);
         }
         contextParts.push("</sibling_threads>");
       }
@@ -733,6 +740,34 @@ If you're unsure, say so clearly instead of claiming success.
       // Don't let project context failures block the turn
     }
 
+    // Assemble agent memory preamble (persistent global + project blocks).
+    // Failures never block the turn — memory is additive context.
+    let agentMemoryBlock: string | null = null;
+    try {
+      yield* coreMemoryService
+        .ensureGlobalSeeded()
+        .pipe(Effect.catch(() => Effect.succeed(void 0)));
+      if (workspaceCwd) {
+        yield* coreMemoryService
+          .ensureProjectSeeded({ projectRoot: workspaceCwd })
+          .pipe(Effect.catch(() => Effect.succeed(void 0)));
+      }
+      const globalBlocks = yield* coreMemoryService
+        .listGlobal()
+        .pipe(Effect.catch(() => Effect.succeed([] as const)));
+      const projectBlocks = workspaceCwd
+        ? yield* coreMemoryService
+            .listProject({ projectRoot: workspaceCwd })
+            .pipe(Effect.catch(() => Effect.succeed([] as const)))
+        : [];
+      agentMemoryBlock = assembleMemoryPreamble({
+        global: globalBlocks,
+        project: projectBlocks,
+      });
+    } catch {
+      // Don't let memory failures block the turn
+    }
+
     const normalizedInput = toNonEmptyProviderInput(
       applyThreadTurnContext({
         agentsContents:
@@ -749,6 +784,7 @@ If you're unsure, say so clearly instead of claiming success.
             }
           : {}),
         ...(projectContextBlock ? { projectContext: projectContextBlock } : {}),
+        ...(agentMemoryBlock ? { agentMemory: agentMemoryBlock } : {}),
       }),
     );
     const normalizedAttachments = input.attachments ?? [];

@@ -31,10 +31,11 @@ import { GitCore, type GitCoreShape } from "../../git/Services/GitCore.ts";
 import { TextGeneration, type TextGenerationShape } from "../../git/Services/TextGeneration.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./ProjectionPipeline.ts";
-import { ProviderCommandReactorLive } from "./ProviderCommandReactor.ts";
+import { applyThreadTurnContext, ProviderCommandReactorLive } from "./ProviderCommandReactor.ts";
 import { ContextTrimmerLive } from "./ContextTrimmerLive.ts";
 import { FeatureService } from "../Services/FeatureService.ts";
 import { MemoryService } from "../Services/MemoryService.ts";
+import { CoreMemoryService } from "../../memory/Services/CoreMemoryService.ts";
 import { ProjectPromptsService } from "../Services/ProjectPromptsService.ts";
 import { GoalsService } from "../Services/GoalsService.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
@@ -247,6 +248,14 @@ describe("ProviderCommandReactor", () => {
       Layer.provideMerge(
         Layer.succeed(MemoryService, {
           buildRelevantMemoriesBlock: () => Effect.succeed(null),
+        } as any),
+      ),
+      Layer.provideMerge(
+        Layer.succeed(CoreMemoryService, {
+          listGlobal: () => Effect.succeed([]),
+          listProject: () => Effect.succeed([]),
+          ensureGlobalSeeded: () => Effect.succeed(void 0),
+          ensureProjectSeeded: () => Effect.succeed(void 0),
         } as any),
       ),
       Layer.provideMerge(
@@ -1583,5 +1592,42 @@ describe("ProviderCommandReactor", () => {
 
       expect(harness.sendTurn.mock.calls.length).toBe(2);
     });
+  });
+});
+
+describe("applyThreadTurnContext — agent memory", () => {
+  it("injects <agent_memory> section when preamble is non-empty", () => {
+    const result = applyThreadTurnContext({
+      agentsContents: undefined,
+      messageText: "hello",
+      agentMemory: "## persona — who\nI am Rowl.",
+    });
+    expect(result).toContain("<agent_memory>");
+    expect(result).toContain("## persona — who");
+    expect(result).toContain("</agent_memory>");
+    expect(result.indexOf("<agent_memory>")).toBeLessThan(result.indexOf("<user_request>"));
+  });
+
+  it("omits <agent_memory> when preamble is null", () => {
+    const result = applyThreadTurnContext({
+      agentsContents: undefined,
+      messageText: "hello",
+      agentMemory: null,
+    });
+    expect(result).not.toContain("<agent_memory>");
+  });
+
+  it("places <agent_memory> after <workspace_instructions> and before <project_context>", () => {
+    const result = applyThreadTurnContext({
+      agentsContents: "AGENTS rules",
+      messageText: "hi",
+      agentMemory: "MEM",
+      projectContext: "PC",
+    });
+    const iWorkspace = result.indexOf("<workspace_instructions");
+    const iMemory = result.indexOf("<agent_memory>");
+    const iProject = result.indexOf("<project_context>");
+    expect(iWorkspace).toBeLessThan(iMemory);
+    expect(iMemory).toBeLessThan(iProject);
   });
 });
