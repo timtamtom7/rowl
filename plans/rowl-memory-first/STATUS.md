@@ -1,6 +1,6 @@
 # STATUS — Rowl Memory-First Agent
 
-**Overall status:** phase-1a shipped; phase-1b implementation in progress
+**Overall status:** phase-1a shipped; phase-1b implementation verified in worktree
 **Owner:** timtamtom7
 **Spec approved:** yes
 **Plan written:** `PHASE-1A-PLAN.md` (complete, executed)
@@ -10,13 +10,13 @@
 
 ## Phase status tracker
 
-| Phase | Description                                             | Status  | Branch                           | Tag on ship  | Notes                                                                                                                         |
-| ----- | ------------------------------------------------------- | ------- | -------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| 1a    | Core memory substrate                                   | shipped | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions).                                                           |
-| 1b    | Agent management (multi-agent, personalities, commands) | active  | `phase-1a/core-memory-substrate` | —            | Tasks 1-7, 9, agent panel UI, and `/new` inherited-agent flow implemented in worktree; commits blocked by `.git` permissions. |
-| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending | —                                | —            |                                                                                                                               |
-| 1d    | Editable memory + `/init` + `/doctor`                   | pending | —                                | —            |                                                                                                                               |
-| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                                                                               |
+| Phase | Description                                             | Status  | Branch                           | Tag on ship  | Notes                                                                                                                                                  |
+| ----- | ------------------------------------------------------- | ------- | -------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1a    | Core memory substrate                                   | shipped | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions).                                                                                    |
+| 1b    | Agent management (multi-agent, personalities, commands) | active  | `phase-1a/core-memory-substrate` | —            | Tasks 1-14 implemented and focused verification complete in worktree; root typecheck remains blocked by pre-existing server orchestration/test errors. |
+| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending | —                                | —            |                                                                                                                                                        |
+| 1d    | Editable memory + `/init` + `/doctor`                   | pending | —                                | —            |                                                                                                                                                        |
+| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                                                                                                        |
 
 ---
 
@@ -24,7 +24,7 @@
 
 - **2026-04-17** — Rowl confirmed as base (t3code fork), NOT craft-agents-oss. Verified via git remotes + package.json.
 - **2026-04-17** — Letta integration path = **Option C** (port pattern, no Letta dependency). See RESEARCH §2.
-- **2026-04-17** — Memory scope is **two-tier**: global at `~/.rowl/agents/{id}/memory/`, project at `{projectRoot}/.rowl/memory/`.
+- **2026-04-17** — Memory scope is **two-tier**: global at `~/.t3/rowl/agents/{id}/memory/` by default, project at `{projectRoot}/.rowl/memory/`.
 - **2026-04-17** — Agent-thread model: **one agent per project**. Threads inherit the project's agent.
 - **2026-04-17** — Self-editing memory from phase 1a, gated via Rowl's existing approval system (new approval type: `memory-write`).
 - **2026-04-17** — Project memory **gitignored by default**. Opt-in to commit via `commitMemory: true` in `.rowl/agent.json`.
@@ -44,11 +44,30 @@ From SPEC §11, repeated here for quick access:
 - [ ] **(non-blocking)** What is Rowl's approval system's extension API? — investigate in phase 1a plan.
 - [ ] **(non-blocking)** System prompt vs system-reminder injection per provider adapter — decide per-adapter in phase 1a plan.
 - [ ] **(non-blocking)** UI placement of agent name/indicator — revisit at phase 1b.
-- [ ] **(blocking-for-1a)** Verify `~/.rowl/` is free of collisions on target systems. Quick check at start of 1a planning.
+- [ ] **(blocking-for-1a)** Verify `~/.t3/rowl/` is free of collisions on target systems. Quick check at start of 1a planning.
 
 ---
 
 ## Session handoff (most recent)
+
+**Session end: 2026-05-29 (phase 1b docs, smoke matrix, and final focused verification complete in worktree)**
+
+- Added `docs/ROWL_PHASE1B_MIGRATION.md` with concise migration guidance for core-agent scope, global vs project storage, preset/custom personalities, `/agents`, `/switch`, `/persona`, `/new` inheritance, memory block resolution, and `coreAgents.*` WebSocket methods.
+- Added `apps/server/src/core-agent/coreAgentSmoke.test.ts`, a focused smoke matrix covering:
+  - create project agent, set active, and resolve the correct active agent memory blocks;
+  - switch agent and verify global memory switches;
+  - `/agents`, `/switch`, and `/persona reviewer`;
+  - `/new` child-agent inheritance behavior with parent memory preserved;
+  - shared-schema WebSocket route coverage for `coreAgents.list`, `coreAgents.create`, `coreAgents.update`, `coreAgents.delete`, and `coreAgents.setActive`.
+- Verification:
+  - `bun run fmt` passes.
+  - `bun run lint` exits 0 with 73 pre-existing warnings.
+  - `cd packages/contracts && bun run test` passes.
+  - `cd apps/server && bun run test src/core-agent/ src/memory/` passes.
+  - `cd apps/web && bun run test src/core-agent/` passes.
+  - `bun run typecheck` remains blocked by pre-existing server orchestration/test errors unrelated to this docs/smoke work (`integration/OrchestrationEngineHarness.integration.ts`, `src/orchestration/Layers/ContextTrimmerLive.test.ts`, `src/orchestration/Layers/EvaluatorServiceLive.ts`).
+- Worktree additions from this session: `docs/ROWL_PHASE1B_MIGRATION.md` and `apps/server/src/core-agent/coreAgentSmoke.test.ts`.
+- Next task: resolve the pre-existing server typecheck blockers, then commit/tag the Phase 1B work.
 
 **Session end: 2026-05-29 (phase 1b agent panel + `/new` inheritance implemented in worktree)**
 
