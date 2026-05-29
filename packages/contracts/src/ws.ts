@@ -146,6 +146,18 @@ import {
   SearchMemoryResult,
 } from "./memory";
 import {
+  CoreAgentActiveChangedEvent,
+  CoreAgentCreateRequest,
+  CoreAgentDeleteRequest,
+  CoreAgentDeleteResponse,
+  CoreAgentListRequest,
+  CoreAgentListResponse,
+  CoreAgentMutationResponse,
+  CoreAgentSetActiveRequest,
+  CoreAgentSetActiveResponse,
+  CoreAgentUpdateRequest,
+} from "./core-agent";
+import {
   GetCodebaseHealthInput,
   GetCodebaseHealthResult,
   UpdateCodebaseHealthInput,
@@ -330,6 +342,13 @@ export const WS_METHODS = {
   memorySearch: "memory.search",
   memoryListByProject: "memory.listByProject",
   memoryDelete: "memory.delete",
+
+  // Core-agent methods
+  coreAgentsList: "coreAgents.list",
+  coreAgentsCreate: "coreAgents.create",
+  coreAgentsUpdate: "coreAgents.update",
+  coreAgentsDelete: "coreAgents.delete",
+  coreAgentsSetActive: "coreAgents.setActive",
 } as const;
 
 // ── Push Event Channels ──────────────────────────────────────────────
@@ -339,6 +358,7 @@ export const WS_CHANNELS = {
   serverWelcome: "server.welcome",
   serverConfigUpdated: "server.configUpdated",
   fileActivity: "file.activity",
+  coreAgentActiveChanged: "coreAgent.activeChanged",
 } as const;
 
 /** File activity event pushed when Claude reads/writes/creates files during a turn */
@@ -463,6 +483,11 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.memorySearch, SearchMemoryInput),
   tagRequestBody(WS_METHODS.memoryListByProject, ListMemoryByProjectInput),
   tagRequestBody(WS_METHODS.memoryDelete, DeleteMemoryInput),
+  tagRequestBody(WS_METHODS.coreAgentsList, CoreAgentListRequest),
+  tagRequestBody(WS_METHODS.coreAgentsCreate, CoreAgentCreateRequest),
+  tagRequestBody(WS_METHODS.coreAgentsUpdate, CoreAgentUpdateRequest),
+  tagRequestBody(WS_METHODS.coreAgentsDelete, CoreAgentDeleteRequest),
+  tagRequestBody(WS_METHODS.coreAgentsSetActive, CoreAgentSetActiveRequest),
   tagRequestBody(WS_METHODS.codebaseHealthSummary, GetCodebaseHealthInput),
   tagRequestBody(WS_METHODS.codebaseUpdateHealth, UpdateCodebaseHealthInput),
   tagRequestBody(WS_METHODS.promptsList, ListPromptsInput),
@@ -521,6 +546,7 @@ export interface WsPushPayloadByChannel {
   readonly [WS_CHANNELS.terminalEvent]: typeof TerminalEvent.Type;
   readonly [ORCHESTRATION_WS_CHANNELS.domainEvent]: OrchestrationEvent;
   readonly [WS_CHANNELS.fileActivity]: FileActivityEvent;
+  readonly [WS_CHANNELS.coreAgentActiveChanged]: typeof CoreAgentActiveChangedEvent.Type;
 }
 
 export type WsPushChannel = keyof WsPushPayloadByChannel;
@@ -548,12 +574,17 @@ export const WsPushOrchestrationDomainEvent = makeWsPushSchema(
   OrchestrationEvent,
 );
 export const WsPushFileActivity = makeWsPushSchema(WS_CHANNELS.fileActivity, FileActivityEvent);
+export const WsPushCoreAgentActiveChanged = makeWsPushSchema(
+  WS_CHANNELS.coreAgentActiveChanged,
+  CoreAgentActiveChangedEvent,
+);
 
 export const WsPushChannelSchema = Schema.Literals([
   WS_CHANNELS.serverWelcome,
   WS_CHANNELS.serverConfigUpdated,
   WS_CHANNELS.terminalEvent,
   WS_CHANNELS.fileActivity,
+  WS_CHANNELS.coreAgentActiveChanged,
   ORCHESTRATION_WS_CHANNELS.domainEvent,
 ]);
 export type WsPushChannelSchema = typeof WsPushChannelSchema.Type;
@@ -563,6 +594,7 @@ export const WsPush = Schema.Union([
   WsPushServerConfigUpdated,
   WsPushTerminalEvent,
   WsPushFileActivity,
+  WsPushCoreAgentActiveChanged,
   WsPushOrchestrationDomainEvent,
 ]);
 export type WsPush = typeof WsPush.Type;
@@ -665,6 +697,11 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.memorySearch]: SearchMemoryResult,
   [WS_METHODS.memoryListByProject]: ListMemoryByProjectResult,
   [WS_METHODS.memoryDelete]: DeleteMemoryResult,
+  [WS_METHODS.coreAgentsList]: CoreAgentListResponse,
+  [WS_METHODS.coreAgentsCreate]: CoreAgentMutationResponse,
+  [WS_METHODS.coreAgentsUpdate]: CoreAgentMutationResponse,
+  [WS_METHODS.coreAgentsDelete]: CoreAgentDeleteResponse,
+  [WS_METHODS.coreAgentsSetActive]: CoreAgentSetActiveResponse,
   [WS_METHODS.codebaseHealthSummary]: GetCodebaseHealthResult,
   [WS_METHODS.codebaseUpdateHealth]: UpdateCodebaseHealthResult,
   [WS_METHODS.promptsList]: ListPromptsResult,

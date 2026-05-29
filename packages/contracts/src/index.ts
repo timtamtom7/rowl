@@ -16,6 +16,7 @@ export * from "./features";
 export * from "./goals";
 export * from "./context";
 export * from "./memory";
+export * from "./core-agent";
 export * from "./codebaseHealth";
 export * from "./multiAgent";
 export * from "./projectPrompts";

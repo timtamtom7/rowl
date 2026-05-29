@@ -2072,6 +2072,15 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           .deleteMemory(stripRequestTag(request.body) as any)
           .pipe(Effect.map(() => ({})));
 
+      case WS_METHODS.coreAgentsList:
+      case WS_METHODS.coreAgentsCreate:
+      case WS_METHODS.coreAgentsUpdate:
+      case WS_METHODS.coreAgentsDelete:
+      case WS_METHODS.coreAgentsSetActive:
+        return yield* new RouteRequestError({
+          message: "Core-agent WebSocket routes are not implemented yet",
+        });
+
       // Codebase Intelligence
       case WS_METHODS.codebaseHealthSummary: {
         const healthBody = stripRequestTag(request.body) as any;

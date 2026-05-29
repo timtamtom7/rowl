@@ -1,7 +1,7 @@
 # Rowl — Current State (Plans Front Door)
 
-**Last updated:** 2026-04-17 (phase 1a shipped)
-**Current focus:** Sub-project #1 — Memory-First Agent (phase 1a shipped; phase 1b pending)
+**Last updated:** 2026-05-29 (phase 1b tasks 1-2 in progress)
+**Current focus:** Sub-project #1 — Memory-First Agent (phase 1a shipped; phase 1b tasks 1-2 in progress)
 
 > **If you are a new session resuming Rowl work, read this file FIRST.**
 > It orients you in ~60 seconds and tells you what to read next.
@@ -34,6 +34,7 @@ All four are license-compatible (MIT / Apache-2.0). The cloned reference repos l
 
 ## Last session handoff
 
+- 2026-05-29: Phase 1B execution started. Tasks 1 and 2 are implemented in the worktree: shared core-agent contracts, WebSocket contract variants, and deterministic core-agent metadata file IO. Focused tests pass for `packages/contracts` and `apps/server/src/core-agent/agentMetadataStore.test.ts`. Commits could not be created in this environment because `.git` is not writable (`Operation not permitted` creating `.git/index.lock`). Server package typecheck remains blocked by pre-existing orchestration/type errors unrelated to these changes; the new core-agent WebSocket exhaustiveness case was handled with placeholder route errors pending Task 8.
 - 2026-05-29: Phase 1B planning is complete; `plans/rowl-memory-first/PHASE-1B-PLAN.md` now contains the 14-task TDD implementation plan for core-agent contracts, metadata IO, presets, services, memory integration, WebSocket routes, slash commands, UI, `/new` inheritance, docs, verification, and tagging.
 
 **Session end: 2026-04-17 (phase 1a shipped)**
