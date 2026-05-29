@@ -139,6 +139,8 @@ import {
   popThreadRedoSnapshot,
   pushThreadRedoSnapshot,
 } from "./threadRedoStore.ts";
+import { createCoreAgentService, createFileCoreAgentStore } from "./core-agent/CoreAgentService.ts";
+import { setActiveCoreAgentAndPublish } from "./core-agent/CoreAgentEvents.ts";
 
 /**
  * ServerShape - Service API for server lifecycle control.
@@ -423,6 +425,11 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
     autoBootstrapProjectFromCwd,
   } = serverConfig;
   const availableEditors = resolveAvailableEditors();
+  const coreAgentService = createCoreAgentService({
+    store: createFileCoreAgentStore({ stateDir: serverConfig.stateDir }),
+    now: () => new Date().toISOString(),
+    generateId: () => crypto.randomUUID(),
+  });
   const gitManager = yield* GitManager;
   const terminalManager = yield* TerminalManager;
   const keybindingsManager = yield* Keybindings;
@@ -2073,12 +2080,26 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           .pipe(Effect.map(() => ({})));
 
       case WS_METHODS.coreAgentsList:
+        return yield* Effect.promise(() =>
+          coreAgentService.listAgents(stripRequestTag(request.body) as any),
+        );
       case WS_METHODS.coreAgentsCreate:
+        return yield* Effect.promise(() =>
+          coreAgentService.createAgent(stripRequestTag(request.body) as any),
+        );
       case WS_METHODS.coreAgentsUpdate:
+        return yield* Effect.promise(() =>
+          coreAgentService.updateAgent(stripRequestTag(request.body) as any),
+        );
       case WS_METHODS.coreAgentsDelete:
+        return yield* Effect.promise(() =>
+          coreAgentService.deleteAgent(stripRequestTag(request.body) as any),
+        );
       case WS_METHODS.coreAgentsSetActive:
-        return yield* new RouteRequestError({
-          message: "Core-agent WebSocket routes are not implemented yet",
+        return yield* setActiveCoreAgentAndPublish({
+          service: coreAgentService,
+          pushBus,
+          request: stripRequestTag(request.body) as any,
         });
 
       // Codebase Intelligence

@@ -10,8 +10,13 @@ import { Effect, Layer } from "effect";
 import { listBlocksInDir, writeBlockToDir } from "../blockFiles.ts";
 import { DEFAULT_GLOBAL_BLOCKS, DEFAULT_PROJECT_BLOCKS } from "../defaultBlocks.ts";
 import { commitMemoryChanges, ensureMemoryRepo } from "../memoryGit.ts";
-import { DEFAULT_AGENT_ID, globalAgentMemoryDir, projectMemoryDir } from "../paths.ts";
-import { CoreMemoryService } from "../Services/CoreMemoryService.ts";
+import {
+  globalAgentMemoryDir,
+  globalAgentsRoot,
+  normalizeMemoryAgentId,
+  projectMemoryDir,
+} from "../paths.ts";
+import { CoreMemoryService, type CoreMemoryAgentContext } from "../Services/CoreMemoryService.ts";
 
 async function dirHasAnyBlocks(dir: string): Promise<boolean> {
   try {
@@ -45,21 +50,61 @@ async function ensureProjectGitignoresMemory(projectRoot: string): Promise<void>
   await fs.writeFile(gitignorePath, next, "utf8");
 }
 
+async function readActiveAgentId(filePath: string): Promise<string | undefined> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(filePath, "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw err;
+  }
+  const parsed = JSON.parse(raw) as { readonly activeAgentId?: unknown };
+  return typeof parsed.activeAgentId === "string"
+    ? normalizeMemoryAgentId(parsed.activeAgentId)
+    : undefined;
+}
+
+async function resolveMemoryAgentId(
+  stateDir: string,
+  input: CoreMemoryAgentContext | undefined,
+): Promise<string> {
+  if (input?.agentId) {
+    return normalizeMemoryAgentId(input.agentId);
+  }
+
+  if (input?.projectRoot) {
+    const projectActiveAgentId = await readActiveAgentId(
+      path.join(input.projectRoot, ".rowl", "agents", "active-agent.json"),
+    );
+    if (projectActiveAgentId) return projectActiveAgentId;
+  }
+
+  return (
+    (await readActiveAgentId(path.join(globalAgentsRoot(stateDir), "active-agent.json"))) ??
+    normalizeMemoryAgentId(undefined)
+  );
+}
+
 export function CoreMemoryLive(config: {
   readonly stateDir: string;
 }): Layer.Layer<CoreMemoryService> {
   return Layer.succeed(CoreMemoryService, {
-    listGlobal: () =>
-      Effect.promise(() =>
-        listBlocksInDir(globalAgentMemoryDir(config.stateDir, DEFAULT_AGENT_ID)),
-      ),
+    listGlobal: (input) =>
+      Effect.promise(async () => {
+        const agentId = await resolveMemoryAgentId(config.stateDir, input);
+        return listBlocksInDir(globalAgentMemoryDir(config.stateDir, agentId));
+      }),
 
     listProject: (input) =>
-      Effect.promise(() => listBlocksInDir(projectMemoryDir(input.projectRoot))),
-
-    ensureGlobalSeeded: () =>
       Effect.promise(async () => {
-        const dir = globalAgentMemoryDir(config.stateDir, DEFAULT_AGENT_ID);
+        await resolveMemoryAgentId(config.stateDir, input);
+        return listBlocksInDir(projectMemoryDir(input.projectRoot));
+      }),
+
+    ensureGlobalSeeded: (input) =>
+      Effect.promise(async () => {
+        const agentId = await resolveMemoryAgentId(config.stateDir, input);
+        const dir = globalAgentMemoryDir(config.stateDir, agentId);
         if (await dirHasAnyBlocks(dir)) return;
         for (const block of DEFAULT_GLOBAL_BLOCKS) {
           await writeBlockToDir(dir, block);
@@ -70,6 +115,7 @@ export function CoreMemoryLive(config: {
 
     ensureProjectSeeded: (input) =>
       Effect.promise(async () => {
+        await resolveMemoryAgentId(config.stateDir, input);
         await ensureProjectGitignoresMemory(input.projectRoot);
         const dir = projectMemoryDir(input.projectRoot);
         if (await dirHasAnyBlocks(dir)) return;

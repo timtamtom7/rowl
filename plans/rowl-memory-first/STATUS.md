@@ -13,7 +13,7 @@
 | Phase | Description                                             | Status  | Branch                           | Tag on ship  | Notes                                                                     |
 | ----- | ------------------------------------------------------- | ------- | -------------------------------- | ------------ | ------------------------------------------------------------------------- |
 | 1a    | Core memory substrate                                   | shipped | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions).       |
-| 1b    | Agent management (multi-agent, personalities, commands) | active  | `phase-1a/core-memory-substrate` | —            | Tasks 1-4 implemented in worktree; commits blocked by `.git` permissions. |
+| 1b    | Agent management (multi-agent, personalities, commands) | active  | `phase-1a/core-memory-substrate` | —            | Tasks 1-6 implemented in worktree; commits blocked by `.git` permissions. |
 | 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending | —                                | —            |                                                                           |
 | 1d    | Editable memory + `/init` + `/doctor`                   | pending | —                                | —            |                                                                           |
 | 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                           |
@@ -49,6 +49,21 @@ From SPEC §11, repeated here for quick access:
 ---
 
 ## Session handoff (most recent)
+
+**Session end: 2026-05-29 (phase 1b tasks 5-6 implemented in worktree)**
+
+- Implemented agent-aware `CoreMemoryService` access with validated optional `agentId`, active-agent resolution from project/global `active-agent.json`, global memory resolution under `{stateDir}/agents/{agentId}/memory`, preserved default-agent fallback behavior, and project memory retained at `{projectRoot}/.rowl/memory` per the two-tier model.
+- Added `CoreAgentEvents.ts` to publish `coreAgent.activeChanged` through the existing WS push bus, and wired `coreAgents.setActive` through that publisher. The other core-agent WS routes now delegate thinly to `CoreAgentService`.
+- Verification:
+  - `cd apps/server && bun run test src/core-agent/` passes.
+  - `cd apps/server && bun run test src/core-agent/CoreAgentEvents.test.ts src/memory/Layers/CoreMemoryAgent.test.ts src/memory/Layers/CoreMemoryLive.test.ts src/memory/paths.test.ts` passes.
+  - Root `bun run fmt` passes.
+  - Root `bun run lint` exits 0 with existing warnings.
+  - `cd apps/server && bun run typecheck` remains blocked by pre-existing orchestration/test errors unrelated to tasks 5-6.
+  - `cd apps/server && bun run test src/orchestration/Layers/ProviderCommandReactor.test.ts` has 25 passing tests and one repeated session-status assertion failure (`clears a prior session error when a new turn starts successfully`, expected `running`, received `error`).
+  - `cd apps/server && bun run test src/wsServer.test.ts` is blocked in this sandbox by `listen EPERM 0.0.0.0` plus `EMFILE` watcher errors.
+- Commits for tasks 5 and 6 could not be created because `.git` is not writable in this environment (`Operation not permitted` creating `.git/index.lock`).
+- Next task: Phase 1B Task 7, route active-agent identity through provider turns and memory write paths.
 
 **Session end: 2026-05-29 (phase 1b tasks 3-4 implemented in worktree)**
 

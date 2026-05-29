@@ -748,8 +748,9 @@ If you're unsure, say so clearly instead of claiming success.
     // Failures never block the turn — memory is additive context.
     let agentMemoryBlock: string | null = null;
     try {
+      const coreMemoryContext = workspaceCwd ? { projectRoot: workspaceCwd } : undefined;
       yield* coreMemoryService
-        .ensureGlobalSeeded()
+        .ensureGlobalSeeded(coreMemoryContext)
         .pipe(Effect.catch(() => Effect.succeed(void 0)));
       if (workspaceCwd) {
         yield* coreMemoryService
@@ -757,7 +758,7 @@ If you're unsure, say so clearly instead of claiming success.
           .pipe(Effect.catch(() => Effect.succeed(void 0)));
       }
       const globalBlocks = yield* coreMemoryService
-        .listGlobal()
+        .listGlobal(coreMemoryContext)
         .pipe(Effect.catch(() => Effect.succeed([] as const)));
       const projectBlocks = workspaceCwd
         ? yield* coreMemoryService
