@@ -266,9 +266,7 @@ describe("ProviderCommandReactor", () => {
           buildRelevantMemoriesBlock: () => Effect.succeed(null),
         } as any),
       ),
-      Layer.provideMerge(
-        Layer.succeed(CoreMemoryService, coreMemoryService),
-      ),
+      Layer.provideMerge(Layer.succeed(CoreMemoryService, coreMemoryService)),
       Layer.provideMerge(
         Layer.succeed(ProjectPromptsService, {
           getContextForThread: () => Effect.succeed({ prompts: [], harnessContent: null }),
@@ -520,7 +518,9 @@ describe("ProviderCommandReactor", () => {
 
     await waitFor(async () => {
       const readModel = await Effect.runPromise(harness.engine.getReadModel());
-      const thread = readModel.threads.find((entry) => entry.id === ThreadId.makeUnsafe("thread-1"));
+      const thread = readModel.threads.find(
+        (entry) => entry.id === ThreadId.makeUnsafe("thread-1"),
+      );
       return Boolean(thread?.messages.some((message) => message.role === "assistant"));
     });
     expect(harness.sendTurn).not.toHaveBeenCalled();

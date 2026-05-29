@@ -27,6 +27,17 @@ import type {
   SearchMemoryResult,
 } from "./memory";
 import type {
+  CoreAgentCreateRequest,
+  CoreAgentDeleteRequest,
+  CoreAgentDeleteResponse,
+  CoreAgentListRequest,
+  CoreAgentListResponse,
+  CoreAgentMutationResponse,
+  CoreAgentSetActiveRequest,
+  CoreAgentSetActiveResponse,
+  CoreAgentUpdateRequest,
+} from "./core-agent";
+import type {
   GetCodebaseHealthInput,
   GetCodebaseHealthResult,
   UpdateCodebaseHealthInput,
@@ -311,6 +322,13 @@ export interface NativeApi {
     search: (input: SearchMemoryInput) => Promise<SearchMemoryResult>;
     listByProject: (input: ListMemoryByProjectInput) => Promise<ListMemoryByProjectResult>;
     delete: (input: DeleteMemoryInput) => Promise<DeleteMemoryResult>;
+  };
+  coreAgents: {
+    list: (input: CoreAgentListRequest) => Promise<CoreAgentListResponse>;
+    create: (input: CoreAgentCreateRequest) => Promise<CoreAgentMutationResponse>;
+    update: (input: CoreAgentUpdateRequest) => Promise<CoreAgentMutationResponse>;
+    delete: (input: CoreAgentDeleteRequest) => Promise<CoreAgentDeleteResponse>;
+    setActive: (input: CoreAgentSetActiveRequest) => Promise<CoreAgentSetActiveResponse>;
   };
   codebaseHealth: {
     getSummary: (input: GetCodebaseHealthInput) => Promise<GetCodebaseHealthResult>;

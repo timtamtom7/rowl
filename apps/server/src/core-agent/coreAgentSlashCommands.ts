@@ -1,10 +1,7 @@
 import type { CoreAgentMetadata, CoreAgentScope } from "@t3tools/contracts";
 
 import type { CoreAgentService } from "./CoreAgentService.ts";
-import {
-  CORE_AGENT_PERSONALITY_PRESETS,
-  getPersonalityPreset,
-} from "./personalityPresets.ts";
+import { CORE_AGENT_PERSONALITY_PRESETS, getPersonalityPreset } from "./personalityPresets.ts";
 
 export type CoreAgentSlashCommand =
   | { readonly kind: "agents" }
@@ -118,10 +115,7 @@ function unquote(value: string): string {
   return value;
 }
 
-function formatAgentList(
-  agents: ReadonlyArray<CoreAgentMetadata>,
-  activeAgentId: string,
-): string {
+function formatAgentList(agents: ReadonlyArray<CoreAgentMetadata>, activeAgentId: string): string {
   const active = agents.find((agent) => agent.id === activeAgentId);
   const lines = [
     `Active agent: ${active ? `${active.name} (${active.id})` : activeAgentId}`,
@@ -149,8 +143,6 @@ function findPreset(value: string) {
   const normalized = value.trim().toLowerCase();
   return (
     getPersonalityPreset(normalized) ??
-    CORE_AGENT_PERSONALITY_PRESETS.find(
-      (preset) => preset.displayName.toLowerCase() === normalized,
-    )
+    CORE_AGENT_PERSONALITY_PRESETS.find((preset) => preset.displayName.toLowerCase() === normalized)
   );
 }

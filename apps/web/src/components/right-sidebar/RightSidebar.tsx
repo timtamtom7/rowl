@@ -24,6 +24,7 @@ import { SkillsSection } from "./SkillsSection";
 import { MemoryTabContent } from "./MemoryTabContent";
 import { LiveMapTabContent } from "./LiveMapTabContent";
 import { ProjectPromptsSection } from "./ProjectPromptsSection";
+import { AgentPanel } from "~/core-agent/AgentPanel";
 
 export { RightSidebarProvider } from "./RightSidebarContext";
 
@@ -74,6 +75,7 @@ function renderTabContent(
   if (activeTab === "context" && projectId) {
     return (
       <div className="flex flex-col h-full overflow-y-auto">
+        <AgentPanel projectRoot={projectCwd} />
         <ContextTabContent projectId={projectId} />
         <MemoryTabContent projectId={projectId} />
         {projectCwd && <SkillsSection projectId={projectId} projectCwd={projectCwd} />}

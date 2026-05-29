@@ -10,13 +10,13 @@
 
 ## Phase status tracker
 
-| Phase | Description                                             | Status  | Branch                           | Tag on ship  | Notes                                                                     |
-| ----- | ------------------------------------------------------- | ------- | -------------------------------- | ------------ | ------------------------------------------------------------------------- |
-| 1a    | Core memory substrate                                   | shipped | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions).       |
-| 1b    | Agent management (multi-agent, personalities, commands) | active  | `phase-1a/core-memory-substrate` | —            | Tasks 1-6 implemented in worktree; commits blocked by `.git` permissions. |
-| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending | —                                | —            |                                                                           |
-| 1d    | Editable memory + `/init` + `/doctor`                   | pending | —                                | —            |                                                                           |
-| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                           |
+| Phase | Description                                             | Status  | Branch                           | Tag on ship  | Notes                                                                                                                         |
+| ----- | ------------------------------------------------------- | ------- | -------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1a    | Core memory substrate                                   | shipped | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions).                                                           |
+| 1b    | Agent management (multi-agent, personalities, commands) | active  | `phase-1a/core-memory-substrate` | —            | Tasks 1-7, 9, agent panel UI, and `/new` inherited-agent flow implemented in worktree; commits blocked by `.git` permissions. |
+| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending | —                                | —            |                                                                                                                               |
+| 1d    | Editable memory + `/init` + `/doctor`                   | pending | —                                | —            |                                                                                                                               |
+| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                                                                               |
 
 ---
 
@@ -49,6 +49,23 @@ From SPEC §11, repeated here for quick access:
 ---
 
 ## Session handoff (most recent)
+
+**Session end: 2026-05-29 (phase 1b agent panel + `/new` inheritance implemented in worktree)**
+
+- Implemented `apps/web/src/core-agent/AgentPanel.tsx` and `apps/web/src/core-agent/useCoreAgents.ts`. The panel is mounted in the right sidebar Context tab, lists scoped agents, highlights the active agent, switches active agents, and creates preset-backed agents through the `coreAgents.*` WebSocket/native API surface.
+- Added `NativeApi.coreAgents` contract and web WS bindings for `list`, `create`, `update`, `delete`, and `setActive`.
+- Implemented `apps/web/src/core-agent/newAgentThread.ts` and wired the existing composer `/new` handler to create a project-scoped inherited agent, set it active, and then open the new draft thread without sending a provider turn.
+- Verification:
+  - `cd apps/web && bun run test src/core-agent/AgentPanel.test.tsx src/core-agent/newAgentThread.test.ts` passes.
+  - `cd apps/web && bun run test` passes.
+  - `cd apps/web && bun run typecheck` passes.
+  - `cd packages/contracts && bun run test` passes.
+  - `cd packages/contracts && bun run typecheck` passes.
+  - Root `bun run fmt` passes.
+  - Root `bun run lint` exits 0 with pre-existing warnings only.
+  - Root `bun run typecheck` remains blocked by pre-existing `apps/server` orchestration/test errors unrelated to this work (`OrchestrationEngineHarness.integration.ts`, `ContextTrimmerLive.test.ts`, `EvaluatorServiceLive.ts`).
+- Commits for these tasks could not be created because `.git` is not writable in this environment (`Operation not permitted` creating `.git/index.lock`).
+- Next task: continue Phase 1B docs/finalization once server typecheck blockers and git permissions are resolved.
 
 **Session end: 2026-05-29 (phase 1b tasks 5-6 implemented in worktree)**
 

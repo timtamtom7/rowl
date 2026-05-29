@@ -304,6 +304,7 @@ import {
 import { type AppLanguage } from "../appLanguage";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import { buildNewThreadDraftContextPatch } from "../lib/newThreadDraftContext";
+import { createInheritedAgentForNewThread } from "../core-agent/newAgentThread";
 import {
   type ComposerImageAttachment,
   type DraftThreadEnvMode,
@@ -4858,6 +4859,17 @@ export default function ChatView({ threadId }: ChatViewProps) {
           });
           return;
         }
+        const api = readNativeApi();
+        const defaultProject = projects.find((project) => project.id === defaultProjectId);
+        if (api && defaultProject) {
+          await createInheritedAgentForNewThread({
+            api,
+            projectId: defaultProjectId,
+            projectRoot: defaultProject.cwd,
+            openNewThread: openDefaultNewThread,
+          });
+          return;
+        }
         await openDefaultNewThread();
         return;
       }
@@ -4944,6 +4956,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
       isServerThread,
       openDefaultNewThread,
       openThreadExportDialog,
+      projects,
       redoThread,
       revokeThreadShare,
       runInitCommand,

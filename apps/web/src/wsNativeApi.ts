@@ -10,6 +10,10 @@ import {
   GetContextBudgetResult,
   GetContextNodeResult,
   CreateMemoryResult,
+  CoreAgentDeleteResponse,
+  CoreAgentListResponse,
+  CoreAgentMutationResponse,
+  CoreAgentSetActiveResponse,
   SearchMemoryResult,
   ListMemoryByProjectResult,
   DeleteMemoryResult,
@@ -299,6 +303,17 @@ export function createWsNativeApi(): NativeApi {
       listByProject: (input) =>
         requestWithSchema(WS_METHODS.memoryListByProject, ListMemoryByProjectResult, input),
       delete: (input) => requestWithSchema(WS_METHODS.memoryDelete, DeleteMemoryResult, input),
+    },
+    coreAgents: {
+      list: (input) => requestWithSchema(WS_METHODS.coreAgentsList, CoreAgentListResponse, input),
+      create: (input) =>
+        requestWithSchema(WS_METHODS.coreAgentsCreate, CoreAgentMutationResponse, input),
+      update: (input) =>
+        requestWithSchema(WS_METHODS.coreAgentsUpdate, CoreAgentMutationResponse, input),
+      delete: (input) =>
+        requestWithSchema(WS_METHODS.coreAgentsDelete, CoreAgentDeleteResponse, input),
+      setActive: (input) =>
+        requestWithSchema(WS_METHODS.coreAgentsSetActive, CoreAgentSetActiveResponse, input),
     },
     codebaseHealth: {
       getSummary: (input) =>
