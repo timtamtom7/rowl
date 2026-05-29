@@ -13,7 +13,8 @@ const STEPS: { key: WizardStep; label: string; subtitle: string; icon: React.Rea
   {
     key: "brief",
     label: "What are you building?",
-    subtitle: "Describe your product so the AI understands what you're building. This is like briefing a new team member.",
+    subtitle:
+      "Describe your product so the AI understands what you're building. This is like briefing a new team member.",
     icon: <RocketIcon className="size-5" />,
   },
   {
@@ -113,11 +114,10 @@ export function ProjectSetupWizard({
       {/* Welcome message */}
       {currentStepIndex === 0 && (
         <div className="text-center mb-6">
-          <p className="text-lg font-semibold text-foreground">
-            Let's set up your project
-          </p>
+          <p className="text-lg font-semibold text-foreground">Let's set up your project</p>
           <p className="text-xs text-muted-foreground/60 mt-1">
-            Tell your AI Product Manager about your project. It'll use this to stay focused and help you build.
+            Tell your AI Product Manager about your project. It'll use this to stay focused and help
+            you build.
           </p>
         </div>
       )}
@@ -169,9 +169,7 @@ export function ProjectSetupWizard({
             <h2 className="text-lg font-semibold text-foreground">
               {STEPS[currentStepIndex]?.label}
             </h2>
-            <p className="text-xs text-muted-foreground">
-              {STEPS[currentStepIndex]?.subtitle}
-            </p>
+            <p className="text-xs text-muted-foreground">{STEPS[currentStepIndex]?.subtitle}</p>
           </div>
         </div>
 

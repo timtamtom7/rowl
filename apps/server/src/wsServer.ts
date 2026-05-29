@@ -1149,8 +1149,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
       const resolvedCwd = nodePath.resolve(cwd);
       const existingProject = snapshot.projects.find(
         (project) =>
-          project.deletedAt === null &&
-          nodePath.resolve(project.workspaceRoot) === resolvedCwd,
+          project.deletedAt === null && nodePath.resolve(project.workspaceRoot) === resolvedCwd,
       );
       let bootstrapProjectId: ProjectId;
       let bootstrapProjectDefaultModel: string;
@@ -1163,8 +1162,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         const recentThread = snapshot.threads
           .filter((t) => t.deletedAt === null)
           .toSorted((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))[0];
-        bootstrapProjectDefaultModel =
-          recentThread?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex;
+        bootstrapProjectDefaultModel = recentThread?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex;
         yield* orchestrationEngine.dispatch({
           type: "project.create",
           commandId: CommandId.makeUnsafe(crypto.randomUUID()),
@@ -2070,9 +2068,9 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return { memories };
       }
       case WS_METHODS.memoryDelete:
-        return yield* memoryService.deleteMemory(stripRequestTag(request.body) as any).pipe(
-          Effect.map(() => ({})),
-        );
+        return yield* memoryService
+          .deleteMemory(stripRequestTag(request.body) as any)
+          .pipe(Effect.map(() => ({})));
 
       // Codebase Intelligence
       case WS_METHODS.codebaseHealthSummary: {

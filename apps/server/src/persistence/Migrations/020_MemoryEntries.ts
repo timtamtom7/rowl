@@ -42,26 +42,32 @@ export default Effect.gen(function* () {
   `;
 
   // Triggers to keep FTS5 in sync — use unsafe() for multi-statement trigger bodies
-  yield* sql.unsafe(
-    `CREATE TRIGGER IF NOT EXISTS memory_fts_insert AFTER INSERT ON memory_entries BEGIN
+  yield* sql
+    .unsafe(
+      `CREATE TRIGGER IF NOT EXISTS memory_fts_insert AFTER INSERT ON memory_entries BEGIN
       INSERT INTO memory_fts(rowid, content, summary)
       VALUES (new.rowid, new.content, new.summary);
     END`,
-  ).pipe(Effect.asVoid);
+    )
+    .pipe(Effect.asVoid);
 
-  yield* sql.unsafe(
-    `CREATE TRIGGER IF NOT EXISTS memory_fts_delete BEFORE DELETE ON memory_entries BEGIN
+  yield* sql
+    .unsafe(
+      `CREATE TRIGGER IF NOT EXISTS memory_fts_delete BEFORE DELETE ON memory_entries BEGIN
       INSERT INTO memory_fts(memory_fts, rowid, content, summary)
       VALUES ('delete', old.rowid, old.content, old.summary);
     END`,
-  ).pipe(Effect.asVoid);
+    )
+    .pipe(Effect.asVoid);
 
-  yield* sql.unsafe(
-    `CREATE TRIGGER IF NOT EXISTS memory_fts_update AFTER UPDATE ON memory_entries BEGIN
+  yield* sql
+    .unsafe(
+      `CREATE TRIGGER IF NOT EXISTS memory_fts_update AFTER UPDATE ON memory_entries BEGIN
       INSERT INTO memory_fts(memory_fts, rowid, content, summary)
       VALUES ('delete', old.rowid, old.content, old.summary);
       INSERT INTO memory_fts(rowid, content, summary)
       VALUES (new.rowid, new.content, new.summary);
     END`,
-  ).pipe(Effect.asVoid);
+    )
+    .pipe(Effect.asVoid);
 });

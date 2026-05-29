@@ -24,10 +24,11 @@ describe("ContextTrimmerLive", () => {
     });
 
     it("truncates long summaries beyond token budget", async () => {
-      const longSummary = Array.from({ length: 20 }, (_, i) => `Paragraph ${i + 1} with some content here.`).join("\n\n");
-      const result = await run((t) =>
-        t.trimResumeSummary({ summary: longSummary, maxTokens: 20 }),
-      );
+      const longSummary = Array.from(
+        { length: 20 },
+        (_, i) => `Paragraph ${i + 1} with some content here.`,
+      ).join("\n\n");
+      const result = await run((t) => t.trimResumeSummary({ summary: longSummary, maxTokens: 20 }));
       expect(result.trimmed.length).toBeLessThan(longSummary.length);
       expect(result.trimmed).toContain("[Resume context trimmed");
     });
@@ -36,10 +37,15 @@ describe("ContextTrimmerLive", () => {
   describe("createTombstone", () => {
     it("creates tombstone for file content", async () => {
       const tombstone = await run((t) =>
-        Effect.succeed(t.createTombstone({
-          originalContent: "Reading file: src/App.tsx\n```\nimport React from 'react';\n" + "x\n".repeat(100) + "```",
-          reason: "context trimming",
-        })),
+        Effect.succeed(
+          t.createTombstone({
+            originalContent:
+              "Reading file: src/App.tsx\n```\nimport React from 'react';\n" +
+              "x\n".repeat(100) +
+              "```",
+            reason: "context trimming",
+          }),
+        ),
       );
       expect(tombstone).toContain("[Trimmed:");
       expect(tombstone).toContain("context trimming");
@@ -47,10 +53,12 @@ describe("ContextTrimmerLive", () => {
 
     it("creates tombstone for command output", async () => {
       const tombstone = await run((t) =>
-        Effect.succeed(t.createTombstone({
-          originalContent: "$ npm run build\n" + "output line\n".repeat(50),
-          reason: "old turn",
-        })),
+        Effect.succeed(
+          t.createTombstone({
+            originalContent: "$ npm run build\n" + "output line\n".repeat(50),
+            reason: "old turn",
+          }),
+        ),
       );
       expect(tombstone).toContain("[Trimmed:");
       expect(tombstone).toContain("Ran:");

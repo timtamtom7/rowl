@@ -1,7 +1,7 @@
 # Rowl Terminal, Git, and Checkpointing Systems Analysis
 
-*Document version: 1.0*  
-*Last updated: April 13, 2026*
+_Document version: 1.0_  
+_Last updated: April 13, 2026_
 
 ---
 
@@ -28,17 +28,20 @@ The terminal system provides pseudo-terminal (PTY) session management for Rowl. 
 The terminal system follows a layered architecture with two distinct hierarchies:
 
 **Layers (Business Logic + Effect Integration):**
+
 - `apps/server/src/terminal/Layers/NodePTY.ts` - NodePTY layer using node-pty native addon
 - `apps/server/src/terminal/Layers/BunPTY.ts` - BunPTY layer using Bun.spawn
 - `apps/server/src/terminal/Layers/Manager.ts` - TerminalManagerRuntime implementing full session lifecycle
 
 **Services (Raw Implementations):**
+
 - `apps/server/src/terminal/Services/PTY.ts` - PtyAdapterShape interface contract
 - `apps/server/src/terminal/Services/Manager.ts` - TerminalManagerShape interface contract
 
 #### Key Components
 
 **PtyAdapterShape (Services/PTY.ts):**
+
 ```typescript
 interface PtyAdapterShape {
   spawn(input: PtySpawnInput): Effect.Effect<PtyProcess, PtySpawnError>;
@@ -55,6 +58,7 @@ interface PtyProcess {
 ```
 
 **TerminalManagerShape (Services/Manager.ts):**
+
 ```typescript
 interface TerminalManagerShape {
   open(raw: TerminalOpenInput): Effect.Effect<TerminalSessionSnapshot, TerminalError>;
@@ -101,12 +105,14 @@ interface TerminalSessionState {
 The system resolves shells in a platform-specific order:
 
 **Windows:**
+
 1. Requested shell (via ComSpec)
 2. ComSpec env var
 3. powershell.exe
 4. cmd.exe
 
 **Unix/Linux:**
+
 1. Requested shell (via SHELL env)
 2. SHELL env
 3. /bin/zsh
@@ -132,11 +138,7 @@ Poll interval: 1000ms (configurable)
 Terminal sessions exclude certain environment variables:
 
 ```typescript
-const TERMINAL_ENV_BLOCKLIST = new Set([
-  "PORT",
-  "ELECTRON_RENDERER_PORT", 
-  "ELECTRON_RUN_AS_NODE"
-]);
+const TERMINAL_ENV_BLOCKLIST = new Set(["PORT", "ELECTRON_RENDERER_PORT", "ELECTRON_RUN_AS_NODE"]);
 
 // Also excludes ROWL_* and VITE_* prefixes
 ```
@@ -164,16 +166,16 @@ const TERMINAL_ENV_BLOCKLIST = new Set([
 
 ### Implementation Status
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| PtyAdapterShape | Fully implemented | Interface contract |
-| NodePTY | Fully implemented | Uses node-pty native addon |
-| BunPTY | Fully implemented | Uses Bun.spawn |
-| TerminalManagerShape | Fully implemented | Interface contract |
-| TerminalManagerRuntime | Fully implemented | Full lifecycle management |
-| History persistence | Fully implemented | Debounced filesystem writes |
-| Subprocess detection | Fully implemented | Platform-specific (Windows/POSIX) |
-| Shell resolution | Fully implemented | Platform-specific candidates |
+| Component              | Status            | Notes                             |
+| ---------------------- | ----------------- | --------------------------------- |
+| PtyAdapterShape        | Fully implemented | Interface contract                |
+| NodePTY                | Fully implemented | Uses node-pty native addon        |
+| BunPTY                 | Fully implemented | Uses Bun.spawn                    |
+| TerminalManagerShape   | Fully implemented | Interface contract                |
+| TerminalManagerRuntime | Fully implemented | Full lifecycle management         |
+| History persistence    | Fully implemented | Debounced filesystem writes       |
+| Subprocess detection   | Fully implemented | Platform-specific (Windows/POSIX) |
+| Shell resolution       | Fully implemented | Platform-specific candidates      |
 
 ---
 
@@ -188,6 +190,7 @@ The Git system provides comprehensive Git repository operations through a layere
 #### Layer Architecture
 
 **Layers (Business Logic):**
+
 - `apps/server/src/git/Layers/GitCore.ts` - Core Git operations (status, commit, push, pull, worktree, branch management)
 - `apps/server/src/git/Layers/GitManager.ts` - High-level workflow orchestration (createBranch, createCommit, pushBranch)
 - `apps/server/src/git/Layers/GitHubCli.ts` - GitHub CLI integration (PR creation, PR checks status)
@@ -195,6 +198,7 @@ The Git system provides comprehensive Git repository operations through a layere
 - `apps/server/src/git/Layers/CodexTextGeneration.ts` - AI-powered commit message and PR description generation
 
 **Services (Effect-enabled):**
+
 - `apps/server/src/git/Services/GitCore.ts` - GitCore effect layer
 - `apps/server/src/git/Services/GitManager.ts` - GitManager effect layer
 - `apps/server/src/git/Services/GitHubCli.ts` - GitHubCli effect layer
@@ -233,6 +237,7 @@ GitServiceShape (full integration)
 ### Key Data Structures
 
 **GitStatusDetails:**
+
 ```typescript
 interface GitStatusDetails extends Omit<GitStatusResult, "pr"> {
   upstreamRef: string | null;
@@ -240,6 +245,7 @@ interface GitStatusDetails extends Omit<GitStatusResult, "pr"> {
 ```
 
 **GitPreparedCommitContext:**
+
 ```typescript
 interface GitPreparedCommitContext {
   stagedSummary: string;
@@ -248,6 +254,7 @@ interface GitPreparedCommitContext {
 ```
 
 **GitPushResult:**
+
 ```typescript
 interface GitPushResult {
   status: "pushed" | "skipped_up_to_date";
@@ -258,6 +265,7 @@ interface GitPushResult {
 ```
 
 **GitRangeContext:**
+
 ```typescript
 interface GitRangeContext {
   commitSummary: string;
@@ -294,7 +302,11 @@ class GitManagerError extends TaggedErrorClass<GitManagerError>()("GitManagerErr
 }) {}
 
 // Union type used throughout
-type GitManagerServiceError = GitManagerError | GitCommandError | GitHubCliError | TextGenerationError;
+type GitManagerServiceError =
+  | GitManagerError
+  | GitCommandError
+  | GitHubCliError
+  | TextGenerationError;
 ```
 
 ### Configuration Constants
@@ -319,14 +331,14 @@ const STATUS_UPSTREAM_REFRESH_CACHE_CAPACITY = 2_048;
 
 ### Implementation Status
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| GitCore operations | Fully implemented | status, commit, push, pull, branch, worktree |
+| Component                | Status            | Notes                                            |
+| ------------------------ | ----------------- | ------------------------------------------------ |
+| GitCore operations       | Fully implemented | status, commit, push, pull, branch, worktree     |
 | GitManager orchestration | Fully implemented | createBranch, createCommit, pushBranch workflows |
-| GitHubCli integration | Fully implemented | createPullRequest, getPullRequestChecksStatus |
-| TextGeneration | Fully implemented | Commit messages, PR descriptions via Codex |
-| Status upstream cache | Fully implemented | 15s refresh, 2048 capacity LRU |
-| isRepo utility | Fully implemented | Detects if directory is a Git repo |
+| GitHubCli integration    | Fully implemented | createPullRequest, getPullRequestChecksStatus    |
+| TextGeneration           | Fully implemented | Commit messages, PR descriptions via Codex       |
+| Status upstream cache    | Fully implemented | 15s refresh, 2048 capacity LRU                   |
+| isRepo utility           | Fully implemented | Detects if directory is a Git repo               |
 
 ---
 
@@ -339,14 +351,17 @@ The checkpointing system captures repository state at specific points ("turns" w
 ### Architecture
 
 **Layers:**
+
 - `apps/server/src/checkpointing/Layers/CheckpointDiffQuery.ts` - Query diffs between checkpoints
 - `apps/server/src/checkpointing/Layers/CheckpointStore.ts` - Checkpoint capture and restore
 
 **Services:**
+
 - `apps/server/src/checkpointing/Services/CheckpointDiffQuery.ts` - Effect layer for CheckpointDiffQuery
 - `apps/server/src/checkpointing/Services/CheckpointStore.ts` - Effect layer for CheckpointStore
 
 **Utilities:**
+
 - `apps/server/src/checkpointing/Utils.ts` - Ref path generation, workspace cwd resolution
 - `apps/server/src/checkpointing/Diffs.ts` - Unified diff parsing
 - `apps/server/src/checkpointing/Errors.ts` - Error type definitions
@@ -384,10 +399,11 @@ interface ParsedDiffFile {
   deletions: number;
 }
 
-function parseTurnDiffFilesFromUnifiedDiff(diff: string): Array<ParsedDiffFile>
+function parseTurnDiffFilesFromUnifiedDiff(diff: string): Array<ParsedDiffFile>;
 ```
 
 **Behavior:**
+
 - Returns empty array for empty diffs
 - Counts additions (lines starting with `+` excluding `+++` and `Binary`)
 - Counts deletions (lines starting with `-` excluding `---` and `Binary`)
@@ -410,13 +426,13 @@ function resolveThreadWorkspaceCwd(
 
 ### Implementation Status
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| CheckpointStore | Fully implemented | Capture, restore, ref management |
-| CheckpointDiffQuery | Fully implemented | Diff between checkpoints |
-| Diff parsing | Fully implemented | parseTurnDiffFilesFromUnifiedDiff |
-| Ref generation | Fully implemented | checkpointRefForThreadTurn |
-| Workspace resolution | Fully implemented | resolveThreadWorkspaceCwd |
+| Component            | Status            | Notes                             |
+| -------------------- | ----------------- | --------------------------------- |
+| CheckpointStore      | Fully implemented | Capture, restore, ref management  |
+| CheckpointDiffQuery  | Fully implemented | Diff between checkpoints          |
+| Diff parsing         | Fully implemented | parseTurnDiffFilesFromUnifiedDiff |
+| Ref generation       | Fully implemented | checkpointRefForThreadTurn        |
+| Workspace resolution | Fully implemented | resolveThreadWorkspaceCwd         |
 
 ---
 
@@ -431,6 +447,7 @@ The web client maintains terminal-related state using Zustand with persist middl
 **Storage:** localStorage key `rowl:terminal-state:v1`
 
 **State Shape:**
+
 ```typescript
 interface TerminalState {
   terminalOpen: boolean;
@@ -443,6 +460,7 @@ interface TerminalState {
 ```
 
 **Key Functions:**
+
 - `normalizeTerminalIds()` - deduplicates and maintains order
 - `normalizeRunningTerminalIds()` - deduplicates running terminal IDs
 - `assignUniqueGroupId()` - assigns next available group index
@@ -450,6 +468,7 @@ interface TerminalState {
 - `normalizeTerminalGroups()` - ensures groups have valid IDs and caps at 4 terminals
 
 **Actions:**
+
 - `setTerminalOpen(open: boolean)` - toggle terminal panel
 - `resizeTerminal(height: number)` - resize terminal panel
 - `splitTerminal(threadId: string, newTerminalId: string)` - create new terminal in group
@@ -461,6 +480,7 @@ interface TerminalState {
 - `removeOrphanedTerminalStates()` - cleanup terminals referencing non-existent threads
 
 **Business Rules:**
+
 - Maximum 4 terminals per group (splitTerminal capped)
 - New terminals create new groups if within limit
 - Closing default terminal removes orphaned state for that thread
@@ -489,17 +509,21 @@ function terminalRunningSubprocessFromEvent(event: TerminalEvent): boolean | nul
 ### Terminal Links (terminal-links.ts)
 
 **Link Extraction:**
+
 ```typescript
 const URL_PATTERN = /https?:\/\/[^\s"'`<>]+/g;
-const FILE_PATH_PATTERN = /\b(?:[\/.](?:home|Users|Volumes)[^\s"'`<>:]+|~\/[^\s"'`<>]+|[A-Za-z]:\\[^\\]+|\\\\[^\s"'`<>]+\\[^\s"'`<>]+|\.\.[^\s"'`<>]+|\/[^\s"'`<>]+)(?::\d+)?(?::line\d+)?(?::col(?:umn)?\d+)?\b/g;
+const FILE_PATH_PATTERN =
+  /\b(?:[\/.](?:home|Users|Volumes)[^\s"'`<>:]+|~\/[^\s"'`<>]+|[A-Za-z]:\\[^\\]+|\\\\[^\s"'`<>]+\\[^\s"'`<>]+|\.\.[^\s"'`<>]+|\/[^\s"'`<>]+)(?::\d+)?(?::line\d+)?(?::col(?:umn)?\d+)?\b/g;
 ```
 
 **Path Link Resolution:**
+
 - `~` is expanded to home directory
 - Relative paths are joined with cwd
 - Line/column suffixes preserved (`:line5`, `:col10`)
 
 **Activation Detection:**
+
 ```typescript
 function isTerminalLinkActivation(event: MouseEvent, urlOrPath: string): boolean {
   // macOS: cmd+click
@@ -509,11 +533,11 @@ function isTerminalLinkActivation(event: MouseEvent, urlOrPath: string): boolean
 
 ### Implementation Status
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| terminalStateStore | Fully implemented | Zustand with persist |
-| terminalActivity | Fully implemented | Event to subprocess state |
-| terminal-links | Fully implemented | URL/path extraction, resolution, activation |
+| Component          | Status            | Notes                                       |
+| ------------------ | ----------------- | ------------------------------------------- |
+| terminalStateStore | Fully implemented | Zustand with persist                        |
+| terminalActivity   | Fully implemented | Event to subprocess state                   |
+| terminal-links     | Fully implemented | URL/path extraction, resolution, activation |
 
 ---
 
@@ -545,11 +569,12 @@ interface RunProcessOptions {
 function runProcess(
   command: string,
   args?: ReadonlyArray<string>,
-  options?: RunProcessOptions
-): Promise<ProcessResult>
+  options?: RunProcessOptions,
+): Promise<ProcessResult>;
 ```
 
 **Key features:**
+
 - Configurable timeout (default: no timeout)
 - Max buffer (default: 8 MB)
 - Truncate mode: sets `stdoutTruncated`/`stderrTruncated` flag instead of throwing
@@ -567,32 +592,33 @@ function runProcess(
 
 ### Security Considerations
 
-1. **Environment isolation**: Terminal sessions exclude ROWL_*, VITE_*, and specific dangerous env vars
+1. **Environment isolation**: Terminal sessions exclude ROWL*\*, VITE*\*, and specific dangerous env vars
 2. **Path validation**: Cwd assertions ensure sessions don't escape designated directories
 3. **Shell escaping**: Arguments are properly handled through PTY layer
 
 ### Testing
 
-| Component | Test Coverage |
-|-----------|---------------|
-| Manager.test.ts | Close behavior, history deletion, multi-terminal, dispose, env vars, zsh prompt spacer |
-| NodePTY.test.ts | NodePTY-specific behavior |
-| processRunner.test.ts | Buffer limits, truncate mode |
-| GitCore.test.ts | Status upstream cache, branch parsing, remote resolution |
-| GitManager.test.ts | High-level workflow orchestration |
-| GitHubCli.test.ts | GitHub CLI operations |
-| GitService.test.ts | Full Git service integration |
-| CodexTextGeneration.test.ts | Text generation |
-| Diffs.test.ts | Diff parsing (empty, per-file, rename-only, CRLF) |
-| terminalStateStore.test.ts | Terminal state management |
-| terminalActivity.test.ts | Subprocess detection |
-| terminal-links.test.ts | Link extraction, path resolution |
+| Component                   | Test Coverage                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------- |
+| Manager.test.ts             | Close behavior, history deletion, multi-terminal, dispose, env vars, zsh prompt spacer |
+| NodePTY.test.ts             | NodePTY-specific behavior                                                              |
+| processRunner.test.ts       | Buffer limits, truncate mode                                                           |
+| GitCore.test.ts             | Status upstream cache, branch parsing, remote resolution                               |
+| GitManager.test.ts          | High-level workflow orchestration                                                      |
+| GitHubCli.test.ts           | GitHub CLI operations                                                                  |
+| GitService.test.ts          | Full Git service integration                                                           |
+| CodexTextGeneration.test.ts | Text generation                                                                        |
+| Diffs.test.ts               | Diff parsing (empty, per-file, rename-only, CRLF)                                      |
+| terminalStateStore.test.ts  | Terminal state management                                                              |
+| terminalActivity.test.ts    | Subprocess detection                                                                   |
+| terminal-links.test.ts      | Link extraction, path resolution                                                       |
 
 ---
 
 ## Summary
 
 ### Terminal System
+
 - **Fully implemented** with two PTY adapter implementations (NodePTY, BunPTY)
 - Supports multi-terminal sessions per thread with independent history
 - Debounced history persistence to filesystem
@@ -600,6 +626,7 @@ function runProcess(
 - Shell resolution with platform-specific candidates
 
 ### Git System
+
 - **Fully implemented** layered architecture
 - Core Git operations via GitCore, orchestration via GitManager
 - GitHub CLI integration via GitHubCli
@@ -607,12 +634,14 @@ function runProcess(
 - Status upstream caching with 15s refresh and 2048 entry capacity
 
 ### Checkpointing System
+
 - **Fully implemented** Git-ref-based checkpoint storage
 - Supports capture, restore, and diff queries between checkpoints
 - Uses isolated temporary Git index for capture operations
 - Unified diff parsing with additions/deletions counting
 
 ### Web Client
+
 - **Fully implemented** Zustand-based state management
 - Terminal state persistence to localStorage
 - Link extraction and platform-aware activation
@@ -620,4 +649,4 @@ function runProcess(
 
 ---
 
-*End of document*
+_End of document_

@@ -21,14 +21,8 @@ import {
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import { GoalsService } from "../Services/GoalsService.ts";
 import { FeatureService } from "../Services/FeatureService.ts";
-import {
-  readProjectAgentsFile,
-  readProjectBriefFile,
-} from "../../projectWorkspaceMetadata.ts";
-import {
-  parseLatestResumeContext,
-  THREAD_SKILLS_ACTIVITY_KIND,
-} from "../../threadArtifacts.ts";
+import { readProjectAgentsFile, readProjectBriefFile } from "../../projectWorkspaceMetadata.ts";
+import { parseLatestResumeContext, THREAD_SKILLS_ACTIVITY_KIND } from "../../threadArtifacts.ts";
 
 // ── Token estimation ─────────────────────────────────────────────────
 
@@ -41,13 +35,13 @@ function estimateTokens(text: string | null | undefined): number {
 
 // Known context window sizes by model family (conservative estimates)
 const CONTEXT_WINDOW_BY_MODEL_PREFIX: Record<string, number> = {
-  "o4": 200_000,
-  "o3": 200_000,
+  o4: 200_000,
+  o3: 200_000,
   "gpt-4": 128_000,
   "gpt-5": 200_000,
-  "claude": 200_000,
-  "gemini": 1_000_000,
-  "MiniMax": 1_000_000,
+  claude: 200_000,
+  gemini: 1_000_000,
+  MiniMax: 1_000_000,
   "kilo-auto": 200_000,
 };
 

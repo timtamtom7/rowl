@@ -30,6 +30,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Connection to orchestration engine**: The adapter wraps `CodexAppServerManager` and exposes it as an Effect service via `Layer.effect`.
 
 **Rowl command translation**:
+
 - `startSession` → spawns `codex app-server` subprocess with `--cwd` and `--model` args
 - `sendTurn` → sends JSON-RPC `agent/sendTurn` request over stdio
 - `interruptTurn` → sends JSON-RPC `agent/interruptTurn` request
@@ -40,6 +41,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Capability**: `sessionModelSwitch: "restart-session"` (must restart to switch models)
 
 **Implementation status**: Fully implemented. Manager (`codexAppServerManager.ts`, ~2096 lines) handles:
+
 - Process lifecycle with timeout-protected initialization
 - Session resumption via `--resume` flag
 - Permission request/response flow
@@ -57,6 +59,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Connection to orchestration engine**: Adapter wraps `CopilotAcpManager`, extends `AcpBaseManager` which extends `EventEmitter`. Uses `createAcpEventStream()` for event bridging.
 
 **Rowl command translation**:
+
 - `startSession` → spawns `copilot acp --cwd <dir>` subprocess, waits for `initialized` notification
 - `sendTurn` → sends ACP `session.sendTurn` request
 - `interruptTurn` → sends ACP `session.interruptTurn` request
@@ -67,6 +70,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Capability**: `sessionModelSwitch: "in-session"` (supports model switching within session via ACP)
 
 **Implementation status**: Fully implemented. Manager (`copilotAcpManager.ts`, ~983 lines) handles:
+
 - ACP protocol over stdio with JSON-RPC
 - Connection timeout (10s for initialize, 10s for session start)
 - Permission request queuing and resolution
@@ -84,6 +88,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Connection to orchestration engine**: Adapter wraps `KiloCodeAcpManager`, extends `AcpBaseManager` (EventEmitter pattern).
 
 **Rowl command translation**:
+
 - `startSession` → spawns `kilo acp --cwd <dir>` subprocess, waits for `initialized` + `sessionStarted`
 - `sendTurn` → sends ACP `session.sendTurn` request
 - `interruptTurn` → sends ACP `session.interruptTurn` request
@@ -94,6 +99,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Capability**: `sessionModelSwitch: "in-session"` (model switchable within session)
 
 **Error normalization**: `normalizeKiloCodeStartErrorMessage()` provides user-friendly messages for:
+
 - Auth required → "Complete the Kilo Gateway OAuth flow"
 - API key invalid → "Re-authenticate through Kilo Gateway OAuth flow"
 - CLI not found → "KiloCode CLI (`kilo`) is not installed or not on PATH"
@@ -101,6 +107,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 - Rate limit → "KiloCode rate limit reached"
 
 **Implementation status**: Fully implemented. Manager (`kilocodeAcpManager.ts`, ~914 lines) handles:
+
 - ACP protocol over stdio
 - Session initialization timeout (10s)
 - Session start timeout (10s)
@@ -118,6 +125,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Connection to orchestration engine**: Adapter wraps `KimiAcpManager`, extends `AcpBaseManager`.
 
 **Rowl command translation**:
+
 - `startSession` → spawns `kimi acp` with optional `--config-file`, optional `--model`, and `--yolo` flag for `full-access` runtime mode
 - `sendTurn` → sends ACP `session.sendTurn`
 - `interruptTurn` → sends ACP `session.interruptTurn`
@@ -128,14 +136,17 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Capability**: `sessionModelSwitch: "in-session"`
 
 **Authentication options** (unique among ACP providers):
+
 1. API key via `KIMI_API_KEY` env var + `KIMI_BASE_URL` + config file (`buildKimiApiKeyConfig()`)
 2. Interactive login via `kimi login --json` probe check
 
 **Error normalization**: `normalizeKimiStartErrorMessage()` handles:
+
 - Auth required → "Run `kimi login`, or start `kimi` and run `/login`, or add a Kimi API key"
 - Probes login state via `spawnSync` with 2s timeout
 
 **Implementation status**: Fully implemented. Manager (`kimiAcpManager.ts`, ~1030 lines) handles:
+
 - ACP protocol over stdio
 - Temporary config directory for API key (auto-cleaned on exit)
 - Login state probe before start
@@ -153,6 +164,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Connection to orchestration engine**: Adapter wraps `MiniMaxApiManager` (extends `EventEmitter`). No subprocess — uses native `fetch` for streaming.
 
 **Rowl command translation**:
+
 - `startSession` → validates API key, sets session to "ready" (no CLI to start)
 - `sendTurn` → calls `streamChatCompletion()` with conversation history, emits turn events
 - `interruptTurn` → sets `abortController.abort()`, which kills the fetch stream
@@ -163,17 +175,20 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Capability**: `sessionModelSwitch: "restart-session"` (must start new session to change model)
 
 **Context management**: Notable surgical context trimming:
+
 - Keeps last 10 messages intact
 - For older messages with content >4000 chars: trims to `[Trimmed: <preview>... (<X> tokens freed)]`
 - Strips `tool_call_id` from user messages
 
 **API details**:
+
 - Base URL: `https://api.minimaxi.chat/v1`
 - Default model: `MiniMax-M2.7`
 - Streaming: `stream: true` in request body
 - Multipart messages: supports image attachments via `{ type: "image_url", image_url: { url: <attachment.url> } }`
 
 **Error normalization**: `normalizeMiniMaxApiError()` maps HTTP status codes:
+
 - 401 → "API key is invalid or expired"
 - 403 → "API access denied"
 - 429 → "Rate limit reached"
@@ -181,6 +196,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 - 500/502/503 → "API temporarily unavailable"
 
 **Implementation status**: Fully implemented. Manager (`minimaxApiManager.ts`, ~637 lines) handles:
+
 - Conversation history management
 - Abortable fetch streams
 - Content delta events (assistant_text stream)
@@ -198,6 +214,7 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Connection to orchestration engine**: Adapter wraps `OpenCodeAcpManager`, extends `AcpBaseManager`.
 
 **Rowl command translation**:
+
 - `startSession` → spawns `opencode acp --cwd <dir>` with optional `OPENROUTER_API_KEY` env
 - `sendTurn` → sends ACP `session.sendTurn`
 - `interruptTurn` → sends ACP `session.interruptTurn`
@@ -208,15 +225,19 @@ The Rowl server has 7 AI provider adapters: Codex, GitHub Copilot, KiloCode, Kim
 **Capability**: `sessionModelSwitch: "in-session"`
 
 **Model normalization**: `normalizeRequestedOpenCodeModel()` handles `provider/modelId` format with normalization:
+
 - `zai/foo` → `z-ai/foo` (OpenRouter provider ID normalization)
 
 **Runtime config**: `buildOpenCodeRuntimeConfig()` sets permission to "ask" for non-full-access mode:
+
 ```typescript
 { permission: { edit: "ask", bash: "ask" } }
 ```
+
 Merges with existing `OPENCODE_CONFIG_CONTENT` env var.
 
 **Error normalization**: `normalizeOpenCodeStartErrorMessage()` handles:
+
 - Missing `OPENROUTER_API_KEY` → specific message about adding it
 - Auth required → "Run `opencode auth login`"
 - CLI not found → "OpenCode CLI (`opencode`) is not installed or not on PATH"
@@ -225,6 +246,7 @@ Merges with existing `OPENCODE_CONFIG_CONTENT` env var.
 **Health check**: Uses `opencode auth list` to enumerate stored credentials (authenticated providers).
 
 **Implementation status**: Fully implemented. Manager (`opencodeAcpManager.ts`, ~1018 lines) handles:
+
 - ACP protocol over stdio
 - Config merging for runtime permissions
 - Session initialization timeout (10s)
@@ -242,6 +264,7 @@ Merges with existing `OPENCODE_CONFIG_CONTENT` env var.
 **Connection to orchestration engine**: Adapter wraps `PiSdkManager` (extends `EventEmitter`). No subprocess — uses Pi SDK directly.
 
 **Rowl command translation**:
+
 - `startSession` → calls `createAgentSession()` with `cwd`, `tools`, optional `model`, auth storage, settings
 - `sendTurn` → calls `session.prompt()` with text + attachments
 - `interruptTurn` → calls `session.abort()`
@@ -262,6 +285,7 @@ Merges with existing `OPENCODE_CONFIG_CONTENT` env var.
 **Approval caching**: `approvalAllowCache` Set caches approved decisions by `cacheKey` to avoid re-prompting for repeated operations.
 
 **Harness utilities** (`piHarness.ts`): Contains shared logic:
+
 - `buildPiModelSlug()` / `parsePiModelSlug()` — model ID formatting
 - `createLockedPiSettingsManager()` — merges global + project settings but locks packages/extensions/skills/prompts/themes
 - `createLockedPiResourceLoader()` — disables Pi resource discovery
@@ -272,6 +296,7 @@ Merges with existing `OPENCODE_CONFIG_CONTENT` env var.
 **Setup message**: `PI_PROVIDER_SETUP_MESSAGE` documents that Rowl embeds Pi through Pi Node SDK, reuses `~/.pi/agent/auth.json`, and intentionally disables Pi packages/extensions/prompts/skills/themes/AGENTS.
 
 **Implementation status**: Fully implemented. Manager (`piSdkManager.ts`, ~1372 lines) handles:
+
 - Session lifecycle with `AgentSession`, `SessionManager`, `SettingsManager`, `ModelRegistry`, `AuthStorage`
 - Deferred turn tracking (`PiPendingTurn` with `Deferred<void>`)
 - Tool call approvals with cache
@@ -279,7 +304,8 @@ Merges with existing `OPENCODE_CONFIG_CONTENT` env var.
 - Thinking level management
 - Session configured payload with available models and thinking levels
 
-**Known issues/quirks**: 
+**Known issues/quirks**:
+
 - Session restart required for model switch (`sessionModelSwitch: "restart-session"`)
 - `stopAll()` in manager is stubbed — just resolves pending approvals, doesn't kill all sessions
 - Health check reads catalog snapshot but doesn't attempt actual auth verification
@@ -295,6 +321,7 @@ All managers extend `EventEmitter<KiloXxxManagerEvents>` where `events = { event
 ### Session Context Pattern
 
 Each manager maintains:
+
 - `sessions: Map<ThreadId, SessionContext>` — active sessions
 - `startingSessions: Map<ThreadId, SessionContext>` — sessions being initialized
 - Per-context: `session`, `currentTurnId`, `turnInFlight`, `stopping`, plus provider-specific fields
@@ -302,6 +329,7 @@ Each manager maintains:
 ### Error Handling
 
 Adapters use `toAcpRequestError()` to normalize errors:
+
 - Maps "unknown session" messages → `ProviderAdapterSessionNotFoundError`
 - Maps "session is closed" messages → `ProviderAdapterSessionClosedError`
 - Others → `ProviderAdapterRequestError`
@@ -309,6 +337,7 @@ Adapters use `toAcpRequestError()` to normalize errors:
 ### ACP Protocol Events
 
 ACP-based managers emit these event types:
+
 - `session.started` — session initialization complete
 - `thread.started` — thread context established
 - `session.configured` — model config available
@@ -327,6 +356,7 @@ ACP-based managers emit these event types:
 ### Health Checks
 
 Each provider has a health check function in `ProviderHealth.ts`:
+
 - **Codex**: `checkCodexProviderStatus` — runs `codex --version`
 - **Copilot**: `checkCopilotProviderStatus` — runs `copilot auth status`
 - **KiloCode**: `checkKiloCodeProviderStatus` — runs `kilo --version`
@@ -339,21 +369,22 @@ Each provider has a health check function in `ProviderHealth.ts`:
 
 ## Provider Capability Matrix
 
-| Provider | sessionModelSwitch | Auth Method | Protocol | CLI-based |
-|----------|-------------------|-------------|----------|-----------|
-| Codex | restart-session | API key | JSON-RPC over stdio | Yes |
-| Copilot | in-session | `copilot login` / `gh auth` | ACP over stdio | Yes |
-| KiloCode | in-session | Kilo Gateway OAuth | ACP over stdio | Yes |
-| Kimi | in-session | `kimi login` or API key | ACP over stdio | Yes |
-| MiniMax | restart-session | API key | REST/HTTP streaming | No |
-| OpenCode | in-session | `opencode auth login` + OpenRouter API key | ACP over stdio | Yes |
-| Pi | restart-session | Pi CLI `/login` or env vars | Node SDK | No |
+| Provider | sessionModelSwitch | Auth Method                                | Protocol            | CLI-based |
+| -------- | ------------------ | ------------------------------------------ | ------------------- | --------- |
+| Codex    | restart-session    | API key                                    | JSON-RPC over stdio | Yes       |
+| Copilot  | in-session         | `copilot login` / `gh auth`                | ACP over stdio      | Yes       |
+| KiloCode | in-session         | Kilo Gateway OAuth                         | ACP over stdio      | Yes       |
+| Kimi     | in-session         | `kimi login` or API key                    | ACP over stdio      | Yes       |
+| MiniMax  | restart-session    | API key                                    | REST/HTTP streaming | No        |
+| OpenCode | in-session         | `opencode auth login` + OpenRouter API key | ACP over stdio      | Yes       |
+| Pi       | restart-session    | Pi CLI `/login` or env vars                | Node SDK            | No        |
 
 ---
 
 ## Stubbed / Placeholder Providers
 
 According to `AGENTS.md`:
+
 - **Claude Code**: Unavailable placeholder
 - **Cursor**: Unavailable placeholder
 
@@ -369,7 +400,7 @@ These are documented as future integrations but not implemented.
 
 3. **MiniMax lacks tool/permission support**: MiniMax is purely a text-completion API. There's no mechanism for permission requests or tool calls, unlike all ACP-based providers.
 
-4. **Health check inconsistencies**: 
+4. **Health check inconsistencies**:
    - MiniMax health always "ready" regardless of whether API key is configured
    - Kimi health probes login state but KiloCode doesn't
    - Pi health reads catalog but doesn't verify auth actually works
@@ -383,6 +414,7 @@ These are documented as future integrations but not implemented.
 ## File Reference
 
 ### Adapter Layers (Effect Layer wrappers)
+
 - `provider/Layers/CodexAdapter.ts`
 - `provider/Layers/CopilotAdapter.ts`
 - `provider/Layers/KiloCodeAdapter.ts`
@@ -392,6 +424,7 @@ These are documented as future integrations but not implemented.
 - `provider/Layers/PiAdapter.ts`
 
 ### Manager Classes
+
 - `codexAppServerManager.ts` (~2096 lines)
 - `copilotAcpManager.ts` (~983 lines)
 - `kilocodeAcpManager.ts` (~914 lines)
@@ -401,6 +434,7 @@ These are documented as future integrations but not implemented.
 - `piSdkManager.ts` (~1372 lines)
 
 ### Shared Infrastructure
+
 - `provider/acpAdapterSupport.ts` — Event stream bridging + error helpers
 - `provider/acpRuntimeShared.ts` — ACP event mapping utilities
 - `provider/Layers/EventNdjsonLogger.ts` — NDJSON event logging layer
@@ -408,6 +442,7 @@ These are documented as future integrations but not implemented.
 - `piHarness.ts` — Pi SDK utilities and configuration
 
 ### Service Layers
+
 - `provider/Services/ProviderAdapter.ts` — `ProviderAdapterShape` interface
 - `provider/Services/ProviderService.ts` — Main orchestration service
 - `provider/Services/ProviderAdapterRegistry.ts` — Adapter registry

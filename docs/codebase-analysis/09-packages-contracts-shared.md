@@ -36,23 +36,24 @@ It is the **single source of truth** for the wire protocol between clients (apps
 
 All branded primitive types used throughout the codebase:
 
-| Type | Description |
-|------|-------------|
-| `ProjectId` | Branded string for project identifiers |
-| `ThreadId` | Branded string for thread identifiers |
-| `TurnId` | Branded string for turn identifiers |
-| `NonNegativeInt` | Integer >= 0 |
-| `PositiveInt` | Integer > 0 |
-| `TrimmedNonEmptyString` | Non-empty string, trimmed of whitespace |
-| `IsoDateTime` | ISO 8601 datetime string |
-| `EventId` | Branded string for event identifiers |
-| `ProviderItemId`, `RuntimeItemId`, `RuntimeRequestId`, `RuntimeTaskId` | Various runtime IDs |
-| `ThreadShareId` | Branded string for shared thread IDs |
-| `ProjectSkillName` | Literal union of known skill names |
+| Type                                                                   | Description                             |
+| ---------------------------------------------------------------------- | --------------------------------------- |
+| `ProjectId`                                                            | Branded string for project identifiers  |
+| `ThreadId`                                                             | Branded string for thread identifiers   |
+| `TurnId`                                                               | Branded string for turn identifiers     |
+| `NonNegativeInt`                                                       | Integer >= 0                            |
+| `PositiveInt`                                                          | Integer > 0                             |
+| `TrimmedNonEmptyString`                                                | Non-empty string, trimmed of whitespace |
+| `IsoDateTime`                                                          | ISO 8601 datetime string                |
+| `EventId`                                                              | Branded string for event identifiers    |
+| `ProviderItemId`, `RuntimeItemId`, `RuntimeRequestId`, `RuntimeTaskId` | Various runtime IDs                     |
+| `ThreadShareId`                                                        | Branded string for shared thread IDs    |
+| `ProjectSkillName`                                                     | Literal union of known skill names      |
 
 ### WebSocket Protocol (`ws.ts`)
 
 **WS_METHODS** — 50+ RPC method constants organized by domain:
+
 - `projects.*` — Project registry and file operations (11 methods)
 - `threads.*` — Thread sharing, undo/redo, compact (8 methods)
 - `review.*` — Approve/reject review operations
@@ -67,15 +68,18 @@ All branded primitive types used throughout the codebase:
 - `agent.*` — Multi-agent coordination
 
 **WS_CHANNELS** — Push event channels:
+
 - `server.welcome` — Initial server greeting
 - `server.configUpdated` — Server config changed
 - `terminal.event` — Terminal output/exit events
 - `file.activity` — File read/write/create/delete events
 
 **ORCHESTRATION_WS_CHANNELS** — Additional orchestration channels:
+
 - `domainEvent` — Orchestration domain events
 
 **Core Schemas:**
+
 - `WebSocketRequest` — `{ id: string, body: WebSocketRequestBody }` where body is a tagged union
 - `WebSocketResponse` — `{ id: string, result?: unknown, error?: { message: string } }`
 - `WsPush` — Union of all push envelope types with `type: "push"`, `sequence`, `channel`, `data`
@@ -86,20 +90,24 @@ All branded primitive types used throughout the codebase:
 The **largest and most complex file** (~1500 lines). Defines the event-sourcing state management system.
 
 **Key Concepts:**
+
 - **Threads** contain **Turns** (user inputs)
 - **Turns** contain **Items** (messages, reasoning, tool calls)
 - **Sessions** represent a provider's active connection to a thread
 
 **Command/Query Separation:**
+
 - `ClientOrchestrationCommand` — Commands sent from client (startSession, stopSession, sendTurn, interruptTurn, approveRequest, respondToUserInput, resumeSession)
 - `ServerOrchestrationQuery` — Read-only queries (getSnapshot, getTurnDiff, getFullThreadDiff, replayEvents)
 
 **Session State Machine:**
+
 - Session states: `starting`, `ready`, `running`, `waiting`, `stopped`, `error`
 - Thread states: `active`, `idle`, `archived`, `closed`, `compacted`, `error`
 - Turn states: `completed`, `failed`, `interrupted`, `cancelled`
 
 **Event Types (40+ events):**
+
 - Session: `session.started`, `session.configured`, `session.state.changed`, `session.exited`
 - Thread: `thread.started`, `thread.state.changed`, `thread.metadata.updated`, `thread.token-usage.updated`
 - Turn: `turn.started`, `turn.completed`, `turn.aborted`, `turn.plan.updated`, `turn.diff.updated`
@@ -115,18 +123,19 @@ The **largest and most complex file** (~1500 lines). Defines the event-sourcing 
 - Misc: `model.rerouted`, `config.warning`, `deprecation.notice`, `files.persisted`, `runtime.warning`, `runtime.error`
 
 **Key Constants:**
+
 ```typescript
 ORCHESTRATION_WS_METHODS = {
   dispatchCommand: "orchestration.dispatchCommand",
   getSnapshot: "orchestration.getSnapshot",
   getTurnDiff: "orchestration.getTurnDiff",
   getFullThreadDiff: "orchestration.getFullThreadDiff",
-  replayEvents: "orchestration.replayEvents"
-}
+  replayEvents: "orchestration.replayEvents",
+};
 ORCHESTRATION_WS_CHANNELS = {
   domainEvent: "orchestration.domainEvent",
-  terminalPty: "orchestration.terminalPty"
-}
+  terminalPty: "orchestration.terminalPty",
+};
 ```
 
 ### Provider (`provider.ts`)
@@ -146,10 +155,12 @@ Provider session management:
 **46 typed event schemas** for the runtime event stream (V2). The main union is `ProviderRuntimeEvent` (aliased from `ProviderRuntimeEventV2`).
 
 **Event structure:**
+
 - All events share `ProviderRuntimeEventBase`: `{ eventId, provider, threadId, createdAt, turnId?, itemId?, requestId?, providerRefs?, raw? }`
 - Each event type has a specific `type` literal and `payload` schema
 
 **Payload types include:**
+
 - `SessionStartedPayload`, `SessionConfiguredPayload`, `SessionStateChangedPayload`, `SessionExitedPayload`
 - `ThreadStartedPayload`, `ThreadStateChangedPayload`, `ThreadMetadataUpdatedPayload`, `ThreadTokenUsageUpdatedPayload`
 - `TurnStartedPayload`, `TurnCompletedPayload`, `TurnAbortedPayload`, `TurnPlanUpdatedPayload`, `TurnProposedDeltaPayload`, `TurnDiffUpdatedPayload`
@@ -314,6 +325,7 @@ Prompt template management:
 ### apps/server
 
 The server is the **consumer** of `contracts`:
+
 - Imports all schemas for WebSocket request validation
 - Uses `WsRpcResultSchemaByMethod` to validate responses
 - Implements the orchestration state machine using `orchestration.ts` schemas
@@ -325,30 +337,31 @@ The server is the **consumer** of `contracts`:
 ### apps/web
 
 The web client is also a **consumer** of `contracts`:
+
 - Uses schemas for WebSocket request encoding
 - Validates server push events using schemas
 - Uses `model.ts` from `contracts` for model/provider constants (re-exported in shared)
 
 ## Implementation Status
 
-| Domain | Status | Notes |
-|--------|--------|-------|
-| WebSocket protocol | ✅ Fully implemented | All methods mapped to schemas |
-| Orchestration | ✅ Fully implemented | Large but complete event sourcing |
-| Provider runtime events | ✅ Fully implemented | 46 event types |
-| Terminal | ✅ Fully implemented | Full PTY lifecycle |
-| Git | ✅ Fully implemented | Worktrees, stacked PRs |
-| Project files | ✅ Fully implemented | Search, read, write, delete |
-| Features/Goals | ✅ Fully implemented | Full CRUD + threading |
-| Context/Memory | ✅ Fully implemented | Vector store integration |
-| Keybindings | ✅ Fully implemented | Rule + resolved config |
-| Provider session | ✅ Fully implemented | Multi-provider support |
-| Server config | ✅ Fully implemented | Credentials, MCP, usage |
-| Codebase health | ✅ Fully implemented | Health scoring |
-| Multi-agent | ✅ Fully implemented | Conflict detection |
-| Prompts/Harnesses | ✅ Fully implemented | Template system |
-| IPC | ⚠️ Unclear | Not fully reviewed |
-| Editor | ✅ Minimal | Just openInEditor |
+| Domain                  | Status               | Notes                             |
+| ----------------------- | -------------------- | --------------------------------- |
+| WebSocket protocol      | ✅ Fully implemented | All methods mapped to schemas     |
+| Orchestration           | ✅ Fully implemented | Large but complete event sourcing |
+| Provider runtime events | ✅ Fully implemented | 46 event types                    |
+| Terminal                | ✅ Fully implemented | Full PTY lifecycle                |
+| Git                     | ✅ Fully implemented | Worktrees, stacked PRs            |
+| Project files           | ✅ Fully implemented | Search, read, write, delete       |
+| Features/Goals          | ✅ Fully implemented | Full CRUD + threading             |
+| Context/Memory          | ✅ Fully implemented | Vector store integration          |
+| Keybindings             | ✅ Fully implemented | Rule + resolved config            |
+| Provider session        | ✅ Fully implemented | Multi-provider support            |
+| Server config           | ✅ Fully implemented | Credentials, MCP, usage           |
+| Codebase health         | ✅ Fully implemented | Health scoring                    |
+| Multi-agent             | ✅ Fully implemented | Conflict detection                |
+| Prompts/Harnesses       | ✅ Fully implemented | Template system                   |
+| IPC                     | ⚠️ Unclear           | Not fully reviewed                |
+| Editor                  | ✅ Minimal           | Just openInEditor                 |
 
 ## Patterns and Quirks
 
@@ -399,8 +412,8 @@ A queue-based worker pattern for Effect:
 
 ```typescript
 interface DrainableWorker<A> {
-  enqueue: (item: A) => Effect<void>
-  drain: Effect<void>  // Resolves when queue empty AND current item done
+  enqueue: (item: A) => Effect<void>;
+  drain: Effect<void>; // Resolves when queue empty AND current item done
 }
 ```
 
@@ -414,14 +427,15 @@ Effect-based networking service (`NetService`):
 
 ```typescript
 interface NetServiceShape {
-  canListenOnHost: (port: number, host: string) => Effect<boolean>
-  isPortAvailableOnLoopback: (port: number) => Effect<boolean>
-  reserveLoopbackPort: (host?: string) => Effect<number, NetError>
-  findAvailablePort: (preferred: number) => Effect<number, NetError>
+  canListenOnHost: (port: number, host: string) => Effect<boolean>;
+  isPortAvailableOnLoopback: (port: number) => Effect<boolean>;
+  reserveLoopbackPort: (host?: string) => Effect<number, NetError>;
+  findAvailablePort: (preferred: number) => Effect<number, NetError>;
 }
 ```
 
 **Key behaviors:**
+
 - `canListenOnHost` treats `EADDRNOTAVAIL` as "available" (IPv6-absent hosts)
 - `reserveLoopbackPort` binds port 0 to get an ephemeral port, then closes
 - `findAvailablePort` tries preferred first, falls back to ephemeral
@@ -433,6 +447,7 @@ interface NetServiceShape {
 Model catalog utilities (re-exports from contracts):
 
 **Functions:**
+
 - `getModelOptions(provider)` — Get catalog of model options
 - `getModelDisplayName(model, provider)` — Human-readable name
 - `getModelContextWindowInfo(model, provider)` — Token limits
@@ -453,10 +468,10 @@ Model catalog utilities (re-exports from contracts):
 Desktop app integration helpers:
 
 ```typescript
-DESKTOP_BACKEND_READY_PREFIX = "[rowl-desktop-ready]"
-formatDesktopBackendReadyLine({ port }) // → "[rowl-desktop-ready]{"port":43121}"
-parseDesktopBackendReadyLine(line) // → { port } | null
-createDesktopBackendWsUrl({ port, authToken }) // → "ws://127.0.0.1:{port}/?token={encoded}"
+DESKTOP_BACKEND_READY_PREFIX = "[rowl-desktop-ready]";
+formatDesktopBackendReadyLine({ port }); // → "[rowl-desktop-ready]{"port":43121}"
+parseDesktopBackendReadyLine(line); // → { port } | null
+createDesktopBackendWsUrl({ port, authToken }); // → "ws://127.0.0.1:{port}/?token={encoded}"
 ```
 
 **Purpose**: Communication between main process and desktop backend via stdout line parsing.
@@ -466,11 +481,11 @@ createDesktopBackendWsUrl({ port, authToken }) // → "ws://127.0.0.1:{port}/?to
 WebSocket authentication token management:
 
 ```typescript
-WS_AUTH_TOKEN_QUERY_PARAM = "***"  // sentinel value for redaction
-getWsAuthToken(value) // → string | null
-withWsAuthToken(url, token) // → string (adds token if not present)
-withoutWsAuthToken(url) // → string (removes token)
-redactWsAuthToken(value) // → string | null (removes from any format)
+WS_AUTH_TOKEN_QUERY_PARAM = "***"; // sentinel value for redaction
+getWsAuthToken(value); // → string | null
+withWsAuthToken(url, token); // → string (adds token if not present)
+withoutWsAuthToken(url); // → string (removes token)
+redactWsAuthToken(value); // → string | null (removes from any format)
 ```
 
 **Purpose**: Secure token handling. Tokens are never logged (redacted).
@@ -480,8 +495,8 @@ redactWsAuthToken(value) // → string | null (removes from any format)
 Login shell PATH extraction:
 
 ```typescript
-readPathFromLoginShell(shell) // → string | undefined
-extractPathFromShellOutput(output) // → string | null
+readPathFromLoginShell(shell); // → string | undefined
+extractPathFromShellOutput(output); // → string | null
 ```
 
 **Purpose**: Get the full PATH from a login shell (bash -ilc, fish -l, etc.) using marker-based extraction.
@@ -498,6 +513,7 @@ class RotatingFileSink {
 ```
 
 **Behavior:**
+
 - Rotates when `currentSize + chunk > maxBytes`
 - Rotation: renames files with numeric suffixes (1, 2, ..., maxFiles)
 - Prunes overflow backups on startup
@@ -520,10 +536,10 @@ resolveAutoFeatureBranchName(existingBranches, preferred?) // → unique "featur
 Version and release utilities:
 
 ```typescript
-getVersionPrereleaseTag(version) // → "alpha" | "fork" | null
-isPrereleaseVersion(version) // → boolean
-isForkPrereleaseVersion(version) // → boolean
-resolveAppReleaseBranding({ version, isDevelopment }) // → AppReleaseBranding
+getVersionPrereleaseTag(version); // → "alpha" | "fork" | null
+isPrereleaseVersion(version); // → boolean
+isForkPrereleaseVersion(version); // → boolean
+resolveAppReleaseBranding({ version, isDevelopment }); // → AppReleaseBranding
 ```
 
 **Purpose**: Determine release stage and branding. All builds resolve to "Rowl" with appId `com.t3tools.rowl`.
@@ -533,7 +549,7 @@ resolveAppReleaseBranding({ version, isDevelopment }) // → AppReleaseBranding
 GitHub Copilot plan label formatting:
 
 ```typescript
-formatGitHubCopilotPlan(plan) // → "Copilot Pro" | "Copilot Enterprise" | etc.
+formatGitHubCopilotPlan(plan); // → "Copilot Pro" | "Copilot Enterprise" | etc.
 ```
 
 **Purpose**: Normalize GitHub's internal plan identifiers (e.g., `individual_pro` → `Copilot Pro`).
@@ -543,9 +559,9 @@ formatGitHubCopilotPlan(plan) // → "Copilot Pro" | "Copilot Enterprise" | etc.
 Effect Schema JSON utilities:
 
 ```typescript
-decodeJsonResult(schema)(input) // → Result<Decoded, Cause<SchemaError>>
-decodeUnknownJsonResult(schema)(input) // → Result<Decoded, Cause<SchemaError>>
-formatSchemaError(cause) // → string (formatted error message)
+decodeJsonResult(schema)(input); // → Result<Decoded, Cause<SchemaError>>
+decodeUnknownJsonResult(schema)(input); // → Result<Decoded, Cause<SchemaError>>
+formatSchemaError(cause); // → string (formatted error message)
 ```
 
 **Purpose**: Decode JSON strings using Effect schemas, with proper error formatting.
@@ -572,19 +588,19 @@ formatSchemaError(cause) // → string (formatted error message)
 
 ## Implementation Status
 
-| Module | Status | Notes |
-|--------|--------|-------|
+| Module          | Status               | Notes                             |
+| --------------- | -------------------- | --------------------------------- |
 | DrainableWorker | ✅ Fully implemented | Well-tested with live effect test |
-| NetService | ✅ Fully implemented | Full port reservation service |
-| Model helpers | ✅ Fully implemented | Comprehensive test coverage |
-| WsAuth | ✅ Fully implemented | Token CRUD with redaction |
-| Shell | ✅ Fully implemented | Login shell PATH extraction |
-| Logging | ✅ Fully implemented | Rotating file sink |
-| Git | ✅ Fully implemented | Branch sanitization |
-| AppRelease | ✅ Fully implemented | Version detection |
-| CopilotPlan | ✅ Fully implemented | Plan label formatting |
-| SchemaJson | ✅ Fully implemented | JSON decoding helpers |
-| DesktopBackend | ✅ Fully implemented | Ready line parsing |
+| NetService      | ✅ Fully implemented | Full port reservation service     |
+| Model helpers   | ✅ Fully implemented | Comprehensive test coverage       |
+| WsAuth          | ✅ Fully implemented | Token CRUD with redaction         |
+| Shell           | ✅ Fully implemented | Login shell PATH extraction       |
+| Logging         | ✅ Fully implemented | Rotating file sink                |
+| Git             | ✅ Fully implemented | Branch sanitization               |
+| AppRelease      | ✅ Fully implemented | Version detection                 |
+| CopilotPlan     | ✅ Fully implemented | Plan label formatting             |
+| SchemaJson      | ✅ Fully implemented | JSON decoding helpers             |
+| DesktopBackend  | ✅ Fully implemented | Ready line parsing                |
 
 ## Patterns and Quirks
 
@@ -615,6 +631,7 @@ formatSchemaError(cause) // → string (formatted error message)
 ### Effect Library Usage
 
 Both packages heavily use the `effect` library:
+
 - `Schema` for all type definitions and runtime validation
 - `Effect` for functional programming patterns
 - `Deferred` for synchronization primitives

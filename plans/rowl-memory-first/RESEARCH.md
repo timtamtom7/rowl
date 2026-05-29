@@ -9,12 +9,12 @@ See SPEC.md for what we actually decided to build.
 
 Cloned to `/Users/mauriello/Dev/_reference/` for reference reading:
 
-| Repo | Role for this sub-project | Takeaway |
-|---|---|---|
-| `letta-code` | **Primary source — the memory pattern we are porting** | Git-backed `.mdx` memory blocks, reminder engine, memory tool, Palace viewer. ~3,500 LOC of core TS. |
+| Repo               | Role for this sub-project                                    | Takeaway                                                                                                                                                                                                                                                                                                                                |
+| ------------------ | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `letta-code`       | **Primary source — the memory pattern we are porting**       | Git-backed `.mdx` memory blocks, reminder engine, memory tool, Palace viewer. ~3,500 LOC of core TS.                                                                                                                                                                                                                                    |
 | `craft-agents-oss` | **UI / window aesthetic inspiration** (NOT our runtime base) | Different app (Claude-Code-like for "Craft documents"). Studied its clean `AgentBackend` interface as an example of runtime-swap seams. Its sidebar + skills/MCP surface and Mac-native desktop feel are the visual reference for Rowl's UI polish as the project matures — especially relevant to sub-project #4 (Research/Review UX). |
-| `paperclip` | For a future sub-project (#2 — organizing layer) | Goal/Issue/Document/Feedback/Approval model. Not touched in sub-project #1. |
-| `t3code` | The base of current Rowl | Rowl is already a fork of t3code via `yappologistic/t3code`. Confirmed by `package.json` name `@t3tools/monorepo` and git remotes. |
+| `paperclip`        | For a future sub-project (#2 — organizing layer)             | Goal/Issue/Document/Feedback/Approval model. Not touched in sub-project #1.                                                                                                                                                                                                                                                             |
+| `t3code`           | The base of current Rowl                                     | Rowl is already a fork of t3code via `yappologistic/t3code`. Confirmed by `package.json` name `@t3tools/monorepo` and git remotes.                                                                                                                                                                                                      |
 
 ## 2. The Letta integration decision (A / B / C)
 
@@ -34,17 +34,17 @@ Three integration options evaluated:
 
 The following files in `/Users/mauriello/Dev/_reference/letta-code/` are the primary references:
 
-| File / area | Purpose | Notes |
-|---|---|---|
-| `src/agent/memory.ts` | Memory block loading, parsing, scoping | ~136 lines. Model for Rowl's block module. |
-| `src/agent/memoryGit.ts` | Git operations on memory repo (clone, pull, push, commit, hooks) | ~762 lines. We need far less in phase 1a (no remote sync). |
-| `src/agent/memoryFilesystem.ts` | Directory structure, tree rendering | ~300 lines. |
-| `src/tools/impl/Memory.ts` | Memory tool implementation (create/str_replace/insert/delete/rename) | ~400 lines. Model for Rowl's memory tool. |
-| `src/reminders/engine.ts` | Assembles memory + skills + env into system reminders | ~200 lines. Model for Rowl's reminder engine. |
-| `src/web/generate-memory-viewer.ts` | Palace HTML generator | Model for `/palace`. |
-| `src/cli/components/MemfsTreeViewer.tsx` | In-TUI memory tree view | Model for `/memory` in-app view. |
-| `src/cli/commands/registry.ts` | 59 slash commands enumerated | Curated to ~10 for sub-project #1. See SPEC §9. |
-| `src/agent/create.ts` + `NewAgentDialog.tsx` | Agent creation flow | Model for Rowl's agent creation dialog (phase 1b). |
+| File / area                                  | Purpose                                                              | Notes                                                      |
+| -------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `src/agent/memory.ts`                        | Memory block loading, parsing, scoping                               | ~136 lines. Model for Rowl's block module.                 |
+| `src/agent/memoryGit.ts`                     | Git operations on memory repo (clone, pull, push, commit, hooks)     | ~762 lines. We need far less in phase 1a (no remote sync). |
+| `src/agent/memoryFilesystem.ts`              | Directory structure, tree rendering                                  | ~300 lines.                                                |
+| `src/tools/impl/Memory.ts`                   | Memory tool implementation (create/str_replace/insert/delete/rename) | ~400 lines. Model for Rowl's memory tool.                  |
+| `src/reminders/engine.ts`                    | Assembles memory + skills + env into system reminders                | ~200 lines. Model for Rowl's reminder engine.              |
+| `src/web/generate-memory-viewer.ts`          | Palace HTML generator                                                | Model for `/palace`.                                       |
+| `src/cli/components/MemfsTreeViewer.tsx`     | In-TUI memory tree view                                              | Model for `/memory` in-app view.                           |
+| `src/cli/commands/registry.ts`               | 59 slash commands enumerated                                         | Curated to ~10 for sub-project #1. See SPEC §9.            |
+| `src/agent/create.ts` + `NewAgentDialog.tsx` | Agent creation flow                                                  | Model for Rowl's agent creation dialog (phase 1b).         |
 
 ## 4. What we are deliberately NOT porting from Letta
 
@@ -53,7 +53,7 @@ The following files in `/Users/mauriello/Dev/_reference/letta-code/` are the pri
 - **Sleeptime reflection daemon.** Deferred; optional in phase 1e as a one-shot `/reflect`, not a background process.
 - **The full 59-command slash registry.** We port ~10 memory-relevant commands; Rowl's existing slash command set covers the rest (`/model`, `/plan`, `/clear`, etc.).
 - **Letta's `.af` agent export format.** Possible future interop, not needed now.
-- **Memfs (filesystem-backed memory).** Ambiguous benefit; our approach already *is* filesystem-backed.
+- **Memfs (filesystem-backed memory).** Ambiguous benefit; our approach already _is_ filesystem-backed.
 - **Hooks system, statusline, reasoning-tab toggle, Ralph mode.** Outside sub-project scope.
 
 ## 5. What Rowl's existing base (t3code fork) gives us for free

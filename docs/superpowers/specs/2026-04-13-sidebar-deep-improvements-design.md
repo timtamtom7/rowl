@@ -32,6 +32,7 @@ useSidebarAgents(projectId)    → { overview, isLoading }
 ```
 
 **Query keys pattern:**
+
 ```
 sidebarQueryKeys = {
   goals: (projectId) => ["sidebar", "goals", projectId],
@@ -67,6 +68,7 @@ navigateToTab(tab: RightSidebarTab, focus?: { type: string; id: string })
 ```
 
 Usage examples:
+
 - AgentOverviewSection: click agent → `navigateToTab("threads", { type: "thread", id: threadId })`
 - Features tab: click linked thread → `navigateToTab("threads", { type: "thread", id: threadId })`
 - PM Chat action buttons: after creating feature → `navigateToTab("features")`
@@ -85,12 +87,13 @@ Replace all silent `catch {}` blocks with a shared pattern:
 function useSidebarMutation(label: string) {
   return {
     mutate: async (fn: () => Promise<void>) => {
-      try { await fn(); }
-      catch (err) {
+      try {
+        await fn();
+      } catch (err) {
         // Show non-blocking toast: "Failed to create goal"
         toastManager.add({ type: "error", title: `Failed to ${label}`, description: err.message });
       }
-    }
+    },
   };
 }
 ```
@@ -106,6 +109,7 @@ This surfaces errors without blocking the UI. User knows something failed.
 **Current:** 528 lines. Chat works but context is stale and actions have no feedback.
 
 **Changes:**
+
 - Use shared hooks (S1) for goals/features/brief — always fresh
 - After executing an action (create feature, spawn agent), show a brief inline confirmation: "Created feature: Menu Page"
 - Add a typing indicator that stays until the AI actually responds (existing fix from previous session)
@@ -116,6 +120,7 @@ This surfaces errors without blocking the UI. User knows something failed.
 **Current:** 204 lines. Kanban stages work but no drag-drop, no feature details.
 
 **Changes:**
+
 - Implement drag-drop between kanban columns using native HTML5 drag API (no library needed for simple lists)
 - Show linked thread under each feature card (if a thread's goal matches the feature name or is explicitly linked)
 - Click feature → expand to show description, linked thread, creation date
@@ -126,6 +131,7 @@ This surfaces errors without blocking the UI. User knows something failed.
 **Current:** 253 lines. CRUD works but can't link/unlink threads.
 
 **Changes:**
+
 - Under each goal, show linked threads as clickable chips
 - Add "Link thread" button → dropdown of project threads
 - Click linked thread chip → navigateToTab("threads", { thread })
@@ -136,6 +142,7 @@ This surfaces errors without blocking the UI. User knows something failed.
 **Current:** 320 lines. Budget gauge exists but nodes are one-line summaries.
 
 **Changes:**
+
 - Click node → expand to show full summary and metadata (thread name, created date, token count)
 - Budget breakdown always visible (not just for active thread)
 - Add "Trim old context" button that bulk-compresses nodes older than N turns
@@ -146,6 +153,7 @@ This surfaces errors without blocking the UI. User knows something failed.
 **Current:** 288 lines. Search and create work.
 
 **Changes:**
+
 - Click memory → expand to full content view with edit capability
 - Sort toggle: by importance, by recency, by type
 - Memory importance adjustable (click stars)
@@ -156,6 +164,7 @@ This surfaces errors without blocking the UI. User knows something failed.
 **Current:** 132 lines. List works.
 
 **Changes:**
+
 - Search/filter input at top (filters by title, goal)
 - Unread indicator (dot) for threads with new messages since last visit
 - Click agent in AgentOverviewSection → scroll to and highlight that thread
@@ -165,6 +174,7 @@ This surfaces errors without blocking the UI. User knows something failed.
 **Current:** 534 lines. Visualization works.
 
 **Changes:**
+
 - Click node → show side panel with: file path, line count, health score, issues list, connected files
 - Click connected file in panel → zoom to that node
 - Health legend in corner showing color meanings
@@ -175,6 +185,7 @@ This surfaces errors without blocking the UI. User knows something failed.
 **Current:** 329 lines. AI generation works.
 
 **Changes:**
+
 - Click skill → expand to show full SKILL.md content (read from file)
 - Edit button → opens skill content in a textarea for manual editing
 - Show generation status more clearly (which thread is generating, link to open it)
@@ -195,9 +206,11 @@ Each phase is independently valuable. Phase 1 is a prerequisite for all others.
 ## FILES TO CREATE/MODIFY
 
 **New files:**
+
 - `apps/web/src/hooks/useSidebarData.ts` — all shared data hooks
 
 **Modified files:**
+
 - `apps/web/src/components/right-sidebar/RightSidebarContext.tsx` — add tab persistence + navigateToTab
 - `apps/web/src/components/right-sidebar/RightSidebar.tsx` — use persisted tab state
 - `apps/web/src/components/right-sidebar/PMChatTabContent.tsx` — use shared hooks, fresh context per message
@@ -214,6 +227,7 @@ Each phase is independently valuable. Phase 1 is a prerequisite for all others.
 ## SUCCESS CRITERIA
 
 A non-coder can:
+
 1. Open PM Chat, say "I want a login page" → PM suggests creating a feature → one click creates it → Features tab instantly shows it → PM spawns an agent → Threads tab shows the agent running → Map shows files lighting up as the agent works
 2. See context budget filling up → get a warning → click "Start new thread" → handoff happens automatically
 3. Search their memories for "database schema" → find a decision from 3 days ago → the AI already knows about it because it was auto-injected

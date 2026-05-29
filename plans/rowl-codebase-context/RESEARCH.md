@@ -22,6 +22,7 @@ From arXiv:2604.08906 — "cognitive context mismanagement" is one of three key 
 ### Finding 2: Cursor's Custom Embedding Model (12.5% Improvement)
 
 Cursor's semantic search uses a **custom embedding model trained on actual agent session traces**:
+
 - When the agent performs searches and opens files, LLM ranks what content would have been helpful at each step
 - Model trained to align similarity scores with LLM-generated rankings
 - **Result: 12.5% accuracy improvement over grep alone**
@@ -66,11 +67,11 @@ All three are needed. Grep alone misses conceptual relevance. Embeddings alone m
 
 ### Finding 5: Platform Comparison
 
-| Platform | Indexing Trigger | Change Detection | Persistence | Key Innovation |
-|---|---|---|---|---|
-| **Cursor** | Workspace open | 5-min sync, file-level diff | Session-based | Custom embeddings trained on agent traces |
-| **Devin** | Repo add (automatic) | Not documented | Multi-session continuity | Knowledge system + AGENTS.md + scheduled sessions |
-| **SWE-agent** | Per-issue (on-demand) | None (fresh each task) | None | Open source research platform |
+| Platform      | Indexing Trigger      | Change Detection            | Persistence              | Key Innovation                                    |
+| ------------- | --------------------- | --------------------------- | ------------------------ | ------------------------------------------------- |
+| **Cursor**    | Workspace open        | 5-min sync, file-level diff | Session-based            | Custom embeddings trained on agent traces         |
+| **Devin**     | Repo add (automatic)  | Not documented              | Multi-session continuity | Knowledge system + AGENTS.md + scheduled sessions |
+| **SWE-agent** | Per-issue (on-demand) | None (fresh each task)      | None                     | Open source research platform                     |
 
 **Consensus:** Hybrid persistent + incremental is the winning pattern.
 
@@ -79,25 +80,30 @@ All three are needed. Grep alone misses conceptual relevance. Embeddings alone m
 ## Tools Landscape
 
 ### Parsing
+
 - **TreeSitter** — incremental AST for all languages; perfect for code chunking
 - **Babel** — JS/TS transpilation; useful for understanding TSX component trees
 
 ### Embeddings
+
 - **CodeBERT** / **GraphCodeBERT** — general code semantics
 - **UnixCoder** / **CodeT5+** — cross-language
 - **Custom fine-tune** — train on Rowl's actual session traces (highest ROI per Tommaso's use case)
 
 ### Static Analysis
+
 - **Semgrep** — custom rules, fast, good for security/correctness patterns
 - **CodeQL** — deep semantic queries, best for architectural analysis
 - **Ruff** — Python health (if Rowl ever uses Python)
 
 ### Vector DB
+
 - **Chroma** — simple, embedded, no server needed (MVP choice)
 - **FAISS** — fast nearest-neighbor at scale
 - **Pinecone** — managed, not self-hosted
 
 ### Graph Storage
+
 - **Neo4j** — for dependency relationships between modules/packages
 
 ---
@@ -155,5 +161,5 @@ The following research was partially lost in session context compaction:
 
 ---
 
-*Research completed: April 13, 2026*
-*Synthesis from 4 parallel research agents (1 fully preserved, 3 partially lost in context compaction)*
+_Research completed: April 13, 2026_
+_Synthesis from 4 parallel research agents (1 fully preserved, 3 partially lost in context compaction)_

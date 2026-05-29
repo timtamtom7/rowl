@@ -34,6 +34,8 @@ All four are license-compatible (MIT / Apache-2.0). The cloned reference repos l
 
 ## Last session handoff
 
+- 2026-05-29: Phase 1B planning is complete; `plans/rowl-memory-first/PHASE-1B-PLAN.md` now contains the 14-task TDD implementation plan for core-agent contracts, metadata IO, presets, services, memory integration, WebSocket routes, slash commands, UI, `/new` inheritance, docs, verification, and tagging.
+
 **Session end: 2026-04-17 (phase 1a shipped)**
 
 All 15 tasks of `plans/rowl-memory-first/PHASE-1A-PLAN.md` executed. Branch `phase-1a/core-memory-substrate` is ready for merge + `v-phase-1a` tag. See `plans/rowl-memory-first/STATUS.md` "Retro log → Phase 1a" for what went well / what was painful / notes for future phases.
@@ -72,12 +74,12 @@ Architecture findings confirmed in-tree (for phase-1a plan author):
 
 Sub-projects planned (in dependency order):
 
-| #   | Initiative                                | Status      | Why this order                                                                                                                                                 |
-| --- | ----------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | [rowl-memory-first](./rowl-memory-first/) | phase-1a shipped; 1b pending | Foundational. Every subsequent feature behaves differently if agents have memory vs not.                                        |
-| 2   | rowl-organizing-layer _(future folder)_   | not-started | Paperclip-style Goal/Issue/Document/Feedback/Approval layer on top of memory.                                                                                  |
-| 3   | rowl-t3-cherrypicks _(future folder)_     | not-started | Git checkpointing, worktrees, stacked PRs, composer-draft persistence, context-window meter, per-turn diff tree, etc. Self-contained cherry-picks from t3code. |
-| 4   | rowl-research-ux _(future folder)_        | not-started | Surfaces sub-project #2's data model as a real research workflow UI.                                                                                           |
+| #   | Initiative                                | Status                       | Why this order                                                                                                                                                 |
+| --- | ----------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | [rowl-memory-first](./rowl-memory-first/) | phase-1a shipped; 1b pending | Foundational. Every subsequent feature behaves differently if agents have memory vs not.                                                                       |
+| 2   | rowl-organizing-layer _(future folder)_   | not-started                  | Paperclip-style Goal/Issue/Document/Feedback/Approval layer on top of memory.                                                                                  |
+| 3   | rowl-t3-cherrypicks _(future folder)_     | not-started                  | Git checkpointing, worktrees, stacked PRs, composer-draft persistence, context-window meter, per-turn diff tree, etc. Self-contained cherry-picks from t3code. |
+| 4   | rowl-research-ux _(future folder)_        | not-started                  | Surfaces sub-project #2's data model as a real research workflow UI.                                                                                           |
 
 Each sub-project = one folder under `plans/` with SPEC/RESEARCH/STATUS (and PHASE-\*-PLAN.md files written as each phase begins).
 

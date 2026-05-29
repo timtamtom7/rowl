@@ -47,7 +47,11 @@ const DECLARATION_PATTERNS = [
   // const useFoo = () => — React hook
   { pattern: /^(?:export\s+)?(?:const|let|var)\s+(use[A-Z]\w+)\s*=/gm, type: "hook" as const },
   // const Foo = memo(function — React component
-  { pattern: /^(?:export\s+)?(?:const|let|var)\s+([A-Z]\w+)\s*=\s*(?:memo|forwardRef|React\.memo)\s*\(/gm, type: "component" as const },
+  {
+    pattern:
+      /^(?:export\s+)?(?:const|let|var)\s+([A-Z]\w+)\s*=\s*(?:memo|forwardRef|React\.memo)\s*\(/gm,
+    type: "component" as const,
+  },
   // function Foo() with capital letter — React component
   { pattern: /^(?:export\s+)?function\s+([A-Z]\w+)\s*\(/gm, type: "component" as const },
   // class Foo — class declaration
@@ -56,15 +60,19 @@ const DECLARATION_PATTERNS = [
   // function foo() — standard function declaration
   { pattern: /^(?:export\s+)?(?:async\s+)?function\s+(\w+)/gm, type: "function" as const },
   // const foo = () => — arrow function
-  { pattern: /^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:\([^)]*\)|[a-zA-Z_$]\w*)\s*=>/gm, type: "function" as const },
+  {
+    pattern:
+      /^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:\([^)]*\)|[a-zA-Z_$]\w*)\s*=>/gm,
+    type: "function" as const,
+  },
   // const foo = function() — function expression
-  { pattern: /^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?function/gm, type: "function" as const },
+  {
+    pattern: /^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?function/gm,
+    type: "function" as const,
+  },
 ];
 
-function extractFunctions(
-  filePath: string,
-  content: string,
-): FunctionNode[] {
+function extractFunctions(filePath: string, content: string): FunctionNode[] {
   const lines = content.split("\n");
   const functions: FunctionNode[] = [];
   const seenNames = new Set<string>();
@@ -87,7 +95,10 @@ function extractFunctions(
       for (let i = lineNumber; i < lines.length; i++) {
         const line = lines[i]!;
         // End at next top-level declaration or closing brace at column 0
-        if (i > lineNumber && (line.match(/^(?:export\s+)?(?:function|class|const|let|var)\s/) || line === "}")) {
+        if (
+          i > lineNumber &&
+          (line.match(/^(?:export\s+)?(?:function|class|const|let|var)\s/) || line === "}")
+        ) {
           endLine = i;
           break;
         }

@@ -17,10 +17,7 @@ export async function writeBlockToDir(dir: string, block: MemoryBlock): Promise<
   await fs.writeFile(filePath, serializeBlock(block), "utf8");
 }
 
-export async function readBlockFromDir(
-  dir: string,
-  label: string,
-): Promise<MemoryBlock | null> {
+export async function readBlockFromDir(dir: string, label: string): Promise<MemoryBlock | null> {
   const filePath = path.join(dir, blockFileName(label));
   let raw: string;
   try {
@@ -32,9 +29,7 @@ export async function readBlockFromDir(
   return parseBlock(raw);
 }
 
-export async function listBlocksInDir(
-  dir: string,
-): Promise<ReadonlyArray<MemoryBlock>> {
+export async function listBlocksInDir(dir: string): Promise<ReadonlyArray<MemoryBlock>> {
   let entries: string[];
   try {
     entries = await fs.readdir(dir);

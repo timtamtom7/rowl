@@ -33,14 +33,17 @@ A lightweight, file-based planning system for Rowl itself. Plans live in `~/Dev/
 # Rowl Development Plans
 
 ## Active
-| Initiative | Status | Last Updated | Summary |
-|---|---|---|---|
-| [name](./name/) | status | date | one-liner |
+
+| Initiative      | Status | Last Updated | Summary   |
+| --------------- | ------ | ------------ | --------- |
+| [name](./name/) | status | date         | one-liner |
 
 ## Future
+
 | Initiative | Priority | Tier | Notes |
 
 ## How to Use
+
 (Short reference)
 ```
 
@@ -75,22 +78,25 @@ A lightweight, file-based planning system for Rowl itself. Plans live in `~/Dev/
 
 ### NOTES.md (optional)
 
-- Session notes
--临时 discoveries
+- Session notes -临时 discoveries
 - Ideas to revisit later
 
 ## Usage During Rowl Sessions
 
 **Before a session:**
+
 - "What's the status of the right sidebar plan?" → I read STATUS.md
 
 **During a session:**
+
 - "Update the outstanding Rowl features plan with what we found today" → I append to NOTES.md and update STATUS.md
 
 **After a session:**
+
 - "Sync notes to the rowl-right-sidebar STATUS.md" → I do it
 
 **On-demand:**
+
 - "Show me the rowl-outstanding plan" → I read and summarize
 - "Add a new initiative for X" → I create the folder and files
 

@@ -131,9 +131,7 @@ export function ProjectPromptsSection({ projectId }: { projectId: ProjectId }) {
       <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-1.5">
           <FileTextIcon className="size-3.5 text-muted-foreground/60" />
-          <span className="text-xs font-medium text-foreground/80">
-            Rules ({prompts.length})
-          </span>
+          <span className="text-xs font-medium text-foreground/80">Rules ({prompts.length})</span>
         </div>
         <Button
           size="xs"
@@ -162,7 +160,12 @@ export function ProjectPromptsSection({ projectId }: { projectId: ProjectId }) {
             className="w-full min-h-[50px] rounded-md border border-border bg-background px-2 py-1.5 text-xs resize-y focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <div className="flex justify-end gap-1">
-            <Button size="xs" variant="ghost" className="h-5 text-[10px]" onClick={() => setIsCreating(false)}>
+            <Button
+              size="xs"
+              variant="ghost"
+              className="h-5 text-[10px]"
+              onClick={() => setIsCreating(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -266,7 +269,12 @@ export function ProjectPromptsSection({ projectId }: { projectId: ProjectId }) {
                 className="w-full min-h-[100px] rounded-md border border-border bg-background px-2 py-1.5 text-[10px] font-mono resize-y focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <div className="flex justify-end gap-1">
-                <Button size="xs" variant="ghost" className="h-5 text-[10px]" onClick={() => setIsCreatingHarness(false)}>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="h-5 text-[10px]"
+                  onClick={() => setIsCreatingHarness(false)}
+                >
                   Cancel
                 </Button>
                 <Button

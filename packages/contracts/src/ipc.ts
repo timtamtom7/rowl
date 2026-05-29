@@ -270,9 +270,7 @@ export interface NativeApi {
       input: ProjectListCommandTemplatesInput,
     ) => Promise<ProjectListCommandTemplatesResult>;
     listSkills: (input: ProjectListSkillsInput) => Promise<ProjectListSkillsResult>;
-    listSourceFiles: (
-      input: ProjectListSourceFilesInput,
-    ) => Promise<ProjectListSourceFilesResult>;
+    listSourceFiles: (input: ProjectListSourceFilesInput) => Promise<ProjectListSourceFilesResult>;
     readFile: (input: ProjectReadFileInput) => Promise<ProjectReadFileResult>;
     writeFile: (input: ProjectWriteFileInput) => Promise<ProjectWriteFileResult>;
     deleteFile: (input: ProjectDeleteFileInput) => Promise<ProjectDeleteFileResult>;
@@ -328,14 +326,14 @@ export interface NativeApi {
     listPresets: () => Promise<ListHarnessPresetsResult>;
     activate: (input: ActivateHarnessInput) => Promise<ActivateHarnessResult>;
     deactivate: (input: DeactivateHarnessInput) => Promise<DeactivateHarnessResult>;
-    getActive: (input: { threadId: string }) => Promise<{ preset: { id: string; name: string } | null }>;
+    getActive: (input: {
+      threadId: string;
+    }) => Promise<{ preset: { id: string; name: string } | null }>;
   };
   featureThreadLinks: {
     link: (input: { featureId: string; threadId: string }) => Promise<unknown>;
     unlink: (input: { featureId: string; threadId: string }) => Promise<unknown>;
-    getLinks: (input: {
-      projectId: string;
-    }) => Promise<{
+    getLinks: (input: { projectId: string }) => Promise<{
       readonly links: ReadonlyArray<{
         readonly featureId: string;
         readonly threadId: string;

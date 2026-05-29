@@ -90,9 +90,7 @@ export const HandoffServiceLive = Layer.effect(
 
         // Extract decisions as memories
         let memoriesExtracted = 0;
-        const lastAssistant = recentMessages
-          .filter((m: any) => m.role === "assistant")
-          .pop();
+        const lastAssistant = recentMessages.filter((m: any) => m.role === "assistant").pop();
         if (lastAssistant) {
           const text = (lastAssistant as any).text ?? "";
           if (text.length > 50) {

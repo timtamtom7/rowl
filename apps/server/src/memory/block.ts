@@ -2,10 +2,7 @@
  * MemoryBlock — a named, versioned piece of persistent agent memory.
  * Persisted as a markdown file with flat YAML frontmatter.
  */
-import {
-  parseFlatFrontmatter,
-  parseFrontmatterSection,
-} from "@t3tools/shared/frontmatter";
+import { parseFlatFrontmatter, parseFrontmatterSection } from "@t3tools/shared/frontmatter";
 
 export type MemoryScope = "global" | "project";
 
@@ -41,9 +38,7 @@ export function serializeBlock(block: MemoryBlock): string {
   const trimmedBody = block.body.trim();
   // Format: frontmatter block, one blank line, body, trailing newline.
   // Empty body: frontmatter + trailing newline only (still one blank line after ---).
-  return trimmedBody.length === 0
-    ? `${frontmatter}\n\n`
-    : `${frontmatter}\n\n${trimmedBody}\n`;
+  return trimmedBody.length === 0 ? `${frontmatter}\n\n` : `${frontmatter}\n\n${trimmedBody}\n`;
 }
 
 export function parseBlock(raw: string): MemoryBlock {
@@ -72,8 +67,7 @@ export function parseBlock(raw: string): MemoryBlock {
   const versionRaw = fm.version;
   const versionParsed =
     typeof versionRaw === "string" ? Number.parseInt(versionRaw, 10) : Number.NaN;
-  const version =
-    Number.isFinite(versionParsed) && versionParsed >= 1 ? versionParsed : 1;
+  const version = Number.isFinite(versionParsed) && versionParsed >= 1 ? versionParsed : 1;
 
   return {
     label,

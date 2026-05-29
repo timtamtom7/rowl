@@ -15,6 +15,7 @@ Rowl is an agentic engineering control room. The AI agents are coding-first (ext
 ### What ships today and works
 
 **Core Platform:**
+
 - 7 provider integrations: Codex, GitHub Copilot, KiloCode, Kimi Code, MiniMax, OpenCode, Pi
 - Event-sourced orchestration engine with full decider/projector pipeline, SQLite persistence
 - Git checkpointing: automatic snapshots before and after AI changes, rollback support
@@ -31,6 +32,7 @@ Rowl is an agentic engineering control room. The AI agents are coding-first (ext
 - Provider model picker with per-provider model selection
 
 **Project Management Layer (Tier 1 — Complete):**
+
 - Right Sidebar with 5 tabs: PM Chat, Threads, Features, Goals, Context
   - Responsive: inline mode (>1280px), overlay mode (1024-1279px), collapsed (<1024px)
 - Threads Tab: project thread list with status indicators, click to switch, sorted by recency
@@ -44,43 +46,46 @@ Rowl is an agentic engineering control room. The AI agents are coding-first (ext
 - Smart Thread Titles: derived from feature name, thread goal, or message content
 
 **AI Integration (Phase 1 — Wired, needs real-world testing):**
+
 - Project context injection: brief, goals, features, and thread goal injected into every AI turn via `<project_context>` XML block in `applyThreadTurnContext()`
 - Auto context node creation: OverseerReactor creates context nodes on turn completion
 - Feature-turn linking: active feature name included in turn context
 
 **Onboarding:**
+
 - 3-step setup wizard after project creation: Brief, Goal, Features
 - Default model inherits from most recent thread (not hardcoded Codex)
 - Duplicate project prevention (normalized path comparison + projector dedup)
 
 **Settings:**
+
 - 3-tab interface: General, Providers, Advanced
 - Collapsible accordion for each provider
 - Unified custom model section with provider pills
 
 ### Feature status
 
-| Feature                      | Status | Usable? | Notes                                              |
-| ---------------------------- | ------ | ------- | -------------------------------------------------- |
-| Provider Integrations (7)    | 100%   | Yes     | All 7 providers with routing fixes                 |
-| Settings Reorganization      | 100%   | Yes     | 3-tab layout with provider accordions              |
-| Thread Goal Statement        | 100%   | Yes     | Editable, injected into AI context                 |
-| Right Sidebar                | 100%   | Yes     | Responsive with 5 tabs + skills section            |
-| Threads Tab                  | Implemented | Needs user verification | Store-based, filters by project      |
-| Goals Tab                    | Implemented | Needs user verification | Full CRUD with persistence           |
-| Features Board               | Implemented | Needs user verification | Kanban with stage transitions         |
-| Context System               | Implemented | Needs user verification | Budget gauge, compress/restore        |
-| PM Chat                      | Implemented | Needs user verification | Real AI chat with project context     |
-| Project Brief                | Implemented | Needs user verification | File-based markdown editor            |
-| Skills AI Creation           | Implemented | Needs user verification | AI-powered generation                 |
-| Onboarding Wizard            | Implemented | Needs user verification | 3-step wizard after project creation  |
-| Project Context Injection    | 90%    | Needs testing | Wired but not verified with real AI          |
-| Auto Context Nodes           | 90%    | Needs testing | OverseerReactor creates on turn.completed    |
-| Feature-Turn Linking         | 90%    | Needs testing | Composer picker + context injection          |
-| Smart Thread Titles          | 90%    | Needs testing | Feature/goal-aware naming                    |
-| Overseer/Guardian            | Partial | Needs testing | Scaffolded — patterns exist, untested with real AI output, confidence scoring missing |
-| Review System                | Partial | Needs testing | Cards exist, approve/reject/rollback flow stubbed, needs E2E verification              |
-| Project Dashboard            | Partial | Needs polish | Bird's-eye view exists, live status indicators pending |
+| Feature                   | Status      | Usable?                 | Notes                                                                                 |
+| ------------------------- | ----------- | ----------------------- | ------------------------------------------------------------------------------------- |
+| Provider Integrations (7) | 100%        | Yes                     | All 7 providers with routing fixes                                                    |
+| Settings Reorganization   | 100%        | Yes                     | 3-tab layout with provider accordions                                                 |
+| Thread Goal Statement     | 100%        | Yes                     | Editable, injected into AI context                                                    |
+| Right Sidebar             | 100%        | Yes                     | Responsive with 5 tabs + skills section                                               |
+| Threads Tab               | Implemented | Needs user verification | Store-based, filters by project                                                       |
+| Goals Tab                 | Implemented | Needs user verification | Full CRUD with persistence                                                            |
+| Features Board            | Implemented | Needs user verification | Kanban with stage transitions                                                         |
+| Context System            | Implemented | Needs user verification | Budget gauge, compress/restore                                                        |
+| PM Chat                   | Implemented | Needs user verification | Real AI chat with project context                                                     |
+| Project Brief             | Implemented | Needs user verification | File-based markdown editor                                                            |
+| Skills AI Creation        | Implemented | Needs user verification | AI-powered generation                                                                 |
+| Onboarding Wizard         | Implemented | Needs user verification | 3-step wizard after project creation                                                  |
+| Project Context Injection | 90%         | Needs testing           | Wired but not verified with real AI                                                   |
+| Auto Context Nodes        | 90%         | Needs testing           | OverseerReactor creates on turn.completed                                             |
+| Feature-Turn Linking      | 90%         | Needs testing           | Composer picker + context injection                                                   |
+| Smart Thread Titles       | 90%         | Needs testing           | Feature/goal-aware naming                                                             |
+| Overseer/Guardian         | Partial     | Needs testing           | Scaffolded — patterns exist, untested with real AI output, confidence scoring missing |
+| Review System             | Partial     | Needs testing           | Cards exist, approve/reject/rollback flow stubbed, needs E2E verification             |
+| Project Dashboard         | Partial     | Needs polish            | Bird's-eye view exists, live status indicators pending                                |
 
 ### What needs work next
 
@@ -131,6 +136,7 @@ Most of Tier 2 is scaffolded. Remaining work is testing and hardening:
 #### 2.1 Overseer Hardening ⚠️ PRIORITY
 
 Background patterns exist in `OverseerReactor.ts`. **Needs:**
+
 - Testing with real AI provider output (not mocked)
 - False-positive tuning (reduce noise)
 - Confidence scoring (severity levels for alerts)
@@ -224,29 +230,29 @@ Lowest priority. Revisit after Tier 3.
 
 ## Priority stack
 
-| #  | Item                           | Tier | Status      |
-| -- | ------------------------------ | ---- | ----------- |
-| 1  | Provider session resilience    | 0    | Partial     |
-| 2  | Checkpoint UX hardening        | 0    | Not started |
-| 3  | Context budget meter           | 0    | Done        |
-| 4  | Settings reorganization        | 0    | Done        |
-| 5  | Threads Tab                    | 1    | Done        |
-| 6  | Goals Tab                      | 1    | Done        |
-| 7  | Features Board                 | 1    | Done        |
-| 8  | Project Brief                  | 1    | Done        |
-| 9  | Skills AI Creation             | 1    | Done        |
-| 10 | Context System (full)          | 2    | Done        |
-| 11 | Overseer                       | 2    | Needs testing |
-| 12 | PM Chat                        | 2    | Done        |
-| 13 | Real-world integration testing | -    | Next        |
-| 14 | Multi-Agent Coordination       | 3    | Not started |
-| 15 | Process Isolation              | 3    | Not started |
-| 16 | Apply/Review System            | 3    | Partial     |
-| 17 | Visual Dashboard               | 3    | Partial     |
-| 18 | Codebase Intelligence          | 3    | Not started |
-| 19 | Agent Type Abstraction        | 4    | Not started |
-| 20 | Flora (Image)                 | 4    | Not started |
-| 21 | Flashboards (Video)           | 4    | Not started |
+| #   | Item                           | Tier | Status        |
+| --- | ------------------------------ | ---- | ------------- |
+| 1   | Provider session resilience    | 0    | Partial       |
+| 2   | Checkpoint UX hardening        | 0    | Not started   |
+| 3   | Context budget meter           | 0    | Done          |
+| 4   | Settings reorganization        | 0    | Done          |
+| 5   | Threads Tab                    | 1    | Done          |
+| 6   | Goals Tab                      | 1    | Done          |
+| 7   | Features Board                 | 1    | Done          |
+| 8   | Project Brief                  | 1    | Done          |
+| 9   | Skills AI Creation             | 1    | Done          |
+| 10  | Context System (full)          | 2    | Done          |
+| 11  | Overseer                       | 2    | Needs testing |
+| 12  | PM Chat                        | 2    | Done          |
+| 13  | Real-world integration testing | -    | Next          |
+| 14  | Multi-Agent Coordination       | 3    | Not started   |
+| 15  | Process Isolation              | 3    | Not started   |
+| 16  | Apply/Review System            | 3    | Partial       |
+| 17  | Visual Dashboard               | 3    | Partial       |
+| 18  | Codebase Intelligence          | 3    | Not started   |
+| 19  | Agent Type Abstraction         | 4    | Not started   |
+| 20  | Flora (Image)                  | 4    | Not started   |
+| 21  | Flashboards (Video)            | 4    | Not started   |
 
 ---
 

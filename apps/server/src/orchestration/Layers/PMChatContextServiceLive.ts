@@ -43,16 +43,14 @@ export const PMChatContextServiceLive = Layer.effect(
           .listFeaturesByProject({ projectId })
           .pipe(Effect.catch(() => Effect.succeed({ features: [] as any[] })));
 
-        const contextResult = yield* contextService
-          .listContextNodesByProject({ projectId })
-          .pipe(
-            Effect.catch(() =>
-              Effect.succeed({
-                nodes: [] as any[],
-                budget: { total: 0, used: 0, available: 0, compressionRatio: 0 },
-              }),
-            ),
-          );
+        const contextResult = yield* contextService.listContextNodesByProject({ projectId }).pipe(
+          Effect.catch(() =>
+            Effect.succeed({
+              nodes: [] as any[],
+              budget: { total: 0, used: 0, available: 0, compressionRatio: 0 },
+            }),
+          ),
+        );
 
         return {
           projectId,

@@ -10,13 +10,13 @@
 
 ## Phase status tracker
 
-| Phase | Description                                             | Status                          | Branch | Tag on ship | Notes                                                  |
-| ----- | ------------------------------------------------------- | ------------------------------- | ------ | ----------- | ------------------------------------------------------ |
-| 1a    | Core memory substrate                                   | shipped                         | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions). |
-| 1b    | Agent management (multi-agent, personalities, commands) | pending                         | —      | —           | Starts after 1a ships.                                 |
-| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending                         | —      | —           |                                                        |
-| 1d    | Editable memory + `/init` + `/doctor`                   | pending                         | —      | —           |                                                        |
-| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending                         | —      | —           | Can be cut if scope gets tight.                        |
+| Phase | Description                                             | Status  | Branch                           | Tag on ship  | Notes                                                               |
+| ----- | ------------------------------------------------------- | ------- | -------------------------------- | ------------ | ------------------------------------------------------------------- |
+| 1a    | Core memory substrate                                   | shipped | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions). |
+| 1b    | Agent management (multi-agent, personalities, commands) | pending | —                                | —            | Starts after 1a ships.                                              |
+| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending | —                                | —            |                                                                     |
+| 1d    | Editable memory + `/init` + `/doctor`                   | pending | —                                | —            |                                                                     |
+| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                     |
 
 ---
 

@@ -34,7 +34,10 @@ export const ProjectPromptsServiceLive = Layer.effect(
           content = excluded.content,
           description = excluded.description,
           name = excluded.name
-      `.pipe(Effect.asVoid, Effect.catch(() => Effect.void));
+      `.pipe(
+        Effect.asVoid,
+        Effect.catch(() => Effect.void),
+      );
     }
 
     // ── Prompts CRUD ──
@@ -98,13 +101,19 @@ export const ProjectPromptsServiceLive = Layer.effect(
       Effect.gen(function* () {
         const now = new Date().toISOString();
         if (input.name !== undefined) {
-          yield* sql`UPDATE project_prompts SET name = ${input.name}, updated_at = ${now} WHERE id = ${input.id}`.pipe(Effect.asVoid);
+          yield* sql`UPDATE project_prompts SET name = ${input.name}, updated_at = ${now} WHERE id = ${input.id}`.pipe(
+            Effect.asVoid,
+          );
         }
         if (input.content !== undefined) {
-          yield* sql`UPDATE project_prompts SET content = ${input.content}, updated_at = ${now} WHERE id = ${input.id}`.pipe(Effect.asVoid);
+          yield* sql`UPDATE project_prompts SET content = ${input.content}, updated_at = ${now} WHERE id = ${input.id}`.pipe(
+            Effect.asVoid,
+          );
         }
         if (input.enabled !== undefined) {
-          yield* sql`UPDATE project_prompts SET enabled = ${input.enabled ? 1 : 0}, updated_at = ${now} WHERE id = ${input.id}`.pipe(Effect.asVoid);
+          yield* sql`UPDATE project_prompts SET enabled = ${input.enabled ? 1 : 0}, updated_at = ${now} WHERE id = ${input.id}`.pipe(
+            Effect.asVoid,
+          );
         }
         // Fetch updated
         const rows = yield* sql`

@@ -473,8 +473,14 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.harnessActivate, ActivateHarnessInput),
   tagRequestBody(WS_METHODS.harnessDeactivate, DeactivateHarnessInput),
   tagRequestBody(WS_METHODS.harnessGetActive, Schema.Struct({ threadId: Schema.String })),
-  tagRequestBody(WS_METHODS.featureThreadLink, Schema.Struct({ featureId: Schema.String, threadId: Schema.String })),
-  tagRequestBody(WS_METHODS.featureThreadUnlink, Schema.Struct({ featureId: Schema.String, threadId: Schema.String })),
+  tagRequestBody(
+    WS_METHODS.featureThreadLink,
+    Schema.Struct({ featureId: Schema.String, threadId: Schema.String }),
+  ),
+  tagRequestBody(
+    WS_METHODS.featureThreadUnlink,
+    Schema.Struct({ featureId: Schema.String, threadId: Schema.String }),
+  ),
   tagRequestBody(WS_METHODS.featureThreadGetLinks, Schema.Struct({ projectId: Schema.String })),
   tagRequestBody(WS_METHODS.agentOverview, GetAgentOverviewInput),
   tagRequestBody(WS_METHODS.agentSpawnForFeature, SpawnAgentForFeatureInput),
@@ -541,10 +547,7 @@ export const WsPushOrchestrationDomainEvent = makeWsPushSchema(
   ORCHESTRATION_WS_CHANNELS.domainEvent,
   OrchestrationEvent,
 );
-export const WsPushFileActivity = makeWsPushSchema(
-  WS_CHANNELS.fileActivity,
-  FileActivityEvent,
-);
+export const WsPushFileActivity = makeWsPushSchema(WS_CHANNELS.fileActivity, FileActivityEvent);
 
 export const WsPushChannelSchema = Schema.Literals([
   WS_CHANNELS.serverWelcome,
@@ -674,7 +677,15 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.harnessGetActive]: Schema.Struct({ preset: Schema.NullOr(HarnessPreset) }),
   [WS_METHODS.featureThreadLink]: Schema.Struct({}),
   [WS_METHODS.featureThreadUnlink]: Schema.Struct({}),
-  [WS_METHODS.featureThreadGetLinks]: Schema.Struct({ links: Schema.Array(Schema.Struct({ featureId: Schema.String, threadId: Schema.String, createdAt: Schema.String })) }),
+  [WS_METHODS.featureThreadGetLinks]: Schema.Struct({
+    links: Schema.Array(
+      Schema.Struct({
+        featureId: Schema.String,
+        threadId: Schema.String,
+        createdAt: Schema.String,
+      }),
+    ),
+  }),
   [WS_METHODS.agentOverview]: GetAgentOverviewResult,
   [WS_METHODS.agentSpawnForFeature]: SpawnAgentForFeatureResult,
   [WS_METHODS.agentDetectConflicts]: DetectConflictsResult,

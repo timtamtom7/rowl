@@ -7,6 +7,7 @@ Make the Overseer a reliable safety net for non-coders. Currently scaffolded onl
 ## External Reference
 
 **Superpowers `requesting-code-review` skill** — structured pre-review checklist with severity levels:
+
 - Critical issues block progress
 - Warnings are informational
 - Feedback loop for dismissals
@@ -16,6 +17,7 @@ Make the Overseer a reliable safety net for non-coders. Currently scaffolded onl
 ## What the Overseer Does
 
 Monitors AI output for failure modes non-coders can't detect:
+
 1. **Stuck detection** — AI saying it can't do something it actually can
 2. **Loop detection** — repeating the same approach after failure
 3. **Bad code patterns** — obvious errors, security issues, or anti-patterns
@@ -29,27 +31,32 @@ Monitors AI output for failure modes non-coders can't detect:
 ## Requirements
 
 ### R1: Real AI Output Testing
+
 - Test OverseerReactor with actual provider output (not mocked)
 - Cover all 5 failure mode patterns
 - Verify alerts fire when they should
 
 ### R2: False-Positive Tuning
+
 - Measure false positive rate
 - Tune thresholds so clean output doesn't trigger alerts
 - Target: <5% false positive rate
 
 ### R3: Confidence Scoring
+
 - Severity levels: CRITICAL, WARNING, INFO
 - CRITICAL: blocks progress, requires user action
 - WARNING: informational, can dismiss
 - INFO: low priority, auto-dismiss after N turns
 
 ### R4: Learning Loop
+
 - User dismissals stored and respected
 - Same pattern → no re-alert within session
 - Aggregate dismissal data for pattern improvement
 
 ### R5: Non-Coder-Friendly UI
+
 - Plain language for alerts (no jargon)
 - Clear "what happened" + "what you can do" format
 - Examples: "The AI is stuck in a loop — want me to restart it?"

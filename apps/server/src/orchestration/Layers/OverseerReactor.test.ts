@@ -111,7 +111,9 @@ describe("OverseerReactor Patterns", () => {
 
     it("does not fire on legitimate refusals", () => {
       // Actually refusing a dangerous action is correct behavior
-      expect(checkCapabilityForgetfulness("I can't help with that request because it asks me to")).toBe(false);
+      expect(
+        checkCapabilityForgetfulness("I can't help with that request because it asks me to"),
+      ).toBe(false);
     });
   });
 
@@ -183,7 +185,9 @@ describe("OverseerReactor Patterns", () => {
 
   describe("Uncertainty", () => {
     it("fires on 'I think this should work'", () => {
-      expect(checkUncertainty("I think this should work, but let me know if it doesn't")).toBe(true);
+      expect(checkUncertainty("I think this should work, but let me know if it doesn't")).toBe(
+        true,
+      );
     });
 
     it("fires on 'I might be wrong'", () => {
@@ -214,7 +218,9 @@ describe("OverseerReactor Patterns", () => {
     });
 
     it("fires on 'you can now use the dashboard'", () => {
-      expect(checkPrematureCompletion("you can now use the dashboard at localhost:3000")).toBe(true);
+      expect(checkPrematureCompletion("you can now use the dashboard at localhost:3000")).toBe(
+        true,
+      );
     });
 
     it("fires on 'Done! The app is ready to use' (done-announcement pattern)", () => {
@@ -222,7 +228,11 @@ describe("OverseerReactor Patterns", () => {
     });
 
     it("does not fire on verification requests", () => {
-      expect(checkPrematureCompletion("I've implemented the changes. Please verify by running the tests")).toBe(false);
+      expect(
+        checkPrematureCompletion(
+          "I've implemented the changes. Please verify by running the tests",
+        ),
+      ).toBe(false);
     });
   });
 });

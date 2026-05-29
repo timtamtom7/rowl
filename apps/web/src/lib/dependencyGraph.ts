@@ -182,14 +182,8 @@ export function buildDependencyGraph(
 
       if (resolvedTarget && resolvedTarget !== file.relativePath) {
         edges.push({ source: file.relativePath, target: resolvedTarget });
-        connectionCount.set(
-          file.relativePath,
-          (connectionCount.get(file.relativePath) ?? 0) + 1,
-        );
-        connectionCount.set(
-          resolvedTarget,
-          (connectionCount.get(resolvedTarget) ?? 0) + 1,
-        );
+        connectionCount.set(file.relativePath, (connectionCount.get(file.relativePath) ?? 0) + 1);
+        connectionCount.set(resolvedTarget, (connectionCount.get(resolvedTarget) ?? 0) + 1);
       }
     }
   }
@@ -209,7 +203,7 @@ export function buildDependencyGraph(
       totalFiles: nodes.length,
       totalEdges: edges.length,
       avgConnectionsPerFile:
-        nodes.length > 0 ? Math.round(edges.length / nodes.length * 10) / 10 : 0,
+        nodes.length > 0 ? Math.round((edges.length / nodes.length) * 10) / 10 : 0,
       largestFile,
       isolatedFiles,
     },

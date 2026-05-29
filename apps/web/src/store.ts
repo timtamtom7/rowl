@@ -366,8 +366,8 @@ export function syncServerReadModel(state: AppState, readModel: OrchestrationRea
   const activeProjects = readModel.projects.filter((project) => project.deletedAt === null);
   const deduplicatedProjects: typeof activeProjects = [];
   const seenWorkspaceRoots = new Set<string>();
-  for (const project of activeProjects.toSorted(
-    (a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
+  for (const project of activeProjects.toSorted((a, b) =>
+    (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
   )) {
     if (!seenWorkspaceRoots.has(project.workspaceRoot)) {
       seenWorkspaceRoots.add(project.workspaceRoot);

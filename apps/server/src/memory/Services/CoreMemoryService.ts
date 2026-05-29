@@ -25,9 +25,7 @@ export interface CoreMemoryServiceShape {
   readonly ensureGlobalSeeded: () => Effect.Effect<void>;
 
   /** Ensure the project memory dir exists and contains the default blocks. */
-  readonly ensureProjectSeeded: (input: {
-    readonly projectRoot: string;
-  }) => Effect.Effect<void>;
+  readonly ensureProjectSeeded: (input: { readonly projectRoot: string }) => Effect.Effect<void>;
 }
 
 export class CoreMemoryService extends ServiceMap.Service<

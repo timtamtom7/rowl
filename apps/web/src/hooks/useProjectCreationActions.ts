@@ -95,8 +95,7 @@ export function useProjectCreationActions() {
           title: titleFromWorkspacePath(cwd),
           workspaceRoot: cwd,
           defaultModel:
-            threads.toSorted(compareThreadsByRecency)[0]?.model ??
-            DEFAULT_MODEL_BY_PROVIDER.codex,
+            threads.toSorted(compareThreadsByRecency)[0]?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex,
           createdAt: new Date().toISOString(),
         });
         // Force an immediate snapshot sync so the new project appears in the

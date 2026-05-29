@@ -76,7 +76,6 @@ export interface ContextTrimmerShape {
   }) => Effect.Effect<{ summary: string; tokensSaved: number }>;
 }
 
-export class ContextTrimmer extends ServiceMap.Service<
-  ContextTrimmer,
-  ContextTrimmerShape
->()("rowl/orchestration/Services/ContextTrimmer") {}
+export class ContextTrimmer extends ServiceMap.Service<ContextTrimmer, ContextTrimmerShape>()(
+  "rowl/orchestration/Services/ContextTrimmer",
+) {}

@@ -28,12 +28,14 @@ These are bugs blocking valid work:
 The Overseer is the non-coder safety net. If it fails, non-coders are exposed to all AI failure modes.
 
 **Items:**
+
 - Test OverseerReactor patterns with real AI output
 - False-positive tuning
 - Confidence scoring
 - Learning loop for dismissals
 
 **E2E test:**
+
 - Send AI output that triggers each pattern → verify alert fires
 - Send clean output → verify no false alerts
 - Dismiss an alert → verify it doesn't reappear for same pattern
@@ -58,11 +60,13 @@ Current compression is a toggle (compressed/active). Need LLM-based summarizatio
 ### Tier 3: Multi-Agent Coordination
 
 **Start simple:**
+
 - Two independent agents in separate worktrees
 - Each on a different thread/task
 - No task graph yet
 
 **Later:**
+
 - Task graph defines dependencies
 - Agent A must complete before Agent B starts
 
@@ -130,6 +134,7 @@ Flora + Flashboards
 ## Verification Per Initiative
 
 Each initiative should have:
+
 1. Unit tests for new behavior
 2. E2E manual test script
 3. "Done" criteria stated upfront

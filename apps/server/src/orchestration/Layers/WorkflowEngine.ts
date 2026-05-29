@@ -28,12 +28,7 @@ import type { ProjectId, ThreadId } from "@t3tools/contracts";
 
 // ── Workflow detection (for suggestions) ──────────────────────────
 
-export type WorkflowType =
-  | "planning"
-  | "implementation"
-  | "debugging"
-  | "review"
-  | "verification";
+export type WorkflowType = "planning" | "implementation" | "debugging" | "review" | "verification";
 
 const WORKFLOW_TRIGGERS: Array<{
   patterns: RegExp[];
@@ -57,10 +52,7 @@ const WORKFLOW_TRIGGERS: Array<{
     suggestion: "Use the Systematic Debugger harness? (reproduce → trace → fix → verify)",
   },
   {
-    patterns: [
-      /(?:review|check|audit|look at|examine)/i,
-      /(?:code review|pull request|PR)/i,
-    ],
+    patterns: [/(?:review|check|audit|look at|examine)/i, /(?:code review|pull request|PR)/i],
     workflow: "review",
     suggestion: "Use the Code Reviewer harness? (checklist with severity levels)",
   },
@@ -80,12 +72,15 @@ export function detectWorkflow(userMessage: string): {
 
 // ── Built-in harness definitions ────────────────────────────────
 
-export const BUILTIN_HARNESSES: Record<string, {
-  name: string;
-  description: string;
-  category: string;
-  content: string;
-}> = {
+export const BUILTIN_HARNESSES: Record<
+  string,
+  {
+    name: string;
+    description: string;
+    category: string;
+    content: string;
+  }
+> = {
   "careful-builder": {
     name: "Careful Builder",
     description: "Brainstorm → plan → build → verify. Best for new features.",
@@ -178,7 +173,7 @@ Report by severity:
 </harness>`,
   },
 
-  "refactorer": {
+  refactorer: {
     name: "Refactorer",
     description: "Restructure safely with tests. Best for cleanup.",
     category: "refactoring",

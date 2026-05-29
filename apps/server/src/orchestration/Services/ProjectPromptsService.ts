@@ -64,18 +64,14 @@ export interface ProjectPromptsServiceShape {
   // ── Harness Presets ──
   readonly listHarnessPresets: () => Effect.Effect<ReadonlyArray<HarnessPreset>>;
 
-  readonly getActiveHarness: (input: {
-    threadId: ThreadId;
-  }) => Effect.Effect<HarnessPreset | null>;
+  readonly getActiveHarness: (input: { threadId: ThreadId }) => Effect.Effect<HarnessPreset | null>;
 
   readonly activateHarness: (input: {
     threadId: ThreadId;
     presetId: string;
   }) => Effect.Effect<void>;
 
-  readonly deactivateHarness: (input: {
-    threadId: ThreadId;
-  }) => Effect.Effect<void>;
+  readonly deactivateHarness: (input: { threadId: ThreadId }) => Effect.Effect<void>;
 
   // ── Context Assembly ──
   /** Get all applicable prompts + active harness for a thread, ready for injection */

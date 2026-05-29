@@ -17,12 +17,14 @@ Two distinct challenges that are easy to conflate:
 While we're building Rowl, we need to understand what each part does. This is about human comprehension + AI-assisted analysis tools.
 
 **Questions it answers:**
+
 - "What does this package/service do?"
 - "What's the relationship between X and Y?"
 - "Where would I find the code for feature Z?"
 - "What changed in the last 20 files?"
 
 **Tools/approaches:**
+
 - TreeSitter for AST-level parsing
 - Custom embeddings trained on Rowl's actual session traces (Cursor's approach — 12.5% better than grep)
 - Static analysis (Semgrep, CodeQL) for dependency graphs
@@ -33,12 +35,14 @@ While we're building Rowl, we need to understand what each part does. This is ab
 Once Rowl is running and being used to build projects, the PM agent needs ongoing awareness of the codebase. This is about Rowl-as-platform maintaining a persistent context model.
 
 **Questions it answers:**
+
 - "What files are relevant to this feature request?"
 - "What did we build last sprint?"
 - "Where is X implemented right now?"
 - "What's the overall architecture?"
 
 **This requires:**
+
 - A background worker that maintains the index (CodebaseIndexWorker)
 - Change triggers (time-based, event-based, or PM-requested)
 - A way for the PM to query the index without scanning live code
@@ -62,6 +66,7 @@ A real agentic engineering platform doesn't rely on manual doc updates. The PM a
 **Core question:** Should the codebase index be maintained by a background worker inside Rowl, or by the PM agent on-demand?
 
 **Option 1: Background Worker (Cursor/Devin pattern)**
+
 - CodebaseIndexWorker runs on a schedule or file-watch triggers
 - Maintains persistent index: file structure + embeddings + complexity metrics
 - PM reads from index, never scans live code
@@ -69,12 +74,14 @@ A real agentic engineering platform doesn't rely on manual doc updates. The PM a
 - Con: Index can go stale; background resource cost
 
 **Option 2: On-Demand (SWE-agent pattern)**
+
 - PM builds context for each task by querying live code
 - No persistent state
 - Pro: Always current
 - Con: Slow for large codebases; cognitive load on PM
 
 **Option 3: Hybrid (Recommended)**
+
 - Persistent background index (Option 1) for broad awareness
 - PM can request a targeted re-scan for specific areas on demand
 - PM updates index when builders report completions (structured events)
@@ -96,11 +103,13 @@ This cuts across multiple tiers:
 ## Connection to Right Sidebar
 
 The Context tab in the sidebar is the UI layer for this system. It currently shows:
+
 - Context nodes (from OverseerReactor)
 - Budget gauge
 - Compress/restore/delete controls
 
 The expanded Context tab should show:
+
 - Codebase index status (when last updated, % indexed)
 - Active file/function being worked on
 - Relevance-scored files for current task

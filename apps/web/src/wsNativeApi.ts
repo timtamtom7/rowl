@@ -322,7 +322,9 @@ export function createWsNativeApi(): NativeApi {
       getActive: (input: { threadId: string }) =>
         requestWithSchema(
           WS_METHODS.harnessGetActive,
-          Schema.Struct({ preset: Schema.NullOr(Schema.Struct({ id: Schema.String, name: Schema.String })) }),
+          Schema.Struct({
+            preset: Schema.NullOr(Schema.Struct({ id: Schema.String, name: Schema.String })),
+          }),
           input,
         ),
     },
@@ -334,7 +336,15 @@ export function createWsNativeApi(): NativeApi {
       getLinks: (input: { projectId: string }) =>
         requestWithSchema(
           WS_METHODS.featureThreadGetLinks,
-          Schema.Struct({ links: Schema.Array(Schema.Struct({ featureId: Schema.String, threadId: Schema.String, createdAt: Schema.String })) }),
+          Schema.Struct({
+            links: Schema.Array(
+              Schema.Struct({
+                featureId: Schema.String,
+                threadId: Schema.String,
+                createdAt: Schema.String,
+              }),
+            ),
+          }),
           input,
         ),
     },

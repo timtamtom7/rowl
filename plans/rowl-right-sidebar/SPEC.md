@@ -38,6 +38,7 @@ useSidebarAgents(projectId)    → { overview, isLoading }
 ```
 
 **Query keys pattern:**
+
 ```
 sidebarQueryKeys = {
   goals: (projectId) => ["sidebar", "goals", projectId],
@@ -62,11 +63,13 @@ sidebarQueryKeys = {
 ### S3: Cross-Tab Navigation
 
 Lightweight event bus in RightSidebarContext:
+
 ```typescript
 navigateToTab(tab: RightSidebarTab, focus?: { type: string; id: string })
 ```
 
 Usage:
+
 - AgentOverviewSection: click agent → `navigateToTab("threads", { type: "thread", id: threadId })`
 - Features tab: click linked thread → `navigateToTab("threads", { type: "thread", id: threadId })`
 - PM Chat action buttons: after creating feature → `navigateToTab("features")`
@@ -78,15 +81,17 @@ Move `activeTab` from RightSidebar local state into RightSidebarContext. Persist
 ### S5: Error Boundary + Toast Pattern
 
 Replace all silent `catch {}` blocks with shared `useSidebarMutation` hook:
+
 ```typescript
 function useSidebarMutation(label: string) {
   return {
     mutate: async (fn: () => Promise<void>) => {
-      try { await fn(); }
-      catch (err) {
+      try {
+        await fn();
+      } catch (err) {
         toastManager.add({ type: "error", title: `Failed to ${label}`, description: err.message });
       }
-    }
+    },
   };
 }
 ```
@@ -165,9 +170,11 @@ Phase 1 is a prerequisite for all others. Each phase is independently valuable.
 ## FILES TO CREATE/MODIFY
 
 **New files:**
+
 - `apps/web/src/hooks/useSidebarData.ts` — all shared data hooks
 
 **Modified files:**
+
 - `apps/web/src/components/right-sidebar/RightSidebarContext.tsx` — add tab persistence + navigateToTab
 - `apps/web/src/components/right-sidebar/RightSidebar.tsx` — use persisted tab state
 - `apps/web/src/components/right-sidebar/PMChatTabContent.tsx` — use shared hooks, fresh context per message
@@ -186,6 +193,7 @@ Phase 1 is a prerequisite for all others. Each phase is independently valuable.
 ## SUCCESS CRITERIA
 
 A non-coder can:
+
 1. Open PM Chat → say "I want a login page" → PM suggests creating a feature → one click creates it → Features tab instantly shows it → PM spawns an agent → Threads tab shows agent running → Map shows files lighting up as agent works
 2. See context budget filling up → get warning → click "Start new thread" → handoff happens automatically
 3. Search memories for "database schema" → find decision from 3 days ago → AI already knows about it because it was auto-injected

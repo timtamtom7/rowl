@@ -39,7 +39,9 @@ export const EvaluatorServiceLive = Layer.effect(
           return {
             threadId: input.threadId,
             status: "fail" as const,
-            checks: [{ name: "Thread exists", status: "fail" as const, detail: "Thread not found" }],
+            checks: [
+              { name: "Thread exists", status: "fail" as const, detail: "Thread not found" },
+            ],
             summary: "Thread not found — cannot evaluate.",
             timestamp: new Date().toISOString(),
           };
@@ -95,7 +97,7 @@ export const EvaluatorServiceLive = Layer.effect(
         // Check 3: Was the claimed work substantive?
         const messages = t.messages ?? [];
         const lastAssistant = messages.filter((m: any) => m.role === "assistant").pop();
-        const responseLength = lastAssistant ? (lastAssistant as any).text?.length ?? 0 : 0;
+        const responseLength = lastAssistant ? ((lastAssistant as any).text?.length ?? 0) : 0;
 
         if (responseLength > 100) {
           checks.push({

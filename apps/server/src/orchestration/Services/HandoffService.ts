@@ -21,7 +21,6 @@ export interface HandoffServiceShape {
   }) => Effect.Effect<HandoffBriefing>;
 }
 
-export class HandoffService extends ServiceMap.Service<
-  HandoffService,
-  HandoffServiceShape
->()("rowl/orchestration/Services/HandoffService") {}
+export class HandoffService extends ServiceMap.Service<HandoffService, HandoffServiceShape>()(
+  "rowl/orchestration/Services/HandoffService",
+) {}

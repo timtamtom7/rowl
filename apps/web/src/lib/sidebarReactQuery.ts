@@ -17,12 +17,7 @@ import type {
   ProjectId,
   ThreadId,
 } from "@t3tools/contracts";
-import {
-  queryOptions,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ensureNativeApi } from "~/nativeApi";
 
 // ── Query keys ──────────────────────────────────────────────────
@@ -34,8 +29,7 @@ export const sidebarQueryKeys = {
   memories: (projectId: ProjectId) => ["sidebar", "memories", projectId] as const,
   memorySearch: (projectId: ProjectId, query: string) =>
     ["sidebar", "memories", projectId, "search", query] as const,
-  contextNodes: (projectId: ProjectId) =>
-    ["sidebar", "context-nodes", projectId] as const,
+  contextNodes: (projectId: ProjectId) => ["sidebar", "context-nodes", projectId] as const,
   contextBudget: (projectId: ProjectId, threadId: ThreadId | null) =>
     ["sidebar", "context-budget", projectId, threadId] as const,
   health: (projectId: ProjectId) => ["sidebar", "health", projectId] as const,

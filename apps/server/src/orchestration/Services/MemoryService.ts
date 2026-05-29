@@ -10,10 +10,7 @@
 import { ServiceMap } from "effect";
 import type { Effect } from "effect";
 import type { ProjectId, ThreadId } from "@t3tools/contracts";
-import type {
-  MemoryEntry,
-  MemoryEntryType,
-} from "../../persistence/Services/MemoryEntries.ts";
+import type { MemoryEntry, MemoryEntryType } from "../../persistence/Services/MemoryEntries.ts";
 
 export interface MemoryServiceShape {
   /** Store a new memory entry */
@@ -40,9 +37,7 @@ export interface MemoryServiceShape {
   }) => Effect.Effect<ReadonlyArray<MemoryEntry>>;
 
   /** Delete a memory entry */
-  readonly deleteMemory: (input: {
-    readonly id: string;
-  }) => Effect.Effect<void>;
+  readonly deleteMemory: (input: { readonly id: string }) => Effect.Effect<void>;
 
   /**
    * Build a relevant memories XML block for injection into AI context.
@@ -56,7 +51,6 @@ export interface MemoryServiceShape {
   }) => Effect.Effect<string | null>;
 }
 
-export class MemoryService extends ServiceMap.Service<
-  MemoryService,
-  MemoryServiceShape
->()("rowl/orchestration/Services/MemoryService") {}
+export class MemoryService extends ServiceMap.Service<MemoryService, MemoryServiceShape>()(
+  "rowl/orchestration/Services/MemoryService",
+) {}

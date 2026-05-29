@@ -45,6 +45,7 @@
 **Current state:** Partially. PM Chat creates goals/features → they show in Goals/Features tabs. Context injects goals/features into AI turns. Memories auto-extract and inject. Map shows file activity.
 
 **What's NOT connected:**
+
 - Features don't show which thread is building them
 - Goals don't show progress toward completion
 - Map doesn't show feature boundaries ("these files belong to Feature X")

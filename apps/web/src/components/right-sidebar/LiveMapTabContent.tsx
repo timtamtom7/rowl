@@ -21,7 +21,13 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./live-map.css";
-import { RefreshCwIcon, Loader2Icon, FileIcon, AlertTriangleIcon, GitBranchIcon } from "lucide-react";
+import {
+  RefreshCwIcon,
+  Loader2Icon,
+  FileIcon,
+  AlertTriangleIcon,
+  GitBranchIcon,
+} from "lucide-react";
 import type { ProjectId } from "@t3tools/contracts";
 
 import { readNativeApi } from "~/nativeApi";
@@ -156,7 +162,11 @@ const FileNode = memo(function FileNode({ data }: NodeProps<Node<FileNodeData>>)
       </div>
 
       <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 0, height: 0 }} />
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 0, height: 0 }} />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ opacity: 0, width: 0, height: 0 }}
+      />
     </div>
   );
 });
@@ -283,7 +293,7 @@ function applyForceLayout(
         const minDist = (nodeRadii.get(a.id) ?? 15) + (nodeRadii.get(b.id) ?? 15);
 
         if (dist < minDist && dist > 0) {
-          const overlap = (minDist - dist) / dist * 0.5;
+          const overlap = ((minDist - dist) / dist) * 0.5;
           const ox = dx * overlap;
           const oy = dy * overlap;
           a.x -= ox;
@@ -507,7 +517,14 @@ export function LiveMapTabContent({
       const nerveNodes: Node[] = nerve.functions.map((func) => {
         const pos = nervePositions.get(func.id) ?? { x: w / 2, y: h / 2 };
         const radius = func.type === "component" ? 14 : func.type === "hook" ? 12 : 9;
-        const typeExt = func.type === "component" ? ".tsx" : func.type === "hook" ? ".tsx" : func.type === "class" ? ".json" : ".ts";
+        const typeExt =
+          func.type === "component"
+            ? ".tsx"
+            : func.type === "hook"
+              ? ".tsx"
+              : func.type === "class"
+                ? ".json"
+                : ".ts";
 
         return {
           id: func.id,
@@ -545,10 +562,10 @@ export function LiveMapTabContent({
     } finally {
       setIsLoading(false);
     }
-  // Note: activeFiles intentionally NOT in deps — node highlighting is handled
-  // by the separate useEffect that updates isActive on nodes. Including activeFiles
-  // here would cause the entire graph to re-scan and re-layout on every store update.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Note: activeFiles intentionally NOT in deps — node highlighting is handled
+    // by the separate useEffect that updates isActive on nodes. Including activeFiles
+    // here would cause the entire graph to re-scan and re-layout on every store update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectCwd, projectId, viewMode, setNodes, setEdges]);
 
   useEffect(() => {
@@ -604,82 +621,80 @@ export function LiveMapTabContent({
         ) : nodes.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full px-4 text-center gap-2">
             <FileIcon className="size-6 text-muted-foreground/20" />
-            <p className="text-xs text-muted-foreground/60">
-              Click refresh to scan the project.
-            </p>
+            <p className="text-xs text-muted-foreground/60">Click refresh to scan the project.</p>
           </div>
         ) : (
           <>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={(_event, node) => {
-              setSelectedNode(node.data as FileNodeData);
-            }}
-            onPaneClick={() => setSelectedNode(null)}
-            fitView
-            fitViewOptions={{ padding: 0.3 }}
-            minZoom={0.05}
-            maxZoom={4}
-            proOptions={{ hideAttribution: true }}
-            style={{ background: "transparent" }}
-            defaultEdgeOptions={{
-              type: "default",
-              style: { stroke: "rgba(148,163,184,0.12)", strokeWidth: 1 },
-            }}
-          >
-            <Background color="rgba(148,163,184,0.03)" gap={30} size={1} />
-            <MiniMap
-              style={{
-                background: "rgba(10,10,15,0.9)",
-                borderRadius: 6,
-                border: "1px solid rgba(148,163,184,0.1)",
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={(_event, node) => {
+                setSelectedNode(node.data as FileNodeData);
               }}
-              maskColor="rgba(10,10,15,0.7)"
-              nodeColor={(node) => {
-                const d = node.data as FileNodeData;
-                return getColors(d.extension, d.healthScore).bg;
+              onPaneClick={() => setSelectedNode(null)}
+              fitView
+              fitViewOptions={{ padding: 0.3 }}
+              minZoom={0.05}
+              maxZoom={4}
+              proOptions={{ hideAttribution: true }}
+              style={{ background: "transparent" }}
+              defaultEdgeOptions={{
+                type: "default",
+                style: { stroke: "rgba(148,163,184,0.12)", strokeWidth: 1 },
               }}
-              nodeStrokeWidth={0}
-              pannable
-              zoomable
-            />
-            <Controls
-              showInteractive={false}
-              style={{
-                background: "rgba(10,10,15,0.8)",
-                borderRadius: 6,
-                border: "1px solid rgba(148,163,184,0.1)",
-              }}
-            />
-          </ReactFlow>
+            >
+              <Background color="rgba(148,163,184,0.03)" gap={30} size={1} />
+              <MiniMap
+                style={{
+                  background: "rgba(10,10,15,0.9)",
+                  borderRadius: 6,
+                  border: "1px solid rgba(148,163,184,0.1)",
+                }}
+                maskColor="rgba(10,10,15,0.7)"
+                nodeColor={(node) => {
+                  const d = node.data as FileNodeData;
+                  return getColors(d.extension, d.healthScore).bg;
+                }}
+                nodeStrokeWidth={0}
+                pannable
+                zoomable
+              />
+              <Controls
+                showInteractive={false}
+                style={{
+                  background: "rgba(10,10,15,0.8)",
+                  borderRadius: 6,
+                  border: "1px solid rgba(148,163,184,0.1)",
+                }}
+              />
+            </ReactFlow>
 
-          {/* Health legend */}
-          <div className="live-map-legend">
-            <div className="live-map-legend-item">
-              <div className="live-map-legend-dot" style={{ background: "#3b82f6" }} />
-              <span>.tsx</span>
+            {/* Health legend */}
+            <div className="live-map-legend">
+              <div className="live-map-legend-item">
+                <div className="live-map-legend-dot" style={{ background: "#3b82f6" }} />
+                <span>.tsx</span>
+              </div>
+              <div className="live-map-legend-item">
+                <div className="live-map-legend-dot" style={{ background: "#6366f1" }} />
+                <span>.ts</span>
+              </div>
+              <div className="live-map-legend-item">
+                <div className="live-map-legend-dot" style={{ background: "#ef4444" }} />
+                <span>Critical</span>
+              </div>
+              <div className="live-map-legend-item">
+                <div className="live-map-legend-dot" style={{ background: "#f59e0b" }} />
+                <span>Warning</span>
+              </div>
+              <div className="live-map-legend-item">
+                <div className="live-map-legend-dot" style={{ background: "#22c55e" }} />
+                <span>Active</span>
+              </div>
             </div>
-            <div className="live-map-legend-item">
-              <div className="live-map-legend-dot" style={{ background: "#6366f1" }} />
-              <span>.ts</span>
-            </div>
-            <div className="live-map-legend-item">
-              <div className="live-map-legend-dot" style={{ background: "#ef4444" }} />
-              <span>Critical</span>
-            </div>
-            <div className="live-map-legend-item">
-              <div className="live-map-legend-dot" style={{ background: "#f59e0b" }} />
-              <span>Warning</span>
-            </div>
-            <div className="live-map-legend-item">
-              <div className="live-map-legend-dot" style={{ background: "#22c55e" }} />
-              <span>Active</span>
-            </div>
-          </div>
           </>
         )}
       </div>
@@ -698,15 +713,21 @@ export function LiveMapTabContent({
             </button>
           </div>
           <div className="text-[10px] text-muted-foreground/60 space-y-0.5">
-            <p>Path: {selectedNode.directory}/{selectedNode.label}</p>
+            <p>
+              Path: {selectedNode.directory}/{selectedNode.label}
+            </p>
             <p>Lines: {selectedNode.lineCount}</p>
             <p>Type: {selectedNode.extension || "unknown"}</p>
             {selectedNode.healthScore !== undefined && (
-              <p className={
-                selectedNode.healthScore < 40 ? "text-red-400" :
-                selectedNode.healthScore < 70 ? "text-amber-400" :
-                "text-emerald-400"
-              }>
+              <p
+                className={
+                  selectedNode.healthScore < 40
+                    ? "text-red-400"
+                    : selectedNode.healthScore < 70
+                      ? "text-amber-400"
+                      : "text-emerald-400"
+                }
+              >
                 Health: {selectedNode.healthScore}/100
               </p>
             )}
@@ -718,25 +739,31 @@ export function LiveMapTabContent({
       )}
 
       {/* Health summary (if critical/warning files exist) */}
-      {graph && (() => {
-        const criticalNodes = graph.nodes.filter((n) => n.lineCount > 500);
-        const largeNodes = graph.nodes.filter((n) => n.lineCount > 300 && n.lineCount <= 500);
-        if (criticalNodes.length === 0 && largeNodes.length === 0) return null;
-        return (
-          <div className="shrink-0 border-t border-border/40 px-3 py-1.5" style={{ background: "rgba(10,10,15,0.5)" }}>
-            {criticalNodes.length > 0 && (
-              <p className="text-[9px] text-red-400/70">
-                {criticalNodes.length} file{criticalNodes.length !== 1 ? "s" : ""} over 500 lines — consider splitting
-              </p>
-            )}
-            {largeNodes.length > 0 && (
-              <p className="text-[9px] text-amber-400/70">
-                {largeNodes.length} file{largeNodes.length !== 1 ? "s" : ""} over 300 lines — watch for growth
-              </p>
-            )}
-          </div>
-        );
-      })()}
+      {graph &&
+        (() => {
+          const criticalNodes = graph.nodes.filter((n) => n.lineCount > 500);
+          const largeNodes = graph.nodes.filter((n) => n.lineCount > 300 && n.lineCount <= 500);
+          if (criticalNodes.length === 0 && largeNodes.length === 0) return null;
+          return (
+            <div
+              className="shrink-0 border-t border-border/40 px-3 py-1.5"
+              style={{ background: "rgba(10,10,15,0.5)" }}
+            >
+              {criticalNodes.length > 0 && (
+                <p className="text-[9px] text-red-400/70">
+                  {criticalNodes.length} file{criticalNodes.length !== 1 ? "s" : ""} over 500 lines
+                  — consider splitting
+                </p>
+              )}
+              {largeNodes.length > 0 && (
+                <p className="text-[9px] text-amber-400/70">
+                  {largeNodes.length} file{largeNodes.length !== 1 ? "s" : ""} over 300 lines —
+                  watch for growth
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
       {/* Stats bar */}
       {(graph || nerveGraph) && (

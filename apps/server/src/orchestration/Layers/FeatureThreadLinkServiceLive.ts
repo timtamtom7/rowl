@@ -21,7 +21,10 @@ export const FeatureThreadLinkServiceLive = Layer.effect(
         INSERT INTO feature_thread_links (feature_id, thread_id, created_at)
         VALUES (${input.featureId}, ${input.threadId}, ${new Date().toISOString()})
         ON CONFLICT (feature_id, thread_id) DO NOTHING
-      `.pipe(Effect.asVoid, Effect.catch(() => Effect.void));
+      `.pipe(
+        Effect.asVoid,
+        Effect.catch(() => Effect.void),
+      );
 
     const unlinkFeatureFromThread: FeatureThreadLinkServiceShape["unlinkFeatureFromThread"] = (
       input,
@@ -29,7 +32,10 @@ export const FeatureThreadLinkServiceLive = Layer.effect(
       sql`
         DELETE FROM feature_thread_links
         WHERE feature_id = ${input.featureId} AND thread_id = ${input.threadId}
-      `.pipe(Effect.asVoid, Effect.catch(() => Effect.void));
+      `.pipe(
+        Effect.asVoid,
+        Effect.catch(() => Effect.void),
+      );
 
     const getLinkedThreads: FeatureThreadLinkServiceShape["getLinkedThreads"] = (input) =>
       sql`

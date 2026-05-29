@@ -22,12 +22,9 @@ function formatRelativeTime(iso: string): string {
 
 function getThreadStatusInfo(thread: { session: any }) {
   const status = thread.session?.status;
-  if (status === "running")
-    return { label: "Working", color: "text-emerald-400", pulse: true };
-  if (status === "connecting")
-    return { label: "Connecting", color: "text-sky-400", pulse: true };
-  if (status === "error")
-    return { label: "Error", color: "text-red-400", pulse: false };
+  if (status === "running") return { label: "Working", color: "text-emerald-400", pulse: true };
+  if (status === "connecting") return { label: "Connecting", color: "text-sky-400", pulse: true };
+  if (status === "error") return { label: "Error", color: "text-red-400", pulse: false };
   return null;
 }
 
@@ -44,10 +41,11 @@ export function ThreadsTabContent({ projectId }: { projectId: ProjectId }) {
 
   const projectThreads = useMemo(() => {
     const filtered = threads
-      .filter((thread) =>
-        thread.projectId === projectId &&
-        !thread.title.startsWith("[Product Manager]") &&
-        !thread.title.startsWith("[Skill Generator]"),
+      .filter(
+        (thread) =>
+          thread.projectId === projectId &&
+          !thread.title.startsWith("[Product Manager]") &&
+          !thread.title.startsWith("[Skill Generator]"),
       )
       .toSorted(compareThreadsByRecency);
 
@@ -56,8 +54,7 @@ export function ThreadsTabContent({ projectId }: { projectId: ProjectId }) {
     const query = searchFilter.toLowerCase();
     return filtered.filter(
       (t) =>
-        t.title.toLowerCase().includes(query) ||
-        (t.goal && t.goal.toLowerCase().includes(query)),
+        t.title.toLowerCase().includes(query) || (t.goal && t.goal.toLowerCase().includes(query)),
     );
   }, [threads, projectId, searchFilter]);
 
@@ -139,11 +136,13 @@ export function ThreadsTabContent({ projectId }: { projectId: ProjectId }) {
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <p className={cn(
-                  "text-xs truncate",
-                  isActive ? "text-foreground font-medium" : "text-foreground/80",
-                  isUnread && !isActive && "font-semibold",
-                )}>
+                <p
+                  className={cn(
+                    "text-xs truncate",
+                    isActive ? "text-foreground font-medium" : "text-foreground/80",
+                    isUnread && !isActive && "font-semibold",
+                  )}
+                >
                   {thread.title}
                 </p>
                 <span className="text-[10px] text-muted-foreground/40 shrink-0 tabular-nums">
@@ -156,9 +155,7 @@ export function ThreadsTabContent({ projectId }: { projectId: ProjectId }) {
                 </p>
               )}
               {status && (
-                <span className={cn("text-[9px] font-medium", status.color)}>
-                  {status.label}
-                </span>
+                <span className={cn("text-[9px] font-medium", status.color)}>{status.label}</span>
               )}
             </div>
           </button>

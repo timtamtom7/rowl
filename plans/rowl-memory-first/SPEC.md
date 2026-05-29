@@ -27,17 +27,17 @@ To keep this shippable, the following are **out of scope** for sub-project #1:
 
 ## 3. Architectural decisions (locked)
 
-| Decision                           | Choice                                                            | Why                                                                                                                              |
-| ---------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Integration path for Letta pattern | **Port the pattern, no Letta dependency (Option C)**              | Self-contained Rowl; full control over memory semantics; privacy by default. See RESEARCH.md §2.                                 |
-| Memory scope                       | **Two tiers: global (cross-project) + project (per-codebase)**    | Global holds persona/user preferences; project holds the _real_ memory — architecture, decisions, conventions, gotchas.          |
-| Agent ↔ thread relationship        | **One agent per project. Threads belong to the project's agent.** | Matches Rowl's project-centric model. A project's agent accumulates project understanding; all threads in that project share it. |
-| Self-editing memory                | **Yes, from phase 1a, gated by Rowl's existing approval system**  | Without self-editing the agent cannot actually _learn_ the project. Approval gates make it safe; git makes it reversible.        |
-| Storage format                     | **Markdown files with YAML frontmatter (`.md`), git-backed**      | Same pattern as Letta. Human-readable, diffable, portable.                                                                       |
-| Global memory location             | **`~/.t3/rowl/agents/{agentId}/memory/`**                         | Matches existing `ROWL_STATE_DIR` default (`~/.t3/rowl`) per AGENTS.md. Per-agent, cross-project.                                |
-| Project memory location            | **`{projectRoot}/.rowl/memory/`** (gitignored by default)         | Lives with the project but is private to the user unless opted in (`commitMemory: true`).                                        |
-| File extension                     | **`.md`, not `.mdx`**                                             | Rowl does not use MDX elsewhere; plain markdown is simpler. Frontmatter stays YAML.                                              |
-| Memory-editing mechanism in 1a     | **Agent uses existing file-edit tools; dedicated memory tool deferred** | Rowl has no cross-provider tool registry. File-edit tools already have `file-change` approval. See §6 for deferral note.   |
+| Decision                           | Choice                                                                  | Why                                                                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Integration path for Letta pattern | **Port the pattern, no Letta dependency (Option C)**                    | Self-contained Rowl; full control over memory semantics; privacy by default. See RESEARCH.md §2.                                 |
+| Memory scope                       | **Two tiers: global (cross-project) + project (per-codebase)**          | Global holds persona/user preferences; project holds the _real_ memory — architecture, decisions, conventions, gotchas.          |
+| Agent ↔ thread relationship        | **One agent per project. Threads belong to the project's agent.**       | Matches Rowl's project-centric model. A project's agent accumulates project understanding; all threads in that project share it. |
+| Self-editing memory                | **Yes, from phase 1a, gated by Rowl's existing approval system**        | Without self-editing the agent cannot actually _learn_ the project. Approval gates make it safe; git makes it reversible.        |
+| Storage format                     | **Markdown files with YAML frontmatter (`.md`), git-backed**            | Same pattern as Letta. Human-readable, diffable, portable.                                                                       |
+| Global memory location             | **`~/.t3/rowl/agents/{agentId}/memory/`**                               | Matches existing `ROWL_STATE_DIR` default (`~/.t3/rowl`) per AGENTS.md. Per-agent, cross-project.                                |
+| Project memory location            | **`{projectRoot}/.rowl/memory/`** (gitignored by default)               | Lives with the project but is private to the user unless opted in (`commitMemory: true`).                                        |
+| File extension                     | **`.md`, not `.mdx`**                                                   | Rowl does not use MDX elsewhere; plain markdown is simpler. Frontmatter stays YAML.                                              |
+| Memory-editing mechanism in 1a     | **Agent uses existing file-edit tools; dedicated memory tool deferred** | Rowl has no cross-provider tool registry. File-edit tools already have `file-change` approval. See §6 for deferral note.         |
 
 ## 4. Data model
 
