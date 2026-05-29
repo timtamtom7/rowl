@@ -3,6 +3,7 @@ import {
   CommandId,
   EventId,
   type OrchestrationEvent,
+  MessageId,
   type ProjectSkillName,
   type ProviderModelOptions,
   type ProviderKind,
@@ -31,6 +32,16 @@ import {
 import * as Semaphore from "effect/Semaphore";
 
 import { resolveThreadWorkspaceCwd } from "../../checkpointing/Utils.ts";
+import {
+  assembleAgentTurnMemoryPreamble,
+  memoryUpdateCommitMessage,
+  resolveActiveAgentForTurn,
+} from "../../core-agent/agentIdentityRouting.ts";
+import { executeCoreAgentSlashCommand } from "../../core-agent/coreAgentSlashCommands.ts";
+import {
+  createCoreAgentService,
+  createFileCoreAgentStore,
+} from "../../core-agent/CoreAgentService.ts";
 import { GitCore } from "../../git/Services/GitCore.ts";
 import { ProviderAdapterRequestError, ProviderServiceError } from "../../provider/Errors.ts";
 import { takeTransientTurnStartProviderOptions } from "../../provider/transientProviderOptions.ts";
@@ -47,7 +58,7 @@ import { FeatureService } from "../Services/FeatureService.ts";
 import { MemoryService } from "../Services/MemoryService.ts";
 import { CoreMemoryService } from "../../memory/Services/CoreMemoryService.ts";
 import { commitMemoryChanges } from "../../memory/memoryGit.ts";
-import { DEFAULT_AGENT_ID, globalAgentMemoryDir, projectMemoryDir } from "../../memory/paths.ts";
+import { globalAgentMemoryDir, projectMemoryDir } from "../../memory/paths.ts";
 import { assembleMemoryPreamble } from "../../memory/preamble.ts";
 import { ServerConfig } from "../../config.ts";
 import { ProjectPromptsService } from "../Services/ProjectPromptsService.ts";
@@ -266,6 +277,11 @@ const make = Effect.gen(function* () {
   const memoryService = yield* MemoryService;
   const coreMemoryService = yield* CoreMemoryService;
   const serverConfig = yield* ServerConfig;
+  const coreAgentService = createCoreAgentService({
+    store: createFileCoreAgentStore({ stateDir: serverConfig.stateDir }),
+    now: () => new Date().toISOString(),
+    generateId: () => crypto.randomUUID(),
+  });
   const projectPromptsService = yield* ProjectPromptsService;
   const git = yield* GitCore;
   const textGeneration = yield* TextGeneration;
@@ -347,6 +363,30 @@ const make = Effect.gen(function* () {
         createdAt: input.createdAt,
       },
       createdAt: input.createdAt,
+    });
+
+  const appendAssistantMessage = (input: {
+    readonly threadId: ThreadId;
+    readonly text: string;
+    readonly createdAt: string;
+  }) =>
+    Effect.gen(function* () {
+      const messageId = MessageId.makeUnsafe(`server-message-${crypto.randomUUID()}`);
+      yield* orchestrationEngine.dispatch({
+        type: "thread.message.assistant.delta",
+        commandId: serverCommandId("assistant-message-delta"),
+        threadId: input.threadId,
+        messageId,
+        delta: input.text,
+        createdAt: input.createdAt,
+      });
+      yield* orchestrationEngine.dispatch({
+        type: "thread.message.assistant.complete",
+        commandId: serverCommandId("assistant-message-complete"),
+        threadId: input.threadId,
+        messageId,
+        createdAt: input.createdAt,
+      });
     });
 
   const setThreadSession = Effect.fnUntraced(function* (input: {
@@ -747,15 +787,23 @@ If you're unsure, say so clearly instead of claiming success.
     // Assemble agent memory preamble (persistent global + project blocks).
     // Failures never block the turn — memory is additive context.
     let agentMemoryBlock: string | null = null;
+    let activeAgentIdForTurn: string | null = null;
     try {
-      const coreMemoryContext = workspaceCwd ? { projectRoot: workspaceCwd } : undefined;
+      const activeAgent = yield* Effect.promise(() =>
+        resolveActiveAgentForTurn({
+          service: coreAgentService,
+          ...(workspaceCwd ? { projectRoot: workspaceCwd } : {}),
+        }),
+      );
+      activeAgentIdForTurn = activeAgent.activeAgentId;
+      const coreMemoryContext = activeAgent.memoryContext;
       yield* coreMemoryService
         .ensureGlobalSeeded(coreMemoryContext)
-        .pipe(Effect.catch(() => Effect.succeed(void 0)));
+        .pipe(Effect.catch(() => Effect.void));
       if (workspaceCwd) {
         yield* coreMemoryService
-          .ensureProjectSeeded({ projectRoot: workspaceCwd })
-          .pipe(Effect.catch(() => Effect.succeed(void 0)));
+          .ensureProjectSeeded({ projectRoot: workspaceCwd, agentId: activeAgent.activeAgentId })
+          .pipe(Effect.catch(() => Effect.void));
       }
       const globalBlocks = yield* coreMemoryService
         .listGlobal(coreMemoryContext)
@@ -768,6 +816,10 @@ If you're unsure, say so clearly instead of claiming success.
       agentMemoryBlock = assembleMemoryPreamble({
         global: globalBlocks,
         project: projectBlocks,
+      });
+      agentMemoryBlock = assembleAgentTurnMemoryPreamble({
+        agent: activeAgent.agent,
+        memoryPreamble: agentMemoryBlock,
       });
     } catch {
       // Don't let memory failures block the turn
@@ -823,13 +875,16 @@ If you're unsure, say so clearly instead of claiming success.
     // were made (commitMemoryChanges is a no-op then). Never blocks the turn.
     yield* Effect.promise(() =>
       commitMemoryChanges(
-        globalAgentMemoryDir(serverConfig.stateDir, DEFAULT_AGENT_ID),
-        "rowl: memory update",
+        globalAgentMemoryDir(serverConfig.stateDir, activeAgentIdForTurn ?? undefined),
+        memoryUpdateCommitMessage(activeAgentIdForTurn ?? "default"),
       ).catch(() => {}),
     );
     if (workspaceCwd) {
       yield* Effect.promise(() =>
-        commitMemoryChanges(projectMemoryDir(workspaceCwd), "rowl: memory update").catch(() => {}),
+        commitMemoryChanges(
+          projectMemoryDir(workspaceCwd),
+          memoryUpdateCommitMessage(activeAgentIdForTurn ?? "default"),
+        ).catch(() => {}),
       );
     }
 
@@ -971,6 +1026,27 @@ If you're unsure, say so clearly instead of claiming success.
         turnId: null,
         createdAt: event.payload.createdAt,
       });
+      return;
+    }
+
+    const readModel = yield* orchestrationEngine.getReadModel();
+    const workspaceCwd = resolveThreadWorkspaceCwd({
+      thread,
+      projects: readModel.projects,
+    });
+    const slashResult = yield* Effect.promise(() =>
+      executeCoreAgentSlashCommand({
+        service: coreAgentService,
+        scope: workspaceCwd ? { type: "project", projectRoot: workspaceCwd } : { type: "global" },
+        text: message.text,
+      }),
+    ).pipe(Effect.catch(() => Effect.succeed(null)));
+    if (slashResult) {
+      yield* appendAssistantMessage({
+        threadId: event.payload.threadId,
+        text: slashResult.response,
+        createdAt: event.payload.createdAt,
+      }).pipe(Effect.catch(() => Effect.void));
       return;
     }
 
