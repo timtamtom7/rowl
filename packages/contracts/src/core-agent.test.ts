@@ -56,6 +56,26 @@ describe("CoreAgentMetadata", () => {
     expect(encodeMetadata(parsed)).toEqual(parsed);
   });
 
+  it("accepts built-in preset-backed metadata materialized by the server", () => {
+    const parsed = decodeMetadata({
+      ...baseAgent,
+      id: "reviewer-1",
+      name: "Reviewer",
+      description: "Find regressions before code is shipped.",
+      personality: {
+        kind: "preset",
+        presetId: "reviewer",
+        instructions: "Review behavior, tests, and operational risk.",
+      },
+    });
+
+    expect(parsed.personality).toEqual({
+      kind: "preset",
+      presetId: "reviewer",
+      instructions: "Review behavior, tests, and operational risk.",
+    });
+  });
+
   it("round-trips project custom agents", () => {
     const parsed = decodeMetadata({
       ...baseAgent,
