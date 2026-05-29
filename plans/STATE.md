@@ -1,7 +1,7 @@
 # Rowl — Current State (Plans Front Door)
 
-**Last updated:** 2026-05-29 (phase 1b tasks 1-2 in progress)
-**Current focus:** Sub-project #1 — Memory-First Agent (phase 1a shipped; phase 1b tasks 1-2 in progress)
+**Last updated:** 2026-05-29 (phase 1b tasks 3-4 implemented in worktree)
+**Current focus:** Sub-project #1 — Memory-First Agent (phase 1a shipped; phase 1b tasks 1-4 implemented in worktree)
 
 > **If you are a new session resuming Rowl work, read this file FIRST.**
 > It orients you in ~60 seconds and tells you what to read next.
@@ -28,12 +28,13 @@ All four are license-compatible (MIT / Apache-2.0). The cloned reference repos l
 ## Where we are right now
 
 - **Sub-project:** #1 — [rowl-memory-first](./rowl-memory-first/)
-- **Phase:** 1a **shipped**; 1b pending.
+- **Phase:** 1a **shipped**; 1b implementation in progress.
 - **Branch:** `phase-1a/core-memory-substrate` (to be merged + tagged `v-phase-1a`).
 - **Blocker:** none. Phase 1b ("Agent management — multi-agent, personalities, commands") is the next planning target; kick off with `superpowers:writing-plans` to produce `PHASE-1B-PLAN.md`.
 
 ## Last session handoff
 
+- 2026-05-29: Phase 1B tasks 3 and 4 are implemented in the worktree: built-in personality presets (`default`, `concise`, `planner`, `reviewer`, `implementer`), preset materialization into editable metadata, and a pure `CoreAgentService` with injected store/clock/id generator, CRUD, active-agent resolution, preset creation, stable active-change payloads, and serialized same-agent updates. Focused tests pass for `cd apps/server && bun run test src/core-agent/` and `cd packages/contracts && bun run test src/core-agent.test.ts`. `bun run fmt` passes. `bun run lint` exits 0 with existing warnings. Root/server typecheck remains blocked by pre-existing orchestration/type errors unrelated to core-agent work (`ContextTrimmer`, `EvaluatorServiceLive`, `OrchestrationEngineHarness`). Commits for tasks 3 and 4 could not be created because `.git` is not writable (`Operation not permitted` creating `.git/index.lock`). There is an unrelated untracked `CreatedImage.jpeg` in the worktree.
 - 2026-05-29: Phase 1B execution started. Tasks 1 and 2 are implemented in the worktree: shared core-agent contracts, WebSocket contract variants, and deterministic core-agent metadata file IO. Focused tests pass for `packages/contracts` and `apps/server/src/core-agent/agentMetadataStore.test.ts`. Commits could not be created in this environment because `.git` is not writable (`Operation not permitted` creating `.git/index.lock`). Server package typecheck remains blocked by pre-existing orchestration/type errors unrelated to these changes; the new core-agent WebSocket exhaustiveness case was handled with placeholder route errors pending Task 8.
 - 2026-05-29: Phase 1B planning is complete; `plans/rowl-memory-first/PHASE-1B-PLAN.md` now contains the 14-task TDD implementation plan for core-agent contracts, metadata IO, presets, services, memory integration, WebSocket routes, slash commands, UI, `/new` inheritance, docs, verification, and tagging.
 

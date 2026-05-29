@@ -1,6 +1,6 @@
 # STATUS — Rowl Memory-First Agent
 
-**Overall status:** phase-1a shipped; phase-1b pending
+**Overall status:** phase-1a shipped; phase-1b implementation in progress
 **Owner:** timtamtom7
 **Spec approved:** yes
 **Plan written:** `PHASE-1A-PLAN.md` (complete, executed)
@@ -10,13 +10,13 @@
 
 ## Phase status tracker
 
-| Phase | Description                                             | Status  | Branch                           | Tag on ship  | Notes                                                               |
-| ----- | ------------------------------------------------------- | ------- | -------------------------------- | ------------ | ------------------------------------------------------------------- |
-| 1a    | Core memory substrate                                   | shipped | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions). |
-| 1b    | Agent management (multi-agent, personalities, commands) | pending | —                                | —            | Starts after 1a ships.                                              |
-| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending | —                                | —            |                                                                     |
-| 1d    | Editable memory + `/init` + `/doctor`                   | pending | —                                | —            |                                                                     |
-| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                     |
+| Phase | Description                                             | Status  | Branch                           | Tag on ship  | Notes                                                                     |
+| ----- | ------------------------------------------------------- | ------- | -------------------------------- | ------------ | ------------------------------------------------------------------------- |
+| 1a    | Core memory substrate                                   | shipped | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions).       |
+| 1b    | Agent management (multi-agent, personalities, commands) | active  | `phase-1a/core-memory-substrate` | —            | Tasks 1-4 implemented in worktree; commits blocked by `.git` permissions. |
+| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending | —                                | —            |                                                                           |
+| 1d    | Editable memory + `/init` + `/doctor`                   | pending | —                                | —            |                                                                           |
+| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                           |
 
 ---
 
@@ -49,6 +49,19 @@ From SPEC §11, repeated here for quick access:
 ---
 
 ## Session handoff (most recent)
+
+**Session end: 2026-05-29 (phase 1b tasks 3-4 implemented in worktree)**
+
+- Implemented built-in personality presets (`default`, `concise`, `planner`, `reviewer`, `implementer`) and preset-to-editable-metadata materialization.
+- Implemented `CoreAgentService` with injected store/clock/id generator, CRUD, active-agent resolution, preset creation, stable active-change payloads, and same-agent update serialization.
+- Verification:
+  - `cd apps/server && bun run test src/core-agent/` passes.
+  - `cd packages/contracts && bun run test src/core-agent.test.ts` passes.
+  - `bun run fmt` passes.
+  - `bun run lint` exits 0 with existing warnings.
+  - `bun run typecheck` remains blocked by pre-existing orchestration/type errors unrelated to core-agent work.
+- Commits for tasks 3 and 4 could not be created because `.git` is not writable in this environment (`Operation not permitted` creating `.git/index.lock`).
+- Next task: Phase 1B Task 5, agent-aware `CoreMemoryService`.
 
 **Session end: 2026-04-17 (brainstorming complete)**
 

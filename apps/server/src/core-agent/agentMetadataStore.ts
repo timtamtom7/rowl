@@ -99,7 +99,7 @@ export function listAgentMetadata(
       }
       return [readAgentMetadata(metadataPath, fileSystem)];
     })
-    .sort(compareAgentMetadata);
+    .toSorted(compareAgentMetadata);
 }
 
 function compareAgentMetadata(a: CoreAgentMetadataShape, b: CoreAgentMetadataShape): number {
@@ -127,7 +127,7 @@ function sortJsonValue(value: unknown): unknown {
 
   return Object.fromEntries(
     Object.entries(value)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .toSorted(([a], [b]) => a.localeCompare(b))
       .map(([key, nested]) => [key, sortJsonValue(nested)]),
   );
 }
