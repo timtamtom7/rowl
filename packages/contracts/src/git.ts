@@ -34,6 +34,16 @@ const GitWorktree = Schema.Struct({
   path: TrimmedNonEmptyStringSchema,
   branch: TrimmedNonEmptyStringSchema,
 });
+
+export const WorktreeInfo = Schema.Struct({
+  path: TrimmedNonEmptyStringSchema,
+  branch: TrimmedNonEmptyStringSchema,
+  head: TrimmedNonEmptyStringSchema,
+  isLocked: Schema.Boolean,
+  lockedBy: TrimmedNonEmptyStringSchema.pipe(Schema.NullOr),
+});
+export type WorktreeInfo = typeof WorktreeInfo.Type;
+
 const GitResolvedPullRequest = Schema.Struct({
   number: PositiveInt,
   title: TrimmedNonEmptyStringSchema,
@@ -80,6 +90,24 @@ export const GitCreateWorktreeInput = Schema.Struct({
 });
 export type GitCreateWorktreeInput = typeof GitCreateWorktreeInput.Type;
 
+export const CreateWorktreeInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+  branch: TrimmedNonEmptyStringSchema,
+  baseBranch: Schema.optional(TrimmedNonEmptyStringSchema),
+});
+export type CreateWorktreeInput = typeof CreateWorktreeInput.Type;
+
+export const ListWorktreesInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+});
+export type ListWorktreesInput = typeof ListWorktreesInput.Type;
+
+export const GetWorktreeInfoInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+  branch: TrimmedNonEmptyStringSchema,
+});
+export type GetWorktreeInfoInput = typeof GetWorktreeInfoInput.Type;
+
 export const GitPullRequestRefInput = Schema.Struct({
   cwd: TrimmedNonEmptyStringSchema,
   reference: GitPullRequestReference,
@@ -99,6 +127,34 @@ export const GitRemoveWorktreeInput = Schema.Struct({
   force: Schema.optional(Schema.Boolean),
 });
 export type GitRemoveWorktreeInput = typeof GitRemoveWorktreeInput.Type;
+
+export const RemoveWorktreeInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+  branch: TrimmedNonEmptyStringSchema,
+  force: Schema.optional(Schema.Boolean),
+});
+export type RemoveWorktreeInput = typeof RemoveWorktreeInput.Type;
+
+export const GitCherryPickInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+  sourceRef: TrimmedNonEmptyStringSchema,
+  targetBranch: Schema.optional(TrimmedNonEmptyStringSchema),
+});
+export type GitCherryPickInput = typeof GitCherryPickInput.Type;
+
+export const GitMergeBranchInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+  branch: TrimmedNonEmptyStringSchema,
+  targetBranch: Schema.optional(TrimmedNonEmptyStringSchema),
+});
+export type GitMergeBranchInput = typeof GitMergeBranchInput.Type;
+
+export const CreateBranchFromCheckpointInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+  branch: TrimmedNonEmptyStringSchema,
+  checkpointRef: TrimmedNonEmptyStringSchema,
+});
+export type CreateBranchFromCheckpointInput = typeof CreateBranchFromCheckpointInput.Type;
 
 export const GitCreateBranchInput = Schema.Struct({
   cwd: TrimmedNonEmptyStringSchema,
@@ -161,6 +217,16 @@ export const GitCreateWorktreeResult = Schema.Struct({
 });
 export type GitCreateWorktreeResult = typeof GitCreateWorktreeResult.Type;
 
+export const CreateWorktreeResult = Schema.Struct({
+  worktree: WorktreeInfo,
+});
+export type CreateWorktreeResult = typeof CreateWorktreeResult.Type;
+
+export const ListWorktreesResult = Schema.Struct({
+  worktrees: Schema.Array(WorktreeInfo),
+});
+export type ListWorktreesResult = typeof ListWorktreesResult.Type;
+
 export const GitResolvePullRequestResult = Schema.Struct({
   pullRequest: GitResolvedPullRequest,
 });
@@ -207,3 +273,9 @@ export const GitPullResult = Schema.Struct({
   upstreamBranch: TrimmedNonEmptyStringSchema.pipe(Schema.NullOr),
 });
 export type GitPullResult = typeof GitPullResult.Type;
+
+export const GitIntegrationResult = Schema.Struct({
+  status: Schema.Literals(["applied"]),
+  head: TrimmedNonEmptyStringSchema,
+});
+export type GitIntegrationResult = typeof GitIntegrationResult.Type;

@@ -73,6 +73,41 @@ it.effect("accepts git.preparePullRequestThread requests", () =>
   }),
 );
 
+it.effect("accepts managed worktree and git integration requests", () =>
+  Effect.gen(function* () {
+    const create = yield* decodeWebSocketRequest({
+      id: "req-worktree-create",
+      body: {
+        _tag: WS_METHODS.worktreesCreate,
+        cwd: "/repo",
+        branch: "agent/feature-auth",
+        baseBranch: "main",
+      },
+    });
+    assert.strictEqual(create.body._tag, WS_METHODS.worktreesCreate);
+
+    const list = yield* decodeWebSocketRequest({
+      id: "req-worktree-list",
+      body: {
+        _tag: WS_METHODS.worktreesList,
+        cwd: "/repo",
+      },
+    });
+    assert.strictEqual(list.body._tag, WS_METHODS.worktreesList);
+
+    const cherryPick = yield* decodeWebSocketRequest({
+      id: "req-git-cherry-pick",
+      body: {
+        _tag: WS_METHODS.gitCherryPick,
+        cwd: "/repo",
+        sourceRef: "agent/feature-auth",
+        targetBranch: "main",
+      },
+    });
+    assert.strictEqual(cherryPick.body._tag, WS_METHODS.gitCherryPick);
+  }),
+);
+
 it.effect("accepts core-agent websocket requests", () =>
   Effect.gen(function* () {
     const list = yield* decodeWebSocketRequest({

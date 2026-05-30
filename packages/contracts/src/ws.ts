@@ -17,9 +17,15 @@ import {
   OrchestrationReplayEventsInput,
 } from "./orchestration";
 import {
+  CreateWorktreeInput,
+  CreateWorktreeResult,
+  GetWorktreeInfoInput,
   GitCreateWorktreeResult,
   GitCheckoutInput,
+  GitCherryPickInput,
   GitCreateBranchInput,
+  GitIntegrationResult,
+  GitMergeBranchInput,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
   GitCreateWorktreeInput,
@@ -35,6 +41,10 @@ import {
   GitRunStackedActionResult,
   GitStatusInput,
   GitStatusResult,
+  ListWorktreesInput,
+  ListWorktreesResult,
+  RemoveWorktreeInput,
+  WorktreeInfo,
 } from "./git";
 import {
   TerminalClearInput,
@@ -297,11 +307,19 @@ export const WS_METHODS = {
   gitListBranches: "git.listBranches",
   gitCreateWorktree: "git.createWorktree",
   gitRemoveWorktree: "git.removeWorktree",
+  gitCherryPick: "git.cherryPick",
+  gitMergeBranch: "git.mergeBranch",
   gitCreateBranch: "git.createBranch",
   gitCheckout: "git.checkout",
   gitInit: "git.init",
   gitResolvePullRequest: "git.resolvePullRequest",
   gitPreparePullRequestThread: "git.preparePullRequestThread",
+
+  // Managed worktree methods
+  worktreesCreate: "worktrees.create",
+  worktreesList: "worktrees.list",
+  worktreesRemove: "worktrees.remove",
+  worktreesInfo: "worktrees.info",
 
   // Terminal methods
   terminalOpen: "terminal.open",
@@ -490,11 +508,19 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.gitListBranches, GitListBranchesInput),
   tagRequestBody(WS_METHODS.gitCreateWorktree, GitCreateWorktreeInput),
   tagRequestBody(WS_METHODS.gitRemoveWorktree, GitRemoveWorktreeInput),
+  tagRequestBody(WS_METHODS.gitCherryPick, GitCherryPickInput),
+  tagRequestBody(WS_METHODS.gitMergeBranch, GitMergeBranchInput),
   tagRequestBody(WS_METHODS.gitCreateBranch, GitCreateBranchInput),
   tagRequestBody(WS_METHODS.gitCheckout, GitCheckoutInput),
   tagRequestBody(WS_METHODS.gitInit, GitInitInput),
   tagRequestBody(WS_METHODS.gitResolvePullRequest, GitPullRequestRefInput),
   tagRequestBody(WS_METHODS.gitPreparePullRequestThread, GitPreparePullRequestThreadInput),
+
+  // Managed worktree methods
+  tagRequestBody(WS_METHODS.worktreesCreate, CreateWorktreeInput),
+  tagRequestBody(WS_METHODS.worktreesList, ListWorktreesInput),
+  tagRequestBody(WS_METHODS.worktreesRemove, RemoveWorktreeInput),
+  tagRequestBody(WS_METHODS.worktreesInfo, GetWorktreeInfoInput),
 
   // Terminal methods
   tagRequestBody(WS_METHODS.terminalOpen, TerminalOpenInput),
@@ -735,11 +761,17 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.gitListBranches]: GitListBranchesResult,
   [WS_METHODS.gitCreateWorktree]: GitCreateWorktreeResult,
   [WS_METHODS.gitRemoveWorktree]: Schema.Void,
+  [WS_METHODS.gitCherryPick]: GitIntegrationResult,
+  [WS_METHODS.gitMergeBranch]: GitIntegrationResult,
   [WS_METHODS.gitCreateBranch]: Schema.Void,
   [WS_METHODS.gitCheckout]: Schema.Void,
   [WS_METHODS.gitInit]: Schema.Void,
   [WS_METHODS.gitResolvePullRequest]: GitResolvePullRequestResult,
   [WS_METHODS.gitPreparePullRequestThread]: GitPreparePullRequestThreadResult,
+  [WS_METHODS.worktreesCreate]: CreateWorktreeResult,
+  [WS_METHODS.worktreesList]: ListWorktreesResult,
+  [WS_METHODS.worktreesRemove]: Schema.Void,
+  [WS_METHODS.worktreesInfo]: WorktreeInfo,
   [WS_METHODS.terminalOpen]: TerminalSessionSnapshot,
   [WS_METHODS.terminalWrite]: Schema.Void,
   [WS_METHODS.terminalResize]: Schema.Void,

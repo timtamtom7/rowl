@@ -107,8 +107,14 @@ import type {
   UpdateGoalTextResult,
 } from "./goals";
 import type {
+  CreateWorktreeInput,
+  CreateWorktreeResult,
+  GetWorktreeInfoInput,
   GitCheckoutInput,
+  GitCherryPickInput,
   GitCreateBranchInput,
+  GitIntegrationResult,
+  GitMergeBranchInput,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
   GitPullRequestRefInput,
@@ -125,6 +131,10 @@ import type {
   GitRunStackedActionResult,
   GitStatusInput,
   GitStatusResult,
+  ListWorktreesInput,
+  ListWorktreesResult,
+  RemoveWorktreeInput,
+  WorktreeInfo,
 } from "./git";
 import type {
   ProjectAgentsFileInput,
@@ -406,6 +416,14 @@ export interface NativeApi {
     listBranches: (input: GitListBranchesInput) => Promise<GitListBranchesResult>;
     createWorktree: (input: GitCreateWorktreeInput) => Promise<GitCreateWorktreeResult>;
     removeWorktree: (input: GitRemoveWorktreeInput) => Promise<void>;
+    cherryPick: (input: GitCherryPickInput) => Promise<GitIntegrationResult>;
+    mergeBranch: (input: GitMergeBranchInput) => Promise<GitIntegrationResult>;
+    worktrees: {
+      create: (input: CreateWorktreeInput) => Promise<CreateWorktreeResult>;
+      list: (input: ListWorktreesInput) => Promise<ListWorktreesResult>;
+      remove: (input: RemoveWorktreeInput) => Promise<void>;
+      info: (input: GetWorktreeInfoInput) => Promise<WorktreeInfo>;
+    };
     createBranch: (input: GitCreateBranchInput) => Promise<void>;
     checkout: (input: GitCheckoutInput) => Promise<void>;
     init: (input: GitInitInput) => Promise<void>;

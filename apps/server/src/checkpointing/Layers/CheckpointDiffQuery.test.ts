@@ -116,6 +116,9 @@ describe("CheckpointDiffQueryLive", () => {
           return "diff patch";
         }),
       deleteCheckpointRefs: () => Effect.void,
+      cherryPickCheckpoint: () => Effect.succeed({ status: "applied", head: "head" }),
+      mergeCheckpoint: () => Effect.succeed({ status: "applied", head: "head" }),
+      createBranchFromCheckpoint: () => Effect.void,
     };
 
     const layer = CheckpointDiffQueryLive.pipe(
@@ -165,6 +168,9 @@ describe("CheckpointDiffQueryLive", () => {
       restoreCheckpoint: () => Effect.succeed(true),
       diffCheckpoints: () => Effect.succeed(""),
       deleteCheckpointRefs: () => Effect.void,
+      cherryPickCheckpoint: () => Effect.succeed({ status: "applied", head: "head" }),
+      mergeCheckpoint: () => Effect.succeed({ status: "applied", head: "head" }),
+      createBranchFromCheckpoint: () => Effect.void,
     };
 
     const layer = CheckpointDiffQueryLive.pipe(

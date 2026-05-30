@@ -59,6 +59,7 @@ import { TerminalManagerLive } from "./terminal/Layers/Manager";
 import { KeybindingsLive } from "./keybindings";
 import { GitManagerLive } from "./git/Layers/GitManager";
 import { GitCoreLive } from "./git/Layers/GitCore";
+import { WorktreeServiceLive } from "./git/Layers/WorktreeService";
 import { GitHubCliLive } from "./git/Layers/GitHubCli";
 import { CodexTextGenerationLive } from "./git/Layers/CodexTextGeneration";
 import { GitServiceLive } from "./git/Layers/GitService";
@@ -235,6 +236,7 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(GitHubCliLive),
     Layer.provideMerge(textGenerationLayer),
   );
+  const worktreeServiceLayer = WorktreeServiceLive.pipe(Layer.provideMerge(GitServiceLive));
 
   return Layer.mergeAll(
     orchestrationReactorLayer,
@@ -255,6 +257,7 @@ export function makeServerRuntimeServicesLayer() {
     multiAgentCoordinatorLayer,
     ProjectPromptsServiceLive,
     pmChatContextServiceLayer,
+    worktreeServiceLayer,
   ).pipe(
     // Provide shared ambient services *after* the mergeAll so peer layers that
     // transitively require them can resolve them. Putting them inside the

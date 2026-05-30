@@ -95,10 +95,12 @@ import { ApprovalService } from "./orchestration/Services/ApprovalService";
 import { ProviderHealth } from "./provider/Services/ProviderHealth";
 import { OpenCodeState } from "./provider/Services/OpenCodeState";
 import { CheckpointDiffQuery } from "./checkpointing/Services/CheckpointDiffQuery";
+import { CheckpointStore } from "./checkpointing/Services/CheckpointStore";
 import { clamp } from "effect/Number";
 import { Open, resolveAvailableEditors } from "./open";
 import { ServerConfig } from "./config";
 import { GitCore } from "./git/Services/GitCore.ts";
+import { WorktreeService } from "./git/Services/WorktreeService.ts";
 import { tryHandleProjectFaviconRequest } from "./projectFaviconRoute";
 import {
   ATTACHMENTS_ROUTE_PREFIX,
@@ -375,6 +377,7 @@ export type ServerCoreRuntimeServices =
   | OrchestrationEngineService
   | ProjectionSnapshotQuery
   | CheckpointDiffQuery
+  | CheckpointStore
   | OrchestrationReactor
   | ProviderService
   | ProviderHealth
@@ -384,6 +387,7 @@ export type ServerRuntimeServices =
   | ServerCoreRuntimeServices
   | GitManager
   | GitCore
+  | WorktreeService
   | TerminalManager
   | Keybindings
   | Open
@@ -440,6 +444,8 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
     now: () => new Date().toISOString(),
   });
   const gitManager = yield* GitManager;
+  const worktreeService = yield* WorktreeService;
+  const checkpointStore = yield* CheckpointStore;
   const terminalManager = yield* TerminalManager;
   const keybindingsManager = yield* Keybindings;
   const providerService = yield* ProviderService;
@@ -1846,6 +1852,74 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           path: yield* authorizePath({
             requestedPath: body.path,
             operation: "Git worktree removal",
+          }),
+        });
+      }
+
+      case WS_METHODS.gitCherryPick: {
+        const body = stripRequestTag(request.body);
+        return yield* checkpointStore.cherryPickCheckpoint({
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git cherry-pick",
+          }),
+          checkpointRef: body.sourceRef,
+          targetBranch: body.targetBranch,
+        });
+      }
+
+      case WS_METHODS.gitMergeBranch: {
+        const body = stripRequestTag(request.body);
+        return yield* checkpointStore.mergeCheckpoint({
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git branch merge",
+          }),
+          branch: body.branch,
+          targetBranch: body.targetBranch,
+        });
+      }
+
+      case WS_METHODS.worktreesCreate: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeService.createWorktree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree creation",
+          }),
+        });
+      }
+
+      case WS_METHODS.worktreesList: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeService.listWorktrees({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree listing",
+          }),
+        });
+      }
+
+      case WS_METHODS.worktreesRemove: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeService.removeWorktree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree removal",
+          }),
+        });
+      }
+
+      case WS_METHODS.worktreesInfo: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeService.getWorktreeInfo({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree info",
           }),
         });
       }

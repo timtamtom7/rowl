@@ -43,13 +43,17 @@ import {
   ListFeaturesByProjectResult,
   LinkThreadToGoalResult,
   ListGoalsByProjectResult,
+  CreateWorktreeResult,
   GitCreateWorktreeResult,
+  GitIntegrationResult,
   GitListBranchesResult,
   GitPreparePullRequestThreadResult,
   GitPullResult,
   GitResolvePullRequestResult,
   GitRunStackedActionResult,
   GitStatusResult,
+  ListWorktreesResult,
+  WorktreeInfo,
   type NativeApi,
   OrchestrationGetFullThreadDiffResult,
   OrchestrationGetSnapshotResult,
@@ -435,6 +439,17 @@ export function createWsNativeApi(): NativeApi {
         requestWithSchema(WS_METHODS.gitCreateWorktree, GitCreateWorktreeResult, input),
       removeWorktree: (input) =>
         requestWithSchema(WS_METHODS.gitRemoveWorktree, Schema.Void, input),
+      cherryPick: (input) =>
+        requestWithSchema(WS_METHODS.gitCherryPick, GitIntegrationResult, input),
+      mergeBranch: (input) =>
+        requestWithSchema(WS_METHODS.gitMergeBranch, GitIntegrationResult, input),
+      worktrees: {
+        create: (input) =>
+          requestWithSchema(WS_METHODS.worktreesCreate, CreateWorktreeResult, input),
+        list: (input) => requestWithSchema(WS_METHODS.worktreesList, ListWorktreesResult, input),
+        remove: (input) => requestWithSchema(WS_METHODS.worktreesRemove, Schema.Void, input),
+        info: (input) => requestWithSchema(WS_METHODS.worktreesInfo, WorktreeInfo, input),
+      },
       createBranch: (input) => requestWithSchema(WS_METHODS.gitCreateBranch, Schema.Void, input),
       checkout: (input) => requestWithSchema(WS_METHODS.gitCheckout, Schema.Void, input),
       init: (input) => requestWithSchema(WS_METHODS.gitInit, Schema.Void, input),

@@ -267,6 +267,75 @@ const makeCheckpointStore = Effect.gen(function* () {
       );
     });
 
+  const switchTargetBranch = (
+    cwd: string,
+    targetBranch: string | undefined,
+    operation: string,
+  ): Effect.Effect<void, GitCommandError> =>
+    targetBranch
+      ? git
+          .execute({
+            operation,
+            cwd,
+            args: ["switch", targetBranch],
+            timeoutMs: 10_000,
+          })
+          .pipe(Effect.asVoid)
+      : Effect.void;
+
+  const resolveHeadAfterIntegration = (
+    cwd: string,
+    operation: string,
+  ): Effect.Effect<{ status: "applied"; head: string }, GitCommandError> =>
+    git
+      .execute({
+        operation,
+        cwd,
+        args: ["rev-parse", "HEAD"],
+      })
+      .pipe(
+        Effect.map((result) => ({
+          status: "applied" as const,
+          head: result.stdout.trim(),
+        })),
+      );
+
+  const cherryPickCheckpoint: CheckpointStoreShape["cherryPickCheckpoint"] = (input) =>
+    Effect.gen(function* () {
+      const operation = "CheckpointStore.cherryPickCheckpoint";
+      yield* switchTargetBranch(input.cwd, input.targetBranch, operation);
+      yield* git.execute({
+        operation,
+        cwd: input.cwd,
+        args: ["cherry-pick", input.checkpointRef],
+        timeoutMs: 30_000,
+      });
+      return yield* resolveHeadAfterIntegration(input.cwd, operation);
+    });
+
+  const mergeCheckpoint: CheckpointStoreShape["mergeCheckpoint"] = (input) =>
+    Effect.gen(function* () {
+      const operation = "CheckpointStore.mergeCheckpoint";
+      yield* switchTargetBranch(input.cwd, input.targetBranch, operation);
+      yield* git.execute({
+        operation,
+        cwd: input.cwd,
+        args: ["merge", "--no-edit", input.branch],
+        timeoutMs: 30_000,
+      });
+      return yield* resolveHeadAfterIntegration(input.cwd, operation);
+    });
+
+  const createBranchFromCheckpoint: CheckpointStoreShape["createBranchFromCheckpoint"] = (input) =>
+    git
+      .execute({
+        operation: "CheckpointStore.createBranchFromCheckpoint",
+        cwd: input.cwd,
+        args: ["branch", input.branch, input.checkpointRef],
+        timeoutMs: 10_000,
+      })
+      .pipe(Effect.asVoid);
+
   return {
     isGitRepository,
     captureCheckpoint,
@@ -274,6 +343,9 @@ const makeCheckpointStore = Effect.gen(function* () {
     restoreCheckpoint,
     diffCheckpoints,
     deleteCheckpointRefs,
+    cherryPickCheckpoint,
+    mergeCheckpoint,
+    createBranchFromCheckpoint,
   } satisfies CheckpointStoreShape;
 });
 

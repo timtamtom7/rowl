@@ -39,6 +39,24 @@ export interface DeleteCheckpointRefsInput {
   readonly checkpointRefs: ReadonlyArray<CheckpointRef>;
 }
 
+export interface CherryPickCheckpointInput {
+  readonly cwd: string;
+  readonly checkpointRef: string;
+  readonly targetBranch?: string | undefined;
+}
+
+export interface MergeCheckpointInput {
+  readonly cwd: string;
+  readonly branch: string;
+  readonly targetBranch?: string | undefined;
+}
+
+export interface CreateBranchFromCheckpointInput {
+  readonly cwd: string;
+  readonly branch: string;
+  readonly checkpointRef: string;
+}
+
 /**
  * CheckpointStoreShape - Service API for checkpoint capture/restore and diff access.
  */
@@ -89,6 +107,27 @@ export interface CheckpointStoreShape {
    */
   readonly deleteCheckpointRefs: (
     input: DeleteCheckpointRefsInput,
+  ) => Effect.Effect<void, CheckpointStoreError>;
+
+  /**
+   * Cherry-pick a checkpoint, commit, or branch tip into the current/target branch.
+   */
+  readonly cherryPickCheckpoint: (
+    input: CherryPickCheckpointInput,
+  ) => Effect.Effect<{ status: "applied"; head: string }, CheckpointStoreError>;
+
+  /**
+   * Merge a worktree branch into the current/target branch.
+   */
+  readonly mergeCheckpoint: (
+    input: MergeCheckpointInput,
+  ) => Effect.Effect<{ status: "applied"; head: string }, CheckpointStoreError>;
+
+  /**
+   * Create a branch from a checkpoint ref.
+   */
+  readonly createBranchFromCheckpoint: (
+    input: CreateBranchFromCheckpointInput,
   ) => Effect.Effect<void, CheckpointStoreError>;
 }
 
