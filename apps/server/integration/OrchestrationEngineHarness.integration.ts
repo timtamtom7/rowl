@@ -367,6 +367,7 @@ export const makeOrchestrationIntegrationHarness = (
       Layer.provideMerge(stubContextServiceLayer),
       Layer.provideMerge(stubMemoryServiceLayer),
       Layer.provideMerge(stubCodebaseIntelligenceLayer),
+      Layer.provideMerge(ContextTrimmerLive),
       Layer.provideMerge(
         Layer.succeed(HandoffService, {
           generateBriefing: () => Effect.succeed(null),

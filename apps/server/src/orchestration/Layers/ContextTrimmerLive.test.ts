@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { Effect, Layer } from "effect";
 import { ContextTrimmerLive } from "./ContextTrimmerLive";
-import { ContextTrimmer } from "../Services/ContextTrimmer";
+import { ContextTrimmer, type ContextTrimmerShape } from "../Services/ContextTrimmer";
 
 const testLayer = ContextTrimmerLive;
 
-const run = <A>(fn: (trimmer: ContextTrimmer) => Effect.Effect<A>) =>
+const run = <A>(fn: (trimmer: ContextTrimmerShape) => Effect.Effect<A>) =>
   Effect.runPromise(
     Effect.gen(function* () {
       const trimmer = yield* ContextTrimmer;
