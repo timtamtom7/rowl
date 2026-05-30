@@ -15,7 +15,8 @@ export type ComposerSlashCommand =
   | "redo"
   | "export"
   | "details"
-  | "remember";
+  | "remember"
+  | "memory";
 
 export interface ComposerSlashInvocation {
   command: string;
@@ -44,6 +45,7 @@ const COMPOSER_SLASH_COMMAND_ALIASES: Record<ComposerSlashCommand, ReadonlyArray
   export: [],
   details: [],
   remember: [],
+  memory: [],
 };
 
 export function getComposerSlashCommandAliases(

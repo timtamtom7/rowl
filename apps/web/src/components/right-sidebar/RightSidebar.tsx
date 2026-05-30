@@ -8,6 +8,7 @@ import {
   DatabaseIcon,
   FolderIcon,
   NetworkIcon,
+  BrainIcon,
 } from "lucide-react";
 import type { ProjectId } from "@t3tools/contracts";
 import { cn } from "~/lib/utils";
@@ -28,7 +29,14 @@ import { AgentPanel } from "~/core-agent/AgentPanel";
 
 export { RightSidebarProvider } from "./RightSidebarContext";
 
-export type RightSidebarTab = "pm-chat" | "threads" | "features" | "goals" | "context" | "map";
+export type RightSidebarTab =
+  | "pm-chat"
+  | "threads"
+  | "features"
+  | "goals"
+  | "context"
+  | "memory"
+  | "map";
 
 interface TabConfig {
   id: RightSidebarTab;
@@ -42,6 +50,7 @@ const TABS: TabConfig[] = [
   { id: "features", label: "Features", icon: <LayoutGridIcon className="size-4" /> },
   { id: "goals", label: "Goals", icon: <TargetIcon className="size-4" /> },
   { id: "context", label: "Context", icon: <DatabaseIcon className="size-4" /> },
+  { id: "memory", label: "Memory", icon: <BrainIcon className="size-4" /> },
   { id: "map", label: "Map", icon: <NetworkIcon className="size-4" /> },
 ];
 
@@ -79,6 +88,13 @@ function renderTabContent(
         <ContextTabContent projectId={projectId} />
         <MemoryTabContent projectId={projectId} />
         {projectCwd && <SkillsSection projectId={projectId} projectCwd={projectCwd} />}
+      </div>
+    );
+  }
+  if (activeTab === "memory" && projectId) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+        <AgentPanel projectRoot={projectCwd} defaultTab="memory" />
       </div>
     );
   }

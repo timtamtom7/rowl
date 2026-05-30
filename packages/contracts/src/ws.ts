@@ -156,6 +156,14 @@ import {
   CoreAgentSetActiveRequest,
   CoreAgentSetActiveResponse,
   CoreAgentUpdateRequest,
+  MemoryChangedEvent,
+  MemoryNoteDeleteRequest,
+  MemoryNoteDeleteResponse,
+  MemoryNoteListRequest,
+  MemoryNoteListResponse,
+  MemoryNoteReadRequest,
+  MemoryNoteResponse,
+  MemoryNoteWriteRequest,
 } from "./core-agent";
 import {
   GetCodebaseHealthInput,
@@ -349,6 +357,12 @@ export const WS_METHODS = {
   coreAgentsUpdate: "coreAgents.update",
   coreAgentsDelete: "coreAgents.delete",
   coreAgentsSetActive: "coreAgents.setActive",
+
+  // Memory Palace methods
+  memoryNotesList: "memoryNotes.list",
+  memoryNotesRead: "memoryNotes.read",
+  memoryNotesWrite: "memoryNotes.write",
+  memoryNotesDelete: "memoryNotes.delete",
 } as const;
 
 // ── Push Event Channels ──────────────────────────────────────────────
@@ -359,6 +373,7 @@ export const WS_CHANNELS = {
   serverConfigUpdated: "server.configUpdated",
   fileActivity: "file.activity",
   coreAgentActiveChanged: "coreAgent.activeChanged",
+  memoryChanged: "memory-changed",
 } as const;
 
 /** File activity event pushed when Claude reads/writes/creates files during a turn */
@@ -488,6 +503,10 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.coreAgentsUpdate, CoreAgentUpdateRequest),
   tagRequestBody(WS_METHODS.coreAgentsDelete, CoreAgentDeleteRequest),
   tagRequestBody(WS_METHODS.coreAgentsSetActive, CoreAgentSetActiveRequest),
+  tagRequestBody(WS_METHODS.memoryNotesList, MemoryNoteListRequest),
+  tagRequestBody(WS_METHODS.memoryNotesRead, MemoryNoteReadRequest),
+  tagRequestBody(WS_METHODS.memoryNotesWrite, MemoryNoteWriteRequest),
+  tagRequestBody(WS_METHODS.memoryNotesDelete, MemoryNoteDeleteRequest),
   tagRequestBody(WS_METHODS.codebaseHealthSummary, GetCodebaseHealthInput),
   tagRequestBody(WS_METHODS.codebaseUpdateHealth, UpdateCodebaseHealthInput),
   tagRequestBody(WS_METHODS.promptsList, ListPromptsInput),
@@ -547,6 +566,7 @@ export interface WsPushPayloadByChannel {
   readonly [ORCHESTRATION_WS_CHANNELS.domainEvent]: OrchestrationEvent;
   readonly [WS_CHANNELS.fileActivity]: FileActivityEvent;
   readonly [WS_CHANNELS.coreAgentActiveChanged]: typeof CoreAgentActiveChangedEvent.Type;
+  readonly [WS_CHANNELS.memoryChanged]: typeof MemoryChangedEvent.Type;
 }
 
 export type WsPushChannel = keyof WsPushPayloadByChannel;
@@ -578,6 +598,7 @@ export const WsPushCoreAgentActiveChanged = makeWsPushSchema(
   WS_CHANNELS.coreAgentActiveChanged,
   CoreAgentActiveChangedEvent,
 );
+export const WsPushMemoryChanged = makeWsPushSchema(WS_CHANNELS.memoryChanged, MemoryChangedEvent);
 
 export const WsPushChannelSchema = Schema.Literals([
   WS_CHANNELS.serverWelcome,
@@ -585,6 +606,7 @@ export const WsPushChannelSchema = Schema.Literals([
   WS_CHANNELS.terminalEvent,
   WS_CHANNELS.fileActivity,
   WS_CHANNELS.coreAgentActiveChanged,
+  WS_CHANNELS.memoryChanged,
   ORCHESTRATION_WS_CHANNELS.domainEvent,
 ]);
 export type WsPushChannelSchema = typeof WsPushChannelSchema.Type;
@@ -595,6 +617,7 @@ export const WsPush = Schema.Union([
   WsPushTerminalEvent,
   WsPushFileActivity,
   WsPushCoreAgentActiveChanged,
+  WsPushMemoryChanged,
   WsPushOrchestrationDomainEvent,
 ]);
 export type WsPush = typeof WsPush.Type;
@@ -702,6 +725,10 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.coreAgentsUpdate]: CoreAgentMutationResponse,
   [WS_METHODS.coreAgentsDelete]: CoreAgentDeleteResponse,
   [WS_METHODS.coreAgentsSetActive]: CoreAgentSetActiveResponse,
+  [WS_METHODS.memoryNotesList]: MemoryNoteListResponse,
+  [WS_METHODS.memoryNotesRead]: MemoryNoteResponse,
+  [WS_METHODS.memoryNotesWrite]: MemoryNoteResponse,
+  [WS_METHODS.memoryNotesDelete]: MemoryNoteDeleteResponse,
   [WS_METHODS.codebaseHealthSummary]: GetCodebaseHealthResult,
   [WS_METHODS.codebaseUpdateHealth]: UpdateCodebaseHealthResult,
   [WS_METHODS.promptsList]: ListPromptsResult,

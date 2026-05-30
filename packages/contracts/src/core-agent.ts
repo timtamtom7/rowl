@@ -124,3 +124,75 @@ export const CoreAgentActiveChangedEvent = Schema.Struct({
   agent: CoreAgent,
 });
 export type CoreAgentActiveChangedEvent = typeof CoreAgentActiveChangedEvent.Type;
+
+export const MemoryNoteFilename = TrimmedNonEmptyString.check(
+  Schema.isMaxLength(128),
+  Schema.isPattern(/^[a-z0-9][a-z0-9-]*$/),
+);
+export type MemoryNoteFilename = typeof MemoryNoteFilename.Type;
+
+export const MemoryNoteSummary = Schema.Struct({
+  filename: MemoryNoteFilename,
+  title: TrimmedNonEmptyString,
+  tags: Schema.Array(TrimmedNonEmptyString),
+  created: IsoDateTime,
+  updated: IsoDateTime,
+});
+export type MemoryNoteSummary = typeof MemoryNoteSummary.Type;
+
+export const MemoryNote = Schema.Struct({
+  filename: MemoryNoteFilename,
+  title: TrimmedNonEmptyString,
+  tags: Schema.Array(TrimmedNonEmptyString),
+  created: IsoDateTime,
+  updated: IsoDateTime,
+  content: Schema.String,
+});
+export type MemoryNote = typeof MemoryNote.Type;
+
+export const MemoryNoteListRequest = Schema.Struct({
+  scope: CoreAgentScope,
+  agentId: CoreAgentId,
+});
+export type MemoryNoteListRequest = typeof MemoryNoteListRequest.Type;
+
+export const MemoryNoteReadRequest = Schema.Struct({
+  scope: CoreAgentScope,
+  agentId: CoreAgentId,
+  filename: MemoryNoteFilename,
+});
+export type MemoryNoteReadRequest = typeof MemoryNoteReadRequest.Type;
+
+export const MemoryNoteWriteRequest = Schema.Struct({
+  scope: CoreAgentScope,
+  agentId: CoreAgentId,
+  filename: MemoryNoteFilename,
+  title: TrimmedNonEmptyString,
+  tags: Schema.optional(Schema.Array(TrimmedNonEmptyString)),
+  content: Schema.String,
+});
+export type MemoryNoteWriteRequest = typeof MemoryNoteWriteRequest.Type;
+
+export const MemoryNoteDeleteRequest = MemoryNoteReadRequest;
+export type MemoryNoteDeleteRequest = typeof MemoryNoteDeleteRequest.Type;
+
+export const MemoryNoteListResponse = Schema.Struct({
+  notes: Schema.Array(MemoryNoteSummary),
+});
+export type MemoryNoteListResponse = typeof MemoryNoteListResponse.Type;
+
+export const MemoryNoteResponse = Schema.Struct({
+  note: MemoryNote,
+});
+export type MemoryNoteResponse = typeof MemoryNoteResponse.Type;
+
+export const MemoryNoteDeleteResponse = Schema.Struct({});
+export type MemoryNoteDeleteResponse = typeof MemoryNoteDeleteResponse.Type;
+
+export const MemoryChangedEvent = Schema.Struct({
+  scope: CoreAgentScope,
+  agentId: CoreAgentId,
+  filename: Schema.optional(MemoryNoteFilename),
+  operation: Schema.Literals(["created", "updated", "deleted", "migrated"]),
+});
+export type MemoryChangedEvent = typeof MemoryChangedEvent.Type;

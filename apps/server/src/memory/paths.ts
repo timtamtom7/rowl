@@ -2,7 +2,7 @@
  * Filesystem paths for Rowl memory blocks.
  *
  * Two tiers:
- *   - global:  {stateDir}/agents/{agentId}/memory/
+ *   - global:  {stateDir}/memory/{agentId}/
  *   - project: {projectRoot}/.rowl/memory/
  *
  * Phase 1a uses a single implicit agent per installation (DEFAULT_AGENT_ID).
@@ -20,12 +20,16 @@ export function globalAgentsRoot(stateDir: string): string {
   return path.join(stateDir, "agents");
 }
 
+export function globalMemoryRoot(stateDir: string): string {
+  return path.join(stateDir, "memory");
+}
+
 export function normalizeMemoryAgentId(agentId: string | undefined): string {
   return decodeAgentId(agentId ?? DEFAULT_AGENT_ID);
 }
 
 export function globalAgentMemoryDir(stateDir: string, agentId?: string): string {
-  return path.join(globalAgentsRoot(stateDir), normalizeMemoryAgentId(agentId), "memory");
+  return path.join(globalMemoryRoot(stateDir), normalizeMemoryAgentId(agentId));
 }
 
 export function projectMemoryDir(projectRoot: string): string {

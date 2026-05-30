@@ -64,6 +64,53 @@ describe("AgentPanel", () => {
     expect(html).toContain("Create from preset");
   });
 
+  it("renders the read-only memory tab with note detail", () => {
+    const html = renderToStaticMarkup(
+      <AgentPanel
+        defaultTab="memory"
+        controller={{
+          agents: [agent()],
+          activeAgentId: "agent-reviewer",
+          activeAgent: agent(),
+          isLoading: false,
+          error: null,
+          refresh: vi.fn(),
+          setActiveAgent: vi.fn(),
+          createFromPreset: vi.fn(),
+        }}
+        memoryController={{
+          notes: [
+            {
+              filename: "api-contracts",
+              title: "API contracts",
+              tags: ["api"],
+              created: NOW,
+              updated: NOW,
+            },
+          ],
+          selectedFilename: "api-contracts",
+          selectedNote: {
+            filename: "api-contracts",
+            title: "API contracts",
+            tags: ["api"],
+            created: NOW,
+            updated: NOW,
+            content: "# API contracts\n\nKeep shared schemas in contracts.",
+          },
+          isLoading: false,
+          isReading: false,
+          error: null,
+          refresh: vi.fn(),
+          selectNote: vi.fn(),
+        }}
+      />,
+    );
+
+    expect(html).toContain("Memory");
+    expect(html).toContain("API contracts");
+    expect(html).toContain("Keep shared schemas");
+  });
+
   it("uses core-agent WebSocket API calls for list, switch, and preset creation", async () => {
     const scope = projectScope();
     const created = agent({ id: "agent-created", name: "Planner" });

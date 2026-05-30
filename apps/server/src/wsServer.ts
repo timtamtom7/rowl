@@ -141,6 +141,7 @@ import {
 } from "./threadRedoStore.ts";
 import { createCoreAgentService, createFileCoreAgentStore } from "./core-agent/CoreAgentService.ts";
 import { setActiveCoreAgentAndPublish } from "./core-agent/CoreAgentEvents.ts";
+import { createMemoryPalaceService } from "./core-agent/MemoryPalaceService.ts";
 
 /**
  * ServerShape - Service API for server lifecycle control.
@@ -429,6 +430,10 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
     store: createFileCoreAgentStore({ stateDir: serverConfig.stateDir }),
     now: () => new Date().toISOString(),
     generateId: () => crypto.randomUUID(),
+  });
+  const memoryPalaceService = createMemoryPalaceService({
+    stateDir: serverConfig.stateDir,
+    now: () => new Date().toISOString(),
   });
   const gitManager = yield* GitManager;
   const terminalManager = yield* TerminalManager;
@@ -2101,6 +2106,40 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           pushBus,
           request: stripRequestTag(request.body) as any,
         });
+      case WS_METHODS.memoryNotesList:
+        return yield* Effect.promise(() =>
+          memoryPalaceService.list(stripRequestTag(request.body) as any).pipe(Effect.runPromise),
+        );
+      case WS_METHODS.memoryNotesRead: {
+        const note = yield* Effect.promise(() =>
+          memoryPalaceService.read(stripRequestTag(request.body) as any).pipe(Effect.runPromise),
+        );
+        return { note };
+      }
+      case WS_METHODS.memoryNotesWrite: {
+        const body = stripRequestTag(request.body) as any;
+        const note = yield* Effect.promise(() =>
+          memoryPalaceService.write(body).pipe(Effect.runPromise),
+        );
+        yield* pushBus.publishAll(WS_CHANNELS.memoryChanged, {
+          scope: body.scope,
+          agentId: body.agentId,
+          filename: body.filename,
+          operation: "updated",
+        });
+        return { note };
+      }
+      case WS_METHODS.memoryNotesDelete: {
+        const body = stripRequestTag(request.body) as any;
+        yield* Effect.promise(() => memoryPalaceService.delete(body).pipe(Effect.runPromise));
+        yield* pushBus.publishAll(WS_CHANNELS.memoryChanged, {
+          scope: body.scope,
+          agentId: body.agentId,
+          filename: body.filename,
+          operation: "deleted",
+        });
+        return {};
+      }
 
       // Codebase Intelligence
       case WS_METHODS.codebaseHealthSummary: {

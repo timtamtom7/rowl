@@ -8,6 +8,12 @@ import {
   CoreAgentMetadata,
   CoreAgentSetActiveRequest,
   CoreAgentUpdateRequest,
+  MemoryChangedEvent,
+  MemoryNote,
+  MemoryNoteListRequest,
+  MemoryNoteListResponse,
+  MemoryNoteReadRequest,
+  MemoryNoteWriteRequest,
 } from "./core-agent";
 
 const decodeMetadata = Schema.decodeUnknownSync(CoreAgentMetadata);
@@ -17,6 +23,12 @@ const decodeCreateRequest = Schema.decodeUnknownSync(CoreAgentCreateRequest);
 const decodeUpdateRequest = Schema.decodeUnknownSync(CoreAgentUpdateRequest);
 const decodeDeleteRequest = Schema.decodeUnknownSync(CoreAgentDeleteRequest);
 const decodeSetActiveRequest = Schema.decodeUnknownSync(CoreAgentSetActiveRequest);
+const decodeMemoryNote = Schema.decodeUnknownSync(MemoryNote);
+const decodeMemoryNoteListRequest = Schema.decodeUnknownSync(MemoryNoteListRequest);
+const decodeMemoryNoteReadRequest = Schema.decodeUnknownSync(MemoryNoteReadRequest);
+const decodeMemoryNoteWriteRequest = Schema.decodeUnknownSync(MemoryNoteWriteRequest);
+const decodeMemoryNoteListResponse = Schema.decodeUnknownSync(MemoryNoteListResponse);
+const decodeMemoryChangedEvent = Schema.decodeUnknownSync(MemoryChangedEvent);
 
 const baseAgent = {
   id: "agent-1",
@@ -168,6 +180,83 @@ describe("CoreAgent WebSocket payloads", () => {
       decodeSetActiveRequest({
         agentId: "../agent",
         scope: { type: "global" },
+      }),
+    ).toThrow();
+  });
+});
+
+describe("Memory note contracts", () => {
+  it("accepts read-only memory note payloads", () => {
+    const note = decodeMemoryNote({
+      filename: "api-contracts",
+      title: "API contracts",
+      tags: ["api", "contracts"],
+      created: "2026-05-29T12:00:00.000Z",
+      updated: "2026-05-29T12:10:00.000Z",
+      content: "# API contracts\n\nKeep schemas shared.",
+    });
+
+    expect(note.filename).toBe("api-contracts");
+    expect(
+      decodeMemoryNoteListResponse({
+        notes: [
+          {
+            filename: note.filename,
+            title: note.title,
+            tags: note.tags,
+            created: note.created,
+            updated: note.updated,
+          },
+        ],
+      }),
+    ).toMatchObject({
+      notes: [{ filename: "api-contracts", title: "API contracts" }],
+    });
+  });
+
+  it("accepts memory note requests and change events", () => {
+    expect(
+      decodeMemoryNoteListRequest({
+        scope: { type: "global" },
+        agentId: "agent-1",
+      }),
+    ).toMatchObject({ agentId: "agent-1" });
+
+    expect(
+      decodeMemoryNoteReadRequest({
+        scope: { type: "project", projectRoot: "/repo" },
+        agentId: "agent-project",
+        filename: "architecture",
+      }),
+    ).toMatchObject({ filename: "architecture" });
+
+    expect(
+      decodeMemoryNoteWriteRequest({
+        scope: { type: "global" },
+        agentId: "agent-1",
+        filename: "review-style",
+        title: "Review style",
+        tags: ["review"],
+        content: "# Review style",
+      }),
+    ).toMatchObject({ title: "Review style" });
+
+    expect(
+      decodeMemoryChangedEvent({
+        scope: { type: "global" },
+        agentId: "agent-1",
+        filename: "review-style",
+        operation: "updated",
+      }),
+    ).toMatchObject({ operation: "updated" });
+  });
+
+  it("rejects unsafe memory note filenames", () => {
+    expect(() =>
+      decodeMemoryNoteReadRequest({
+        scope: { type: "global" },
+        agentId: "agent-1",
+        filename: "../secrets",
       }),
     ).toThrow();
   });

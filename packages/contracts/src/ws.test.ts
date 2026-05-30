@@ -132,6 +132,56 @@ it.effect("accepts core-agent websocket requests", () =>
   }),
 );
 
+it.effect("accepts memory note websocket requests", () =>
+  Effect.gen(function* () {
+    const list = yield* decodeWebSocketRequest({
+      id: "req-memory-notes-list",
+      body: {
+        _tag: WS_METHODS.memoryNotesList,
+        scope: { type: "global" },
+        agentId: "agent-1",
+      },
+    });
+    assert.strictEqual(list.body._tag, WS_METHODS.memoryNotesList);
+
+    const read = yield* decodeWebSocketRequest({
+      id: "req-memory-notes-read",
+      body: {
+        _tag: WS_METHODS.memoryNotesRead,
+        scope: { type: "global" },
+        agentId: "agent-1",
+        filename: "api-contracts",
+      },
+    });
+    assert.strictEqual(read.body._tag, WS_METHODS.memoryNotesRead);
+
+    const write = yield* decodeWebSocketRequest({
+      id: "req-memory-notes-write",
+      body: {
+        _tag: WS_METHODS.memoryNotesWrite,
+        scope: { type: "project", projectRoot: "/repo" },
+        agentId: "agent-project",
+        filename: "architecture",
+        title: "Architecture",
+        tags: ["project"],
+        content: "# Architecture",
+      },
+    });
+    assert.strictEqual(write.body._tag, WS_METHODS.memoryNotesWrite);
+
+    const remove = yield* decodeWebSocketRequest({
+      id: "req-memory-notes-delete",
+      body: {
+        _tag: WS_METHODS.memoryNotesDelete,
+        scope: { type: "global" },
+        agentId: "agent-1",
+        filename: "api-contracts",
+      },
+    });
+    assert.strictEqual(remove.body._tag, WS_METHODS.memoryNotesDelete);
+  }),
+);
+
 it.effect("rejects core-agent websocket requests with unsafe agent ids", () =>
   Effect.gen(function* () {
     const result = yield* Effect.exit(
@@ -199,6 +249,28 @@ it.effect("accepts core-agent active-changed push envelopes", () =>
     }
 
     assert.strictEqual(parsed.channel, WS_CHANNELS.coreAgentActiveChanged);
+  }),
+);
+
+it.effect("accepts memory-changed push envelopes", () =>
+  Effect.gen(function* () {
+    const parsed = yield* decodeWsResponse({
+      type: "push",
+      sequence: 4,
+      channel: WS_CHANNELS.memoryChanged,
+      data: {
+        scope: { type: "global" },
+        agentId: "agent-1",
+        filename: "api-contracts",
+        operation: "updated",
+      },
+    });
+
+    if (!("type" in parsed) || parsed.type !== "push") {
+      assert.fail("expected websocket response to decode as a push envelope");
+    }
+
+    assert.strictEqual(parsed.channel, WS_CHANNELS.memoryChanged);
   }),
 );
 

@@ -36,6 +36,14 @@ import type {
   CoreAgentSetActiveRequest,
   CoreAgentSetActiveResponse,
   CoreAgentUpdateRequest,
+  MemoryChangedEvent,
+  MemoryNoteDeleteRequest,
+  MemoryNoteDeleteResponse,
+  MemoryNoteListRequest,
+  MemoryNoteListResponse,
+  MemoryNoteReadRequest,
+  MemoryNoteResponse,
+  MemoryNoteWriteRequest,
 } from "./core-agent";
 import type {
   GetCodebaseHealthInput,
@@ -329,6 +337,13 @@ export interface NativeApi {
     update: (input: CoreAgentUpdateRequest) => Promise<CoreAgentMutationResponse>;
     delete: (input: CoreAgentDeleteRequest) => Promise<CoreAgentDeleteResponse>;
     setActive: (input: CoreAgentSetActiveRequest) => Promise<CoreAgentSetActiveResponse>;
+  };
+  memoryNotes: {
+    list: (input: MemoryNoteListRequest) => Promise<MemoryNoteListResponse>;
+    read: (input: MemoryNoteReadRequest) => Promise<MemoryNoteResponse>;
+    write: (input: MemoryNoteWriteRequest) => Promise<MemoryNoteResponse>;
+    delete: (input: MemoryNoteDeleteRequest) => Promise<MemoryNoteDeleteResponse>;
+    onChanged: (callback: (event: MemoryChangedEvent) => void) => () => void;
   };
   codebaseHealth: {
     getSummary: (input: GetCodebaseHealthInput) => Promise<GetCodebaseHealthResult>;

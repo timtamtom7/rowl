@@ -14,6 +14,9 @@ import {
   CoreAgentListResponse,
   CoreAgentMutationResponse,
   CoreAgentSetActiveResponse,
+  MemoryNoteDeleteResponse,
+  MemoryNoteListResponse,
+  MemoryNoteResponse,
   SearchMemoryResult,
   ListMemoryByProjectResult,
   DeleteMemoryResult,
@@ -314,6 +317,16 @@ export function createWsNativeApi(): NativeApi {
         requestWithSchema(WS_METHODS.coreAgentsDelete, CoreAgentDeleteResponse, input),
       setActive: (input) =>
         requestWithSchema(WS_METHODS.coreAgentsSetActive, CoreAgentSetActiveResponse, input),
+    },
+    memoryNotes: {
+      list: (input) =>
+        requestWithSchema(WS_METHODS.memoryNotesList, MemoryNoteListResponse, input),
+      read: (input) => requestWithSchema(WS_METHODS.memoryNotesRead, MemoryNoteResponse, input),
+      write: (input) => requestWithSchema(WS_METHODS.memoryNotesWrite, MemoryNoteResponse, input),
+      delete: (input) =>
+        requestWithSchema(WS_METHODS.memoryNotesDelete, MemoryNoteDeleteResponse, input),
+      onChanged: (callback) =>
+        transport.subscribe(WS_CHANNELS.memoryChanged, (message) => callback(message.data)),
     },
     codebaseHealth: {
       getSummary: (input) =>

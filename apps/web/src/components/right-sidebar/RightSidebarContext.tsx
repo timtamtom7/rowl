@@ -27,6 +27,7 @@ function readPersistedTab(): RightSidebarTab {
       stored === "features" ||
       stored === "goals" ||
       stored === "context" ||
+      stored === "memory" ||
       stored === "map"
     ) {
       return stored;

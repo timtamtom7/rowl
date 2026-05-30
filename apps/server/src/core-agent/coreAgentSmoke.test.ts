@@ -75,7 +75,7 @@ async function createProjectAgent(
 }
 
 function agentMemoryDir(agentId: string): string {
-  return path.join(stateDir, "agents", agentId, "memory");
+  return path.join(stateDir, "memory", agentId);
 }
 
 async function writeAgentMemory(agentId: string, body: string): Promise<void> {
