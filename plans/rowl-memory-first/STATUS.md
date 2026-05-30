@@ -1,6 +1,6 @@
 # STATUS — Rowl Memory-First Agent
 
-**Overall status:** phase-1a shipped; phase-1b implementation verified in worktree
+**Overall status:** phase 1a/1b/1c/1d shipped; 1e optional
 **Owner:** timtamtom7
 **Spec approved:** yes
 **Plan written:** `PHASE-1A-PLAN.md` (complete, executed)
@@ -14,9 +14,9 @@
 | ----- | ------------------------------------------------------- | ------- | -------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1a    | Core memory substrate                                   | shipped | `phase-1a/core-memory-substrate` | `v-phase-1a` | All 15 tasks executed. Memory tool deferred (see locked decisions).                                                                                    |
 | 1b    | Agent management (multi-agent, personalities, commands) | active  | `phase-1a/core-memory-substrate` | —            | Tasks 1-14 implemented and focused verification complete in worktree; root typecheck remains blocked by pre-existing server orchestration/test errors. |
-| 1c    | Memory Palace + in-app `/memory` view (read-only)       | pending | —                                | —            |                                                                                                                                                        |
-| 1d    | Editable memory + `/init` + `/doctor`                   | pending | —                                | —            |                                                                                                                                                        |
-| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                                                                                                        |
+| 1c    | Memory Palace + in-app `/memory` view (read-only)       | shipped | —                                | —            | file-based .md notes, WS list/read/write/delete, memory-changed events, two-pane UI                    |
+| 1d    | Editable memory + `/init` + `/doctor`                   | shipped | —                                | —            | editable UI (title/tags/content/save/delete), /init seeds workspace context, /doctor health diagnosis   |
+| 1e    | Consolidation (`/compact`, `/reflect`) — optional       | pending | —                                | —            | Can be cut if scope gets tight.                                                                         |
 
 ---
 
