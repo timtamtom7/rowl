@@ -354,11 +354,13 @@ The checkpointing system captures repository state at specific points ("turns" w
 
 - `apps/server/src/checkpointing/Layers/CheckpointDiffQuery.ts` - Query diffs between checkpoints
 - `apps/server/src/checkpointing/Layers/CheckpointStore.ts` - Checkpoint capture and restore
+- `apps/server/src/checkpointing/Layers/WorktreeCheckpointService.ts` - Worktree-scoped checkpoints, branch integration, and stacked branch creation
 
 **Services:**
 
 - `apps/server/src/checkpointing/Services/CheckpointDiffQuery.ts` - Effect layer for CheckpointDiffQuery
 - `apps/server/src/checkpointing/Services/CheckpointStore.ts` - Effect layer for CheckpointStore
+- `apps/server/src/checkpointing/Services/WorktreeCheckpointService.ts` - Worktree-aware checkpoint service contract
 
 **Utilities:**
 
@@ -381,6 +383,14 @@ function checkpointRefForThreadTurn(threadId: string, turnCount: number): string
 ```
 
 Example ref: `refs/t3/checkpoints/abc123XYZ/turn/5`
+
+Worktree checkpoints use branch-scoped refs under:
+
+```text
+refs/t3/checkpoints/worktrees/{base64url(worktreeBranch)}/{timestamp}-{head}
+```
+
+Unlike turn snapshot checkpoints, worktree checkpoints point at the actual worktree branch commit so they can be cherry-picked or merged through normal Git ancestry.
 
 ### Data Flow
 
@@ -426,13 +436,14 @@ function resolveThreadWorkspaceCwd(
 
 ### Implementation Status
 
-| Component            | Status            | Notes                             |
-| -------------------- | ----------------- | --------------------------------- |
-| CheckpointStore      | Fully implemented | Capture, restore, ref management  |
-| CheckpointDiffQuery  | Fully implemented | Diff between checkpoints          |
-| Diff parsing         | Fully implemented | parseTurnDiffFilesFromUnifiedDiff |
-| Ref generation       | Fully implemented | checkpointRefForThreadTurn        |
-| Workspace resolution | Fully implemented | resolveThreadWorkspaceCwd         |
+| Component                 | Status            | Notes                                                            |
+| ------------------------- | ----------------- | ---------------------------------------------------------------- |
+| CheckpointStore           | Fully implemented | Capture, restore, ref management                                 |
+| CheckpointDiffQuery       | Fully implemented | Diff between checkpoints                                         |
+| WorktreeCheckpointService | Fully implemented | Worktree checkpoints, branch merge/cherry-pick, stacked branches |
+| Diff parsing              | Fully implemented | parseTurnDiffFilesFromUnifiedDiff                                |
+| Ref generation            | Fully implemented | checkpointRefForThreadTurn                                       |
+| Workspace resolution      | Fully implemented | resolveThreadWorkspaceCwd                                        |
 
 ---
 

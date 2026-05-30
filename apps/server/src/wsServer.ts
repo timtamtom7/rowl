@@ -96,6 +96,7 @@ import { ProviderHealth } from "./provider/Services/ProviderHealth";
 import { OpenCodeState } from "./provider/Services/OpenCodeState";
 import { CheckpointDiffQuery } from "./checkpointing/Services/CheckpointDiffQuery";
 import { CheckpointStore } from "./checkpointing/Services/CheckpointStore";
+import { WorktreeCheckpointService } from "./checkpointing/Services/WorktreeCheckpointService";
 import { clamp } from "effect/Number";
 import { Open, resolveAvailableEditors } from "./open";
 import { ServerConfig } from "./config";
@@ -378,6 +379,7 @@ export type ServerCoreRuntimeServices =
   | ProjectionSnapshotQuery
   | CheckpointDiffQuery
   | CheckpointStore
+  | WorktreeCheckpointService
   | OrchestrationReactor
   | ProviderService
   | ProviderHealth
@@ -446,6 +448,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const gitManager = yield* GitManager;
   const worktreeService = yield* WorktreeService;
   const checkpointStore = yield* CheckpointStore;
+  const worktreeCheckpointService = yield* WorktreeCheckpointService;
   const terminalManager = yield* TerminalManager;
   const keybindingsManager = yield* Keybindings;
   const providerService = yield* ProviderService;
@@ -1935,6 +1938,39 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         });
       }
 
+      case WS_METHODS.gitStackBranch: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeCheckpointService.createStackedBranch({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git stacked branch creation",
+          }),
+        });
+      }
+
+      case WS_METHODS.checkpointsCreateInWorktree: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeCheckpointService.createCheckpointInWorktree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree checkpoint creation",
+          }),
+        });
+      }
+
+      case WS_METHODS.checkpointsListByWorktree: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeCheckpointService.listCheckpointsByWorktree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree checkpoint listing",
+          }),
+        });
+      }
+
       case WS_METHODS.gitCheckout: {
         const body = stripRequestTag(request.body);
         return yield* Effect.scoped(
@@ -2108,7 +2144,9 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return result;
       }
       case WS_METHODS.goalsUnlinkThread: {
-        const result = yield* goalsService.unlinkThreadFromGoal(stripRequestTag(request.body) as any);
+        const result = yield* goalsService.unlinkThreadFromGoal(
+          stripRequestTag(request.body) as any,
+        );
         yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
           domain: "goals",
           action: "unlinkThread",

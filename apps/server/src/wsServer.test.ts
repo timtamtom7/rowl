@@ -14,6 +14,7 @@ import { makeServerProviderLayer, makeServerRuntimeServicesLayer } from "./serve
 import {
   DEFAULT_MODEL_BY_PROVIDER,
   DEFAULT_TERMINAL_ID,
+  CheckpointRef,
   EDITORS,
   EventId,
   ORCHESTRATION_WS_CHANNELS,
@@ -58,6 +59,10 @@ import {
   CheckpointStore,
   type CheckpointStoreShape,
 } from "./checkpointing/Services/CheckpointStore.ts";
+import {
+  WorktreeCheckpointService,
+  type WorktreeCheckpointServiceShape,
+} from "./checkpointing/Services/WorktreeCheckpointService.ts";
 import { clearTransientTurnStartProviderOptions } from "./provider/transientProviderOptions.ts";
 import { GitCommandError, GitManagerError } from "./git/Errors.ts";
 import { MigrationError } from "@effect/sql-sqlite-bun/SqliteMigrator";
@@ -528,6 +533,7 @@ describe("WebSocket Server", () => {
       gitCore?: Pick<GitCoreShape, "listBranches" | "initRepo" | "pullCurrentBranch">;
       worktreeService?: WorktreeServiceShape;
       checkpointStore?: Pick<CheckpointStoreShape, "cherryPickCheckpoint" | "mergeCheckpoint">;
+      worktreeCheckpointService?: WorktreeCheckpointServiceShape;
       terminalManager?: TerminalManagerShape;
     } = {},
   ): Promise<Http.Server> {
@@ -570,6 +576,9 @@ describe("WebSocket Server", () => {
         : Layer.empty,
       options.checkpointStore
         ? Layer.succeed(CheckpointStore, options.checkpointStore as unknown as CheckpointStoreShape)
+        : Layer.empty,
+      options.worktreeCheckpointService
+        ? Layer.succeed(WorktreeCheckpointService, options.worktreeCheckpointService)
         : Layer.empty,
       options.terminalManager
         ? Layer.succeed(TerminalManager, options.terminalManager)
@@ -2608,11 +2617,62 @@ describe("WebSocket Server", () => {
       getWorktreeInfo: vi.fn(() => Effect.succeed(worktreeInfo)),
     };
     const checkpointStore = {
-      cherryPickCheckpoint: vi.fn(() => Effect.succeed({ status: "applied" as const, head: "def456" })),
+      cherryPickCheckpoint: vi.fn(() =>
+        Effect.succeed({ status: "applied" as const, head: "def456" }),
+      ),
       mergeCheckpoint: vi.fn(() => Effect.succeed({ status: "applied" as const, head: "fed654" })),
     };
+    const worktreeCheckpoint = {
+      checkpointRef: CheckpointRef.makeUnsafe("refs/t3/checkpoints/worktrees/agent/feature"),
+      worktreeBranch: "agent/feature",
+      worktreePath: worktreeInfo.path,
+      head: "abc123",
+      message: "checkpoint",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const stackBranchResult = {
+      stack: [
+        { branch: "main", head: "base123", worktreePath: null },
+        {
+          branch: "agent/stacked",
+          head: "base123",
+          worktreePath: "/test/.rowl/worktrees/agent-stacked",
+          parentBranch: "main",
+        },
+      ],
+      created: {
+        branch: "agent/stacked",
+        head: "base123",
+        worktreePath: "/test/.rowl/worktrees/agent-stacked",
+        parentBranch: "main",
+      },
+    };
+    const worktreeCheckpointService: WorktreeCheckpointServiceShape = {
+      createCheckpointInWorktree: vi.fn(() =>
+        Effect.succeed({
+          checkpoint: worktreeCheckpoint,
+          worktree: worktreeInfo,
+          branch: { name: "agent/feature", head: "abc123" },
+        }),
+      ),
+      listCheckpointsByWorktree: vi.fn(() =>
+        Effect.succeed({ checkpoints: [worktreeCheckpoint], worktree: worktreeInfo }),
+      ),
+      cherryPickCheckpointToMain: vi.fn(() =>
+        Effect.succeed({ status: "applied" as const, head: "def456" }),
+      ),
+      mergeWorktreeBranch: vi.fn(() =>
+        Effect.succeed({ status: "applied" as const, head: "fed654" }),
+      ),
+      createStackedBranch: vi.fn(() => Effect.succeed(stackBranchResult)),
+    };
 
-    server = await createTestServer({ cwd: "/test", worktreeService, checkpointStore });
+    server = await createTestServer({
+      cwd: "/test",
+      worktreeService,
+      checkpointStore,
+      worktreeCheckpointService,
+    });
     const addr = server.address();
     const port = typeof addr === "object" && addr !== null ? addr.port : 0;
 
@@ -2631,6 +2691,28 @@ describe("WebSocket Server", () => {
     expect(listResponse.error).toBeUndefined();
     expect(listResponse.result).toEqual({ worktrees: [worktreeInfo] });
 
+    const checkpointCreateResponse = await sendRequest(ws, WS_METHODS.checkpointsCreateInWorktree, {
+      cwd: "/test",
+      worktreeBranch: "agent/feature",
+      message: "checkpoint",
+    });
+    expect(checkpointCreateResponse.error).toBeUndefined();
+    expect(checkpointCreateResponse.result).toEqual({
+      checkpoint: worktreeCheckpoint,
+      worktree: worktreeInfo,
+      branch: { name: "agent/feature", head: "abc123" },
+    });
+
+    const checkpointListResponse = await sendRequest(ws, WS_METHODS.checkpointsListByWorktree, {
+      cwd: "/test",
+      worktreeBranch: "agent/feature",
+    });
+    expect(checkpointListResponse.error).toBeUndefined();
+    expect(checkpointListResponse.result).toEqual({
+      checkpoints: [worktreeCheckpoint],
+      worktree: worktreeInfo,
+    });
+
     const cherryPickResponse = await sendRequest(ws, WS_METHODS.gitCherryPick, {
       cwd: "/test",
       sourceRef: "agent/feature",
@@ -2647,10 +2729,30 @@ describe("WebSocket Server", () => {
     expect(mergeResponse.error).toBeUndefined();
     expect(mergeResponse.result).toEqual({ status: "applied", head: "fed654" });
 
+    const stackBranchResponse = await sendRequest(ws, WS_METHODS.gitStackBranch, {
+      cwd: "/test",
+      branch: "agent/stacked",
+    });
+    expect(stackBranchResponse.error).toBeUndefined();
+    expect(stackBranchResponse.result).toEqual(stackBranchResult);
+
     expect(worktreeService.createWorktree).toHaveBeenCalledWith({
       cwd: path.resolve("/test"),
       branch: "agent/feature",
       baseBranch: "main",
+    });
+    expect(worktreeCheckpointService.createCheckpointInWorktree).toHaveBeenCalledWith({
+      cwd: path.resolve("/test"),
+      worktreeBranch: "agent/feature",
+      message: "checkpoint",
+    });
+    expect(worktreeCheckpointService.listCheckpointsByWorktree).toHaveBeenCalledWith({
+      cwd: path.resolve("/test"),
+      worktreeBranch: "agent/feature",
+    });
+    expect(worktreeCheckpointService.createStackedBranch).toHaveBeenCalledWith({
+      cwd: path.resolve("/test"),
+      branch: "agent/stacked",
     });
     expect(checkpointStore.cherryPickCheckpoint).toHaveBeenCalledWith({
       cwd: path.resolve("/test"),

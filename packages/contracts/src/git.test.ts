@@ -8,6 +8,8 @@ import {
   GitCherryPickInput,
   GitPreparePullRequestThreadInput,
   GitResolvePullRequestResult,
+  StackBranchInput,
+  StackBranchResult,
 } from "./git";
 
 const decodeCreateWorktreeInput = Schema.decodeUnknownSync(GitCreateWorktreeInput);
@@ -18,6 +20,8 @@ const decodePreparePullRequestThreadInput = Schema.decodeUnknownSync(
   GitPreparePullRequestThreadInput,
 );
 const decodeResolvePullRequestResult = Schema.decodeUnknownSync(GitResolvePullRequestResult);
+const decodeStackBranchInput = Schema.decodeUnknownSync(StackBranchInput);
+const decodeStackBranchResult = Schema.decodeUnknownSync(StackBranchResult);
 
 describe("GitCreateWorktreeInput", () => {
   it("accepts omitted newBranch for existing-branch worktrees", () => {
@@ -74,6 +78,43 @@ describe("GitCherryPickInput", () => {
 
     expect(parsed.sourceRef).toBe("agent/feature-auth");
     expect(parsed.targetBranch).toBe("main");
+  });
+});
+
+describe("StackBranchInput", () => {
+  it("accepts stacked branch creation from the current branch", () => {
+    const parsed = decodeStackBranchInput({
+      cwd: "/repo",
+      branch: "agent/stacked",
+    });
+
+    expect(parsed.branch).toBe("agent/stacked");
+    expect(parsed.baseBranch).toBeUndefined();
+  });
+});
+
+describe("StackBranchResult", () => {
+  it("decodes ordered branch stack metadata", () => {
+    const parsed = decodeStackBranchResult({
+      stack: [
+        { branch: "main", head: "base123", worktreePath: null },
+        {
+          branch: "agent/stacked",
+          head: "base123",
+          worktreePath: "/repo/.rowl/worktrees/agent-stacked",
+          parentBranch: "main",
+        },
+      ],
+      created: {
+        branch: "agent/stacked",
+        head: "base123",
+        worktreePath: "/repo/.rowl/worktrees/agent-stacked",
+        parentBranch: "main",
+      },
+    });
+
+    expect(parsed.stack.map((entry) => entry.branch)).toEqual(["main", "agent/stacked"]);
+    expect(parsed.created.parentBranch).toBe("main");
   });
 });
 

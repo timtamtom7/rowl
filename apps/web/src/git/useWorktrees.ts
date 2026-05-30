@@ -61,7 +61,10 @@ export function useWorktrees(input: {
 }): WorktreesController {
   const api = input.api ?? readNativeApi();
   const cwd = input.cwd?.trim() || null;
-  const actions = useMemo(() => (api && cwd ? createWorktreeActions({ api, cwd }) : null), [api, cwd]);
+  const actions = useMemo(
+    () => (api && cwd ? createWorktreeActions({ api, cwd }) : null),
+    [api, cwd],
+  );
   const [worktrees, setWorktrees] = useState<ReadonlyArray<WorktreeInfo>>([]);
   const [isLoading, setIsLoading] = useState(Boolean(cwd));
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +103,10 @@ export function useWorktrees(input: {
     async create(createInput) {
       if (!actions) throw new Error("Native API is unavailable.");
       const worktree = await actions.create(createInput);
-      setWorktrees((current) => [...current.filter((item) => item.branch !== worktree.branch), worktree]);
+      setWorktrees((current) => [
+        ...current.filter((item) => item.branch !== worktree.branch),
+        worktree,
+      ]);
       return worktree;
     },
     async remove(branch, force) {

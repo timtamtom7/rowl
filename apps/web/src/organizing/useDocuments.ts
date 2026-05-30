@@ -20,7 +20,10 @@ export type DocumentsController = {
   readonly isReading: boolean;
   readonly error: string | null;
   readonly refresh: () => Promise<void>;
-  readonly selectDocument: (documentId: GoalDocumentId, version?: PositiveInt) => Promise<GoalDocument | null>;
+  readonly selectDocument: (
+    documentId: GoalDocumentId,
+    version?: PositiveInt,
+  ) => Promise<GoalDocument | null>;
   readonly listByGoal: (goalId?: GoalId) => Promise<ReadonlyArray<GoalDocument>>;
   readonly read: (input: {
     readonly documentId: GoalDocumentId;

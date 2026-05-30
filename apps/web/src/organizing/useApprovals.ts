@@ -129,10 +129,7 @@ export function useApprovals(input: {
       setError(null);
       try {
         const approval = await operation();
-        setApprovals((current) => [
-          ...current.filter((item) => item.id !== approval.id),
-          approval,
-        ]);
+        setApprovals((current) => [...current.filter((item) => item.id !== approval.id), approval]);
         setIsApproved(await actions.isGoalApproved(goalId ?? undefined));
         return approval;
       } catch (caught) {

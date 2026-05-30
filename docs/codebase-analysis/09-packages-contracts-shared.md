@@ -202,9 +202,19 @@ Git operations including worktrees and stacked PRs:
 - `GitInitInput` — Initialize repo
 - `GitCreateWorktreeInput` — Create worktree (newBranch optional for existing branches)
 - `GitRemoveWorktreeInput` — Remove worktree
+- `StackBranchInput/Result` — Create a managed stacked branch worktree and return ordered stack metadata
 - `GitRunStackedActionInput/Result` — Stacked PR workflow
 - `GitPreparePullRequestThreadInput/Result` — Prepare PR thread
 - `GitResolvePullRequestResult` — Resolved PR metadata with number, title, url, baseBranch, headBranch, state
+
+### Checkpointing (`checkpointing.ts`)
+
+Worktree-aware checkpoint contracts:
+
+- `WorktreeCheckpoint` — Hidden checkpoint ref plus source worktree branch/path metadata
+- `CreateWorktreeCheckpointInput` — Commit and record a checkpoint from a specific managed worktree
+- `WorktreeCheckpointResult` — Created checkpoint plus current worktree branch info
+- `ListWorktreeCheckpointsInput/Result` — List checkpoint refs scoped to one worktree branch
 
 ### Project (`project.ts`)
 

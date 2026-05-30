@@ -34,7 +34,9 @@ export function createGoalActions(input: {
 }): GoalActions {
   return {
     async listByProject(nextInput) {
-      const result = await input.api.goals.listByProject(nextInput ?? { projectId: input.projectId });
+      const result = await input.api.goals.listByProject(
+        nextInput ?? { projectId: input.projectId },
+      );
       return result.goals;
     },
     async create(createInput) {

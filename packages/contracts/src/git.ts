@@ -149,6 +149,13 @@ export const GitMergeBranchInput = Schema.Struct({
 });
 export type GitMergeBranchInput = typeof GitMergeBranchInput.Type;
 
+export const StackBranchInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+  branch: TrimmedNonEmptyStringSchema,
+  baseBranch: Schema.optional(TrimmedNonEmptyStringSchema),
+});
+export type StackBranchInput = typeof StackBranchInput.Type;
+
 export const CreateBranchFromCheckpointInput = Schema.Struct({
   cwd: TrimmedNonEmptyStringSchema,
   branch: TrimmedNonEmptyStringSchema,
@@ -279,3 +286,16 @@ export const GitIntegrationResult = Schema.Struct({
   head: TrimmedNonEmptyStringSchema,
 });
 export type GitIntegrationResult = typeof GitIntegrationResult.Type;
+
+const StackBranchInfo = Schema.Struct({
+  branch: TrimmedNonEmptyStringSchema,
+  head: TrimmedNonEmptyStringSchema,
+  worktreePath: TrimmedNonEmptyStringSchema.pipe(Schema.NullOr),
+  parentBranch: Schema.optional(TrimmedNonEmptyStringSchema),
+});
+
+export const StackBranchResult = Schema.Struct({
+  stack: Schema.Array(StackBranchInfo),
+  created: StackBranchInfo,
+});
+export type StackBranchResult = typeof StackBranchResult.Type;

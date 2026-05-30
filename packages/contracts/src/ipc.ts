@@ -162,8 +162,16 @@ import type {
   ListWorktreesInput,
   ListWorktreesResult,
   RemoveWorktreeInput,
+  StackBranchInput,
+  StackBranchResult,
   WorktreeInfo,
 } from "./git";
+import type {
+  CreateWorktreeCheckpointInput,
+  ListWorktreeCheckpointsInput,
+  ListWorktreeCheckpointsResult,
+  WorktreeCheckpointResult,
+} from "./checkpointing";
 import type {
   ProjectAgentsFileInput,
   ProjectAgentsFileResult,
@@ -467,6 +475,7 @@ export interface NativeApi {
     removeWorktree: (input: GitRemoveWorktreeInput) => Promise<void>;
     cherryPick: (input: GitCherryPickInput) => Promise<GitIntegrationResult>;
     mergeBranch: (input: GitMergeBranchInput) => Promise<GitIntegrationResult>;
+    stackBranch: (input: StackBranchInput) => Promise<StackBranchResult>;
     worktrees: {
       create: (input: CreateWorktreeInput) => Promise<CreateWorktreeResult>;
       list: (input: ListWorktreesInput) => Promise<ListWorktreesResult>;
@@ -484,6 +493,10 @@ export interface NativeApi {
     pull: (input: GitPullInput) => Promise<GitPullResult>;
     status: (input: GitStatusInput) => Promise<GitStatusResult>;
     runStackedAction: (input: GitRunStackedActionInput) => Promise<GitRunStackedActionResult>;
+  };
+  checkpoints: {
+    createInWorktree: (input: CreateWorktreeCheckpointInput) => Promise<WorktreeCheckpointResult>;
+    listByWorktree: (input: ListWorktreeCheckpointsInput) => Promise<ListWorktreeCheckpointsResult>;
   };
   contextMenu: {
     show: <T extends string>(

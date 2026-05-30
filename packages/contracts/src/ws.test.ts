@@ -105,6 +105,37 @@ it.effect("accepts managed worktree and git integration requests", () =>
       },
     });
     assert.strictEqual(cherryPick.body._tag, WS_METHODS.gitCherryPick);
+
+    const createCheckpoint = yield* decodeWebSocketRequest({
+      id: "req-checkpoint-worktree-create",
+      body: {
+        _tag: WS_METHODS.checkpointsCreateInWorktree,
+        cwd: "/repo",
+        worktreeBranch: "agent/feature-auth",
+        message: "checkpoint",
+      },
+    });
+    assert.strictEqual(createCheckpoint.body._tag, WS_METHODS.checkpointsCreateInWorktree);
+
+    const listCheckpoints = yield* decodeWebSocketRequest({
+      id: "req-checkpoint-worktree-list",
+      body: {
+        _tag: WS_METHODS.checkpointsListByWorktree,
+        cwd: "/repo",
+        worktreeBranch: "agent/feature-auth",
+      },
+    });
+    assert.strictEqual(listCheckpoints.body._tag, WS_METHODS.checkpointsListByWorktree);
+
+    const stackBranch = yield* decodeWebSocketRequest({
+      id: "req-git-stack-branch",
+      body: {
+        _tag: WS_METHODS.gitStackBranch,
+        cwd: "/repo",
+        branch: "agent/stacked",
+      },
+    });
+    assert.strictEqual(stackBranch.body._tag, WS_METHODS.gitStackBranch);
   }),
 );
 

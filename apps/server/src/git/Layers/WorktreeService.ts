@@ -7,10 +7,7 @@ import { sanitizeBranchFragment } from "@t3tools/shared/git";
 import { GitCommandError, WorktreeServiceError } from "../Errors.ts";
 import { GitServiceLive } from "./GitService.ts";
 import { GitService } from "../Services/GitService.ts";
-import {
-  WorktreeService,
-  type WorktreeServiceShape,
-} from "../Services/WorktreeService.ts";
+import { WorktreeService, type WorktreeServiceShape } from "../Services/WorktreeService.ts";
 
 const MANAGED_WORKTREES_DIR = ".rowl/worktrees";
 const LOCKS_DIR = ".locks";
@@ -265,9 +262,9 @@ export const makeWorktreeService = Effect.gen(function* () {
             if (entry === LOCKS_DIR) return;
             const candidate = path.join(managed, entry);
             if (!activePaths.has(candidate)) {
-              yield* fs.remove(candidate, { recursive: true, force: true }).pipe(
-                Effect.catch(() => Effect.void),
-              );
+              yield* fs
+                .remove(candidate, { recursive: true, force: true })
+                .pipe(Effect.catch(() => Effect.void));
             }
           }),
         { concurrency: 1 },

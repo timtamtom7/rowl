@@ -51,8 +51,16 @@ import {
   ListWorktreesInput,
   ListWorktreesResult,
   RemoveWorktreeInput,
+  StackBranchInput,
+  StackBranchResult,
   WorktreeInfo,
 } from "./git";
+import {
+  CreateWorktreeCheckpointInput,
+  ListWorktreeCheckpointsInput,
+  ListWorktreeCheckpointsResult,
+  WorktreeCheckpointResult,
+} from "./checkpointing";
 import {
   TerminalClearInput,
   TerminalCloseInput,
@@ -317,10 +325,15 @@ export const WS_METHODS = {
   gitCherryPick: "git.cherryPick",
   gitMergeBranch: "git.mergeBranch",
   gitCreateBranch: "git.createBranch",
+  gitStackBranch: "git.stackBranch",
   gitCheckout: "git.checkout",
   gitInit: "git.init",
   gitResolvePullRequest: "git.resolvePullRequest",
   gitPreparePullRequestThread: "git.preparePullRequestThread",
+
+  // Checkpoint methods
+  checkpointsCreateInWorktree: "checkpoints.createInWorktree",
+  checkpointsListByWorktree: "checkpoints.listByWorktree",
 
   // Managed worktree methods
   worktreesCreate: "worktrees.create",
@@ -530,10 +543,15 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.gitCherryPick, GitCherryPickInput),
   tagRequestBody(WS_METHODS.gitMergeBranch, GitMergeBranchInput),
   tagRequestBody(WS_METHODS.gitCreateBranch, GitCreateBranchInput),
+  tagRequestBody(WS_METHODS.gitStackBranch, StackBranchInput),
   tagRequestBody(WS_METHODS.gitCheckout, GitCheckoutInput),
   tagRequestBody(WS_METHODS.gitInit, GitInitInput),
   tagRequestBody(WS_METHODS.gitResolvePullRequest, GitPullRequestRefInput),
   tagRequestBody(WS_METHODS.gitPreparePullRequestThread, GitPreparePullRequestThreadInput),
+
+  // Checkpoint methods
+  tagRequestBody(WS_METHODS.checkpointsCreateInWorktree, CreateWorktreeCheckpointInput),
+  tagRequestBody(WS_METHODS.checkpointsListByWorktree, ListWorktreeCheckpointsInput),
 
   // Managed worktree methods
   tagRequestBody(WS_METHODS.worktreesCreate, CreateWorktreeInput),
@@ -790,10 +808,13 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.gitCherryPick]: GitIntegrationResult,
   [WS_METHODS.gitMergeBranch]: GitIntegrationResult,
   [WS_METHODS.gitCreateBranch]: Schema.Void,
+  [WS_METHODS.gitStackBranch]: StackBranchResult,
   [WS_METHODS.gitCheckout]: Schema.Void,
   [WS_METHODS.gitInit]: Schema.Void,
   [WS_METHODS.gitResolvePullRequest]: GitResolvePullRequestResult,
   [WS_METHODS.gitPreparePullRequestThread]: GitPreparePullRequestThreadResult,
+  [WS_METHODS.checkpointsCreateInWorktree]: WorktreeCheckpointResult,
+  [WS_METHODS.checkpointsListByWorktree]: ListWorktreeCheckpointsResult,
   [WS_METHODS.worktreesCreate]: CreateWorktreeResult,
   [WS_METHODS.worktreesList]: ListWorktreesResult,
   [WS_METHODS.worktreesRemove]: Schema.Void,

@@ -1,10 +1,4 @@
-import {
-  ChevronRightIcon,
-  CircleDotIcon,
-  Loader2Icon,
-  PlusIcon,
-  TargetIcon,
-} from "lucide-react";
+import { ChevronRightIcon, CircleDotIcon, Loader2Icon, PlusIcon, TargetIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Goal, GoalId, GoalLevel, GoalStatus, ProjectId } from "@t3tools/contracts";
 
@@ -190,7 +184,11 @@ export function GoalsPanel({
             disabled={isCreating || !draftText.trim()}
             className="flex h-7 w-full items-center justify-center gap-1 rounded-md bg-primary px-2 text-[11px] font-medium text-primary-foreground disabled:opacity-60"
           >
-            {isCreating ? <Loader2Icon className="size-3 animate-spin" /> : <PlusIcon className="size-3" />}
+            {isCreating ? (
+              <Loader2Icon className="size-3 animate-spin" />
+            ) : (
+              <PlusIcon className="size-3" />
+            )}
             Create Goal
           </button>
         </div>
@@ -216,7 +214,11 @@ function GoalTreeNode({
   readonly selectedGoalId: GoalId | null;
   readonly onSelect: (goalId: GoalId) => void;
   readonly onToggle: (goalId: GoalId) => void;
-  readonly onUpdate: (input: { readonly id: GoalId; readonly status?: GoalStatus; readonly level?: GoalLevel }) => void;
+  readonly onUpdate: (input: {
+    readonly id: GoalId;
+    readonly status?: GoalStatus;
+    readonly level?: GoalLevel;
+  }) => void;
 }) {
   const children = childrenByParent.get(goal.id) ?? [];
   const isExpanded = expandedIds.has(goal.id);
@@ -238,7 +240,9 @@ function GoalTreeNode({
           aria-label={isExpanded ? "Collapse goal" : "Expand goal"}
           className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/55 hover:bg-accent/50 disabled:opacity-25"
         >
-          <ChevronRightIcon className={cn("size-3 transition-transform", isExpanded && "rotate-90")} />
+          <ChevronRightIcon
+            className={cn("size-3 transition-transform", isExpanded && "rotate-90")}
+          />
         </button>
         <button
           type="button"

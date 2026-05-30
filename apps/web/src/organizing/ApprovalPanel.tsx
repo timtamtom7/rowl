@@ -195,7 +195,11 @@ export function ApprovalPanel({
             disabled={!goalId || !requestedBy.trim() || isCreating}
             className="flex h-7 w-full items-center justify-center gap-1 rounded-md bg-primary px-2 text-[11px] font-medium text-primary-foreground disabled:opacity-60"
           >
-            {isCreating ? <Loader2Icon className="size-3 animate-spin" /> : <PlusIcon className="size-3" />}
+            {isCreating ? (
+              <Loader2Icon className="size-3 animate-spin" />
+            ) : (
+              <PlusIcon className="size-3" />
+            )}
             Create Approval Gate
           </button>
         </div>

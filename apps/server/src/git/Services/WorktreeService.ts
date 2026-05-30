@@ -34,7 +34,6 @@ export interface WorktreeServiceShape {
   ) => Effect.Effect<WorktreeInfo, WorktreeServiceErrorType>;
 }
 
-export class WorktreeService extends ServiceMap.Service<
-  WorktreeService,
-  WorktreeServiceShape
->()("rowl/git/Services/WorktreeService") {}
+export class WorktreeService extends ServiceMap.Service<WorktreeService, WorktreeServiceShape>()(
+  "rowl/git/Services/WorktreeService",
+) {}

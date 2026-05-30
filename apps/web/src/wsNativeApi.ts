@@ -443,8 +443,7 @@ export function createWsNativeApi(): NativeApi {
       listByGoal: (input) =>
         requestWithSchema(WS_METHODS.approvalsList, ListApprovalsByGoalResult, input),
       create: (input) => requestWithSchema(WS_METHODS.approvalsCreate, ApprovalGateResult, input),
-      approve: (input) =>
-        requestWithSchema(WS_METHODS.approvalsApprove, ApprovalGateResult, input),
+      approve: (input) => requestWithSchema(WS_METHODS.approvalsApprove, ApprovalGateResult, input),
       reject: (input) => requestWithSchema(WS_METHODS.approvalsReject, ApprovalGateResult, input),
       isGoalApproved: (input) =>
         requestWithSchema(WS_METHODS.approvalsIsGoalApproved, IsGoalApprovedResult, input),

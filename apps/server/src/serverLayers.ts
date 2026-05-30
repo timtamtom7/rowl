@@ -6,6 +6,7 @@ import * as SqlClient from "effect/unstable/sql/SqlClient";
 
 import { CheckpointDiffQueryLive } from "./checkpointing/Layers/CheckpointDiffQuery";
 import { CheckpointStoreLive } from "./checkpointing/Layers/CheckpointStore";
+import { WorktreeCheckpointServiceLive } from "./checkpointing/Layers/WorktreeCheckpointService";
 import { ServerConfig } from "./config";
 import { OrchestrationCommandReceiptRepositoryLive } from "./persistence/Layers/OrchestrationCommandReceipts";
 import { OrchestrationEventStoreLive } from "./persistence/Layers/OrchestrationEventStore";
@@ -237,6 +238,11 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(textGenerationLayer),
   );
   const worktreeServiceLayer = WorktreeServiceLive.pipe(Layer.provideMerge(GitServiceLive));
+  const worktreeCheckpointServiceLayer = WorktreeCheckpointServiceLive.pipe(
+    Layer.provideMerge(worktreeServiceLayer),
+    Layer.provideMerge(CheckpointStoreLive),
+    Layer.provideMerge(GitServiceLive),
+  );
 
   return Layer.mergeAll(
     orchestrationReactorLayer,
@@ -258,6 +264,7 @@ export function makeServerRuntimeServicesLayer() {
     ProjectPromptsServiceLive,
     pmChatContextServiceLayer,
     worktreeServiceLayer,
+    worktreeCheckpointServiceLayer,
   ).pipe(
     // Provide shared ambient services *after* the mergeAll so peer layers that
     // transitively require them can resolve them. Putting them inside the
