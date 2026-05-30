@@ -253,6 +253,9 @@ describe("ProviderCommandReactor", () => {
       Layer.provideMerge(
         Layer.succeed(GoalsService, {
           listGoalsByProject: () => Effect.succeed({ goals: [] }),
+          createGoal: () => Effect.die("unsupported goals.create in test harness"),
+          getGoal: () => Effect.die("unsupported goals.get in test harness"),
+          updateGoal: () => Effect.die("unsupported goals.update in test harness"),
         } as any),
       ),
       Layer.provideMerge(
@@ -528,6 +531,41 @@ describe("ProviderCommandReactor", () => {
     const thread = readModel.threads.find((entry) => entry.id === ThreadId.makeUnsafe("thread-1"));
     const assistant = thread?.messages.find((message) => message.role === "assistant");
     expect(assistant?.text).toContain("Active agent: Alpha (alpha)");
+  });
+
+  it("routes organizing slash commands through services without sending a provider turn", async () => {
+    const harness = await createHarness();
+    const now = "2026-05-29T12:00:00.000Z";
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.makeUnsafe("cmd-turn-start-goals-command"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-goals-command"),
+          role: "user",
+          text: "/goals",
+          attachments: [],
+        },
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(async () => {
+      const readModel = await Effect.runPromise(harness.engine.getReadModel());
+      const thread = readModel.threads.find(
+        (entry) => entry.id === ThreadId.makeUnsafe("thread-1"),
+      );
+      return Boolean(thread?.messages.some((message) => message.role === "assistant"));
+    });
+    expect(harness.sendTurn).not.toHaveBeenCalled();
+    const readModel = await Effect.runPromise(harness.engine.getReadModel());
+    const thread = readModel.threads.find((entry) => entry.id === ThreadId.makeUnsafe("thread-1"));
+    const assistant = thread?.messages.find((message) => message.role === "assistant");
+    expect(assistant?.text).toContain("No goals found for this project.");
   });
 
   it("forwards codex model options through session start and turn send", async () => {

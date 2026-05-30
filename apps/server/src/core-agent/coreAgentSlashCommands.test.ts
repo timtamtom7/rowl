@@ -1,4 +1,14 @@
-import type { CoreAgentMetadata, CoreAgentScope } from "@t3tools/contracts";
+import {
+  ApprovalGateId,
+  GoalDocumentId,
+  GoalId,
+  ProjectId,
+  type ApprovalGate,
+  type CoreAgentMetadata,
+  type CoreAgentScope,
+  type Goal,
+  type GoalDocument,
+} from "@t3tools/contracts";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
@@ -11,6 +21,11 @@ import type { MemoryPalaceServiceShape } from "./MemoryPalaceService.ts";
 
 const now = "2026-05-29T12:00:00.000Z";
 const scope: CoreAgentScope = { type: "global" };
+const projectId = ProjectId.makeUnsafe("project-1");
+const goalId = GoalId.makeUnsafe("goal-1");
+const childGoalId = GoalId.makeUnsafe("goal-2");
+const documentId = GoalDocumentId.makeUnsafe("doc-1");
+const approvalId = ApprovalGateId.makeUnsafe("gate-1");
 
 function createStore(): CoreAgentStore {
   const agents = new Map<string, CoreAgentMetadata>();
@@ -58,6 +73,44 @@ async function seededService() {
   return service;
 }
 
+function createGoal(overrides: Partial<Goal> = {}): Goal {
+  return {
+    id: goalId,
+    projectId,
+    text: "Ship organizing layer",
+    isMain: false,
+    linkedThreadIds: [],
+    status: "planned",
+    level: "team",
+    createdAt: now,
+    ...overrides,
+  };
+}
+
+function createDocument(overrides: Partial<GoalDocument> = {}): GoalDocument {
+  return {
+    id: documentId,
+    goalId,
+    title: "Research notes",
+    content: "# Research\n\nUse the organizing service layer.",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+function createApproval(overrides: Partial<ApprovalGate> = {}): ApprovalGate {
+  return {
+    id: approvalId,
+    goalId,
+    status: "pending",
+    requestedBy: "rowl",
+    createdAt: now,
+    ...overrides,
+  };
+}
+
 describe("core agent slash command parsing", () => {
   it("parses /agents, /switch, /persona, /init, /doctor, /compact, and /reflect", () => {
     expect(parseCoreAgentSlashCommand(" /agents ")).toEqual({ kind: "agents" });
@@ -81,6 +134,62 @@ describe("core agent slash command parsing", () => {
     expect(parseCoreAgentSlashCommand("/doctor")).toEqual({ kind: "doctor" });
     expect(parseCoreAgentSlashCommand("/compact")).toEqual({ kind: "compact" });
     expect(parseCoreAgentSlashCommand("/reflect")).toEqual({ kind: "reflect" });
+  });
+
+  it("parses organizing slash commands", () => {
+    expect(parseCoreAgentSlashCommand("/goals")).toEqual({ kind: "goalsList" });
+    expect(
+      parseCoreAgentSlashCommand(
+        '/goals create "Ship organizing layer" --parent parent-1 --level team --agent alpha',
+      ),
+    ).toEqual({
+      kind: "goalsCreate",
+      text: "Ship organizing layer",
+      parentId: GoalId.makeUnsafe("parent-1"),
+      level: "team",
+      ownerAgentId: "alpha",
+    });
+    expect(parseCoreAgentSlashCommand("/goals update goal-1 --status active")).toEqual({
+      kind: "goalsUpdateStatus",
+      goalId,
+      status: "active",
+    });
+    expect(parseCoreAgentSlashCommand("/doc goal-1")).toEqual({
+      kind: "documentsList",
+      goalId,
+    });
+    expect(parseCoreAgentSlashCommand("/doc create goal-1 Research notes\n# Draft")).toEqual({
+      kind: "documentsCreate",
+      goalId,
+      title: "Research notes",
+      content: "# Draft",
+    });
+    expect(parseCoreAgentSlashCommand("/doc read goal-1 doc-1")).toEqual({
+      kind: "documentsRead",
+      goalId,
+      documentId,
+    });
+    expect(parseCoreAgentSlashCommand("/approve goal-1")).toEqual({
+      kind: "approvalsShow",
+      goalId,
+    });
+    expect(parseCoreAgentSlashCommand("/approve create goal-1 Ready for review")).toEqual({
+      kind: "approvalsCreate",
+      goalId,
+      reason: "Ready for review",
+    });
+    expect(parseCoreAgentSlashCommand("/approve approve goal-1 gate-1 Looks good")).toEqual({
+      kind: "approvalsApprove",
+      goalId,
+      approvalId,
+      reason: "Looks good",
+    });
+    expect(parseCoreAgentSlashCommand("/approve reject goal-1 gate-1 Missing tests")).toEqual({
+      kind: "approvalsReject",
+      goalId,
+      approvalId,
+      reason: "Missing tests",
+    });
   });
 
   it("ignores unrelated slash commands", () => {
@@ -146,6 +255,319 @@ describe("core agent slash command execution", () => {
       kind: "custom",
       instructions: "Always explain risk first.",
     });
+  });
+
+  it("lists project goals as an indented hierarchy", async () => {
+    const service = await seededService();
+    const parent = createGoal();
+    const child = createGoal({
+      id: childGoalId,
+      text: "Write slash commands",
+      parentId: goalId,
+      status: "active",
+      level: "task",
+      createdAt: "2026-05-29T12:01:00.000Z",
+    });
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/goals",
+      organizing: {
+        projectId,
+        goals: {
+          listGoalsByProject: () => Effect.succeed({ goals: [child, parent] }),
+          createGoal: () => Effect.die("unused"),
+          getGoal: () => Effect.die("unused"),
+          updateGoal: () => Effect.die("unused"),
+        },
+      },
+    });
+
+    expect(result?.response).toContain("Goals:");
+    expect(result?.response).toContain("- ○ [planned] [team] Ship organizing layer (goal-1)");
+    expect(result?.response).toContain("  - ▶ [active] [task] Write slash commands (goal-2)");
+  });
+
+  it("creates a project goal", async () => {
+    const service = await seededService();
+    const calls: unknown[] = [];
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/goals create Ship organizing slash commands --parent goal-parent --level agent --agent alpha",
+      organizing: {
+        projectId,
+        goals: {
+          listGoalsByProject: () => Effect.die("unused"),
+          createGoal: (input) => {
+            calls.push(input);
+            return Effect.succeed({
+              goal: createGoal({
+                id: goalId,
+                projectId: input.projectId,
+                text: input.text,
+                isMain: input.isMain,
+                status: input.status ?? "planned",
+                level: input.level ?? "task",
+                linkedThreadIds: [],
+                ...(input.parentId ? { parentId: input.parentId } : {}),
+                ...(input.ownerAgentId ? { ownerAgentId: input.ownerAgentId } : {}),
+                ...(input.description ? { description: input.description } : {}),
+                createdAt: now,
+              }),
+            });
+          },
+          getGoal: () => Effect.die("unused"),
+          updateGoal: () => Effect.die("unused"),
+        },
+      },
+    });
+
+    expect(calls[0]).toMatchObject({
+      projectId,
+      text: "Ship organizing slash commands",
+      isMain: false,
+      status: "planned",
+      parentId: GoalId.makeUnsafe("goal-parent"),
+      level: "agent",
+      ownerAgentId: "alpha",
+    });
+    expect(result?.response).toContain("Created goal:");
+    expect(result?.response).toContain("ID: goal-1");
+  });
+
+  it("updates a goal status through the allowed lifecycle", async () => {
+    const service = await seededService();
+    const updates: unknown[] = [];
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/goals update goal-1 --status active",
+      organizing: {
+        goals: {
+          listGoalsByProject: () => Effect.die("unused"),
+          createGoal: () => Effect.die("unused"),
+          getGoal: () => Effect.succeed({ goal: createGoal({ status: "planned" }) }),
+          updateGoal: (input) => {
+            updates.push(input);
+            return Effect.succeed({ goal: createGoal({ status: input.status ?? "planned" }) });
+          },
+        },
+      },
+    });
+
+    expect(updates[0]).toEqual({ id: goalId, status: "active" });
+    expect(result?.response).toContain("Updated goal status:");
+    expect(result?.response).toContain("▶ [active]");
+  });
+
+  it("lists documents for a goal", async () => {
+    const service = await seededService();
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/doc goal-1",
+      organizing: {
+        documents: {
+          listDocumentsByGoal: () => Effect.succeed({ documents: [createDocument()] }),
+          createDocument: () => Effect.die("unused"),
+          readDocument: () => Effect.die("unused"),
+        },
+      },
+    });
+
+    expect(result?.response).toContain("Documents for goal goal-1:");
+    expect(result?.response).toContain("- v1 Research notes (doc-1)");
+  });
+
+  it("creates a document for a goal from following markdown lines", async () => {
+    const service = await seededService();
+    const calls: unknown[] = [];
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/doc create goal-1 Research notes\n# Research\n\nDetails",
+      organizing: {
+        documents: {
+          listDocumentsByGoal: () => Effect.die("unused"),
+          createDocument: (input) => {
+            calls.push(input);
+            return Effect.succeed({ document: createDocument(input) });
+          },
+          readDocument: () => Effect.die("unused"),
+        },
+      },
+    });
+
+    expect(calls[0]).toEqual({
+      goalId,
+      title: "Research notes",
+      content: "# Research\n\nDetails",
+    });
+    expect(result?.response).toContain("Created document:");
+    expect(result?.response).toContain("Version: v1");
+  });
+
+  it("reads a document with metadata and content", async () => {
+    const service = await seededService();
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/doc read goal-1 doc-1",
+      organizing: {
+        documents: {
+          listDocumentsByGoal: () => Effect.die("unused"),
+          createDocument: () => Effect.die("unused"),
+          readDocument: () => Effect.succeed({ document: createDocument() }),
+        },
+      },
+    });
+
+    expect(result?.response).toContain("Research notes (doc-1)");
+    expect(result?.response).toContain("Goal: goal-1");
+    expect(result?.response).toContain("Version: v1");
+    expect(result?.response).toContain("# Research");
+  });
+
+  it("shows aggregate approval status for a goal", async () => {
+    const service = await seededService();
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/approve goal-1",
+      organizing: {
+        approvals: {
+          listApprovalsByGoal: () =>
+            Effect.succeed({
+              approvals: [
+                createApproval({ status: "approved" }),
+                createApproval({ id: ApprovalGateId.makeUnsafe("gate-2") }),
+              ],
+            }),
+          createApproval: () => Effect.die("unused"),
+          approve: () => Effect.die("unused"),
+          reject: () => Effect.die("unused"),
+        },
+      },
+    });
+
+    expect(result?.response).toContain("Approval status for goal goal-1: pending");
+    expect(result?.response).toContain("- ✓ [approved] gate-1");
+    expect(result?.response).toContain("- ○ [pending] gate-2");
+  });
+
+  it("creates an approval gate", async () => {
+    const service = await seededService();
+    const calls: unknown[] = [];
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/approve create goal-1 Ready for human review",
+      organizing: {
+        actorId: "alpha",
+        approvals: {
+          listApprovalsByGoal: () => Effect.die("unused"),
+          createApproval: (input) => {
+            calls.push(input);
+            return Effect.succeed({ approval: createApproval(input) });
+          },
+          approve: () => Effect.die("unused"),
+          reject: () => Effect.die("unused"),
+        },
+      },
+    });
+
+    expect(calls[0]).toEqual({
+      goalId,
+      requestedBy: "alpha",
+      reason: "Ready for human review",
+    });
+    expect(result?.response).toContain("Created approval gate:");
+    expect(result?.response).toContain("[pending] gate-1");
+  });
+
+  it("approves an approval gate", async () => {
+    const service = await seededService();
+    const calls: unknown[] = [];
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/approve approve goal-1 gate-1 Looks good",
+      organizing: {
+        actorId: "alpha",
+        approvals: {
+          listApprovalsByGoal: () => Effect.die("unused"),
+          createApproval: () => Effect.die("unused"),
+          approve: (input) => {
+            calls.push(input);
+            return Effect.succeed({
+              approval: createApproval({
+                status: "approved",
+                reviewedBy: input.reviewedBy,
+                reason: input.reason,
+              }),
+            });
+          },
+          reject: () => Effect.die("unused"),
+        },
+      },
+    });
+
+    expect(calls[0]).toEqual({
+      goalId,
+      approvalId,
+      reviewedBy: "alpha",
+      reason: "Looks good",
+    });
+    expect(result?.response).toContain("Approved gate:");
+    expect(result?.response).toContain("[approved] gate-1");
+  });
+
+  it("rejects an approval gate with a required reason", async () => {
+    const service = await seededService();
+    const calls: unknown[] = [];
+
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      scope,
+      text: "/approve reject goal-1 gate-1 Missing tests",
+      organizing: {
+        actorId: "alpha",
+        approvals: {
+          listApprovalsByGoal: () => Effect.die("unused"),
+          createApproval: () => Effect.die("unused"),
+          approve: () => Effect.die("unused"),
+          reject: (input) => {
+            calls.push(input);
+            return Effect.succeed({
+              approval: createApproval({
+                status: "rejected",
+                reviewedBy: input.reviewedBy,
+                reason: input.reason,
+              }),
+            });
+          },
+        },
+      },
+    });
+
+    expect(calls[0]).toEqual({
+      goalId,
+      approvalId,
+      reviewedBy: "alpha",
+      reason: "Missing tests",
+    });
+    expect(result?.response).toContain("Rejected gate:");
+    expect(result?.response).toContain("[rejected] gate-1");
   });
 
   it("compacts current conversation into a memory note", async () => {

@@ -64,6 +64,8 @@ import { assembleMemoryPreamble } from "../../memory/preamble.ts";
 import { ServerConfig } from "../../config.ts";
 import { ProjectPromptsService } from "../Services/ProjectPromptsService.ts";
 import { GoalsService } from "../Services/GoalsService.ts";
+import { createDocumentService } from "./DocumentServiceLive.ts";
+import { createApprovalService } from "./ApprovalServiceLive.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import {
   ProviderCommandReactor,
@@ -287,6 +289,8 @@ const make = Effect.gen(function* () {
     stateDir: serverConfig.stateDir,
     now: () => new Date().toISOString(),
   });
+  const documentService = createDocumentService({ stateDir: serverConfig.stateDir });
+  const approvalService = createApprovalService({ stateDir: serverConfig.stateDir });
   const projectPromptsService = yield* ProjectPromptsService;
   const git = yield* GitCore;
   const textGeneration = yield* TextGeneration;
@@ -1039,12 +1043,20 @@ If you're unsure, say so clearly instead of claiming success.
       thread,
       projects: readModel.projects,
     });
+    const project = readModel.projects.find((entry) => entry.id === thread.projectId);
     const slashResult = yield* Effect.promise(() =>
       executeCoreAgentSlashCommand({
         service: coreAgentService,
         memory: memoryPalaceService,
         scope: workspaceCwd ? { type: "project", projectRoot: workspaceCwd } : { type: "global" },
         stateDir: serverConfig.stateDir,
+        organizing: {
+          ...(project ? { projectId: project.id } : {}),
+          actorId: "rowl",
+          goals: goalsService,
+          documents: documentService,
+          approvals: approvalService,
+        },
         conversationMessages: thread.messages,
         summarizer: contextTrimmer,
         text: message.text,

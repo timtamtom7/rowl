@@ -1,7 +1,32 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import type { CoreAgentMetadata, CoreAgentScope } from "@t3tools/contracts";
+import {
+  ApprovalGateId,
+  GoalDocumentId,
+  GoalId,
+  type ApprovalGate,
+  type ApprovalGateResult,
+  type ApprovalGateStatus,
+  type CreateApprovalInput,
+  type CreateGoalDocumentInput,
+  type CreateGoalInput,
+  type CreateGoalResult,
+  type Goal,
+  type GoalDocument,
+  type GoalDocumentResult,
+  type GoalLevel,
+  type GoalStatus,
+  type ListApprovalsByGoalResult,
+  type ListDocumentsByGoalResult,
+  type ListGoalsByProjectResult,
+  type ProjectId,
+  type ReadGoalDocumentInput,
+  type UpdateGoalInput,
+  type UpdateGoalResult,
+  type CoreAgentMetadata,
+  type CoreAgentScope,
+} from "@t3tools/contracts";
 import { Effect } from "effect";
 
 import type { CoreAgentService } from "./CoreAgentService.ts";
@@ -20,7 +45,38 @@ export type CoreAgentSlashCommand =
   | { readonly kind: "init" }
   | { readonly kind: "doctor" }
   | { readonly kind: "compact" }
-  | { readonly kind: "reflect" };
+  | { readonly kind: "reflect" }
+  | { readonly kind: "goalsList" }
+  | {
+      readonly kind: "goalsCreate";
+      readonly text: string;
+      readonly parentId?: GoalId;
+      readonly level?: GoalLevel;
+      readonly ownerAgentId?: string;
+    }
+  | { readonly kind: "goalsUpdateStatus"; readonly goalId: GoalId; readonly status: GoalStatus }
+  | { readonly kind: "documentsList"; readonly goalId: GoalId }
+  | {
+      readonly kind: "documentsCreate";
+      readonly goalId: GoalId;
+      readonly title: string;
+      readonly content: string;
+    }
+  | { readonly kind: "documentsRead"; readonly goalId: GoalId; readonly documentId: GoalDocumentId }
+  | { readonly kind: "approvalsShow"; readonly goalId: GoalId }
+  | { readonly kind: "approvalsCreate"; readonly goalId: GoalId; readonly reason?: string }
+  | {
+      readonly kind: "approvalsApprove";
+      readonly goalId: GoalId;
+      readonly approvalId: ApprovalGateId;
+      readonly reason?: string;
+    }
+  | {
+      readonly kind: "approvalsReject";
+      readonly goalId: GoalId;
+      readonly approvalId: ApprovalGateId;
+      readonly reason: string;
+    };
 
 export type CoreAgentSlashCommandResult = {
   readonly handled: true;
@@ -40,6 +96,50 @@ export type ConversationSummarizer = {
   }) => Effect.Effect<{ readonly summary: string; readonly tokensSaved: number }>;
 };
 
+type GoalsSlashService = {
+  readonly createGoal: (input: CreateGoalInput) => Effect.Effect<CreateGoalResult, Error, never>;
+  readonly getGoal: (input: {
+    readonly id: GoalId;
+  }) => Effect.Effect<{ readonly goal: Goal }, Error, never>;
+  readonly listGoalsByProject: (input: {
+    readonly projectId: ProjectId;
+  }) => Effect.Effect<ListGoalsByProjectResult, Error, never>;
+  readonly updateGoal: (input: UpdateGoalInput) => Effect.Effect<UpdateGoalResult, Error, never>;
+};
+
+type DocumentsSlashService = {
+  readonly createDocument: (
+    input: CreateGoalDocumentInput,
+  ) => Effect.Effect<GoalDocumentResult, Error, never>;
+  readonly readDocument: (
+    input: ReadGoalDocumentInput,
+  ) => Effect.Effect<GoalDocumentResult, Error, never>;
+  readonly listDocumentsByGoal: (input: {
+    readonly goalId: GoalId;
+  }) => Effect.Effect<ListDocumentsByGoalResult, Error, never>;
+};
+
+type ApprovalsSlashService = {
+  readonly createApproval: (
+    input: CreateApprovalInput,
+  ) => Effect.Effect<ApprovalGateResult, Error, never>;
+  readonly approve: (input: {
+    readonly goalId: GoalId;
+    readonly approvalId: ApprovalGateId;
+    readonly reviewedBy: string;
+    readonly reason?: string;
+  }) => Effect.Effect<ApprovalGateResult, Error, never>;
+  readonly reject: (input: {
+    readonly goalId: GoalId;
+    readonly approvalId: ApprovalGateId;
+    readonly reviewedBy: string;
+    readonly reason?: string;
+  }) => Effect.Effect<ApprovalGateResult, Error, never>;
+  readonly listApprovalsByGoal: (input: {
+    readonly goalId: GoalId;
+  }) => Effect.Effect<ListApprovalsByGoalResult, Error, never>;
+};
+
 export function parseCoreAgentSlashCommand(text: string): CoreAgentSlashCommand | null {
   const trimmed = text.trim();
   if (!trimmed.startsWith("/")) return null;
@@ -48,7 +148,8 @@ export function parseCoreAgentSlashCommand(text: string): CoreAgentSlashCommand 
   if (!match) return null;
 
   const command = (match[1] ?? "").toLowerCase();
-  const rest = unquote((match[2] ?? "").trim());
+  const rawRest = (match[2] ?? "").trim();
+  const rest = unquote(rawRest);
   if (command === "agents" && rest.length === 0) {
     return { kind: "agents" };
   }
@@ -70,6 +171,15 @@ export function parseCoreAgentSlashCommand(text: string): CoreAgentSlashCommand 
   if (command === "reflect" && rest.length === 0) {
     return { kind: "reflect" };
   }
+  if (command === "goals") {
+    return parseGoalsSlashCommand(rawRest);
+  }
+  if (command === "doc") {
+    return parseDocumentSlashCommand(rawRest);
+  }
+  if (command === "approve") {
+    return parseApprovalSlashCommand(rawRest);
+  }
   return null;
 }
 
@@ -79,6 +189,13 @@ export async function executeCoreAgentSlashCommand(input: {
     "listAgents" | "resolveActiveAgent" | "setActiveAgent" | "updateAgent"
   >;
   readonly memory?: Pick<MemoryPalaceServiceShape, "list" | "read" | "write">;
+  readonly organizing?: {
+    readonly projectId?: ProjectId;
+    readonly actorId?: string;
+    readonly goals?: GoalsSlashService;
+    readonly documents?: DocumentsSlashService;
+    readonly approvals?: ApprovalsSlashService;
+  };
   readonly conversationMessages?: ReadonlyArray<CoreAgentConversationMessage>;
   readonly summarizer?: ConversationSummarizer;
   readonly now?: () => string;
@@ -165,6 +282,76 @@ export async function executeCoreAgentSlashCommand(input: {
     };
   }
 
+  if (command.kind === "goalsList") {
+    return {
+      handled: true,
+      response: await listGoalsForCurrentProject(input.organizing),
+    };
+  }
+
+  if (command.kind === "goalsCreate") {
+    return {
+      handled: true,
+      response: await createGoalForCurrentProject(input.organizing, command),
+    };
+  }
+
+  if (command.kind === "goalsUpdateStatus") {
+    return {
+      handled: true,
+      response: await updateGoalStatus(input.organizing, command),
+    };
+  }
+
+  if (command.kind === "documentsList") {
+    return {
+      handled: true,
+      response: await listDocumentsForGoal(input.organizing, command.goalId),
+    };
+  }
+
+  if (command.kind === "documentsCreate") {
+    return {
+      handled: true,
+      response: await createDocumentForGoal(input.organizing, command),
+    };
+  }
+
+  if (command.kind === "documentsRead") {
+    return {
+      handled: true,
+      response: await readDocumentForGoal(input.organizing, command),
+    };
+  }
+
+  if (command.kind === "approvalsShow") {
+    return {
+      handled: true,
+      response: await showApprovalStatus(input.organizing, command.goalId),
+    };
+  }
+
+  if (command.kind === "approvalsCreate") {
+    return {
+      handled: true,
+      response: await createApprovalGate(input.organizing, command),
+    };
+  }
+
+  if (command.kind === "approvalsApprove") {
+    return {
+      handled: true,
+      response: await reviewApprovalGate(input.organizing, command, "approved"),
+    };
+  }
+
+  if (command.kind === "approvalsReject") {
+    return {
+      handled: true,
+      response: await reviewApprovalGate(input.organizing, command, "rejected"),
+    };
+  }
+
   const active = await input.service.resolveActiveAgent({ scope: input.scope });
   const preset = findPreset(command.value);
   if (preset) {
@@ -195,6 +382,192 @@ export async function executeCoreAgentSlashCommand(input: {
     handled: true,
     response: `Updated ${active.agent.name} personality.`,
   };
+}
+
+function parseGoalsSlashCommand(rawRest: string): CoreAgentSlashCommand | null {
+  const firstLine = firstCommandLine(rawRest);
+  if (firstLine.length === 0) return { kind: "goalsList" };
+  const tokens = tokenizeCommandLine(firstLine);
+  const subcommand = tokens[0]?.toLowerCase();
+  if (subcommand === "create") {
+    const parsed = parseGoalCreateTokens(tokens.slice(1));
+    if (!parsed || parsed.text.trim().length === 0) return null;
+    return {
+      kind: "goalsCreate",
+      text: parsed.text,
+      ...(parsed.parentId ? { parentId: GoalId.makeUnsafe(parsed.parentId) } : {}),
+      ...(parsed.level ? { level: parsed.level } : {}),
+      ...(parsed.ownerAgentId ? { ownerAgentId: parsed.ownerAgentId } : {}),
+    };
+  }
+  if (subcommand === "update") {
+    const goalId = tokens[1];
+    const statusIndex = tokens.findIndex((token) => token === "--status");
+    const status = statusIndex >= 0 ? tokens[statusIndex + 1] : undefined;
+    if (!goalId || !isGoalStatus(status)) return null;
+    return {
+      kind: "goalsUpdateStatus",
+      goalId: GoalId.makeUnsafe(goalId),
+      status,
+    };
+  }
+  return null;
+}
+
+function parseDocumentSlashCommand(rawRest: string): CoreAgentSlashCommand | null {
+  const [firstLine = "", ...bodyLines] = rawRest.split(/\r?\n/);
+  const tokens = tokenizeCommandLine(firstLine.trim());
+  const subcommand = tokens[0]?.toLowerCase();
+  if (!subcommand) return null;
+  if (subcommand === "create") {
+    const goalId = tokens[1];
+    const title = tokens.slice(2).join(" ").trim();
+    if (!goalId || title.length === 0) return null;
+    return {
+      kind: "documentsCreate",
+      goalId: GoalId.makeUnsafe(goalId),
+      title,
+      content: bodyLines.join("\n").trim(),
+    };
+  }
+  if (subcommand === "read") {
+    const goalId = tokens[1];
+    const documentId = tokens[2];
+    if (!goalId || !documentId) return null;
+    return {
+      kind: "documentsRead",
+      goalId: GoalId.makeUnsafe(goalId),
+      documentId: GoalDocumentId.makeUnsafe(documentId),
+    };
+  }
+  const onlyToken = tokens[0];
+  if (tokens.length === 1 && onlyToken) {
+    return { kind: "documentsList", goalId: GoalId.makeUnsafe(onlyToken) };
+  }
+  return null;
+}
+
+function parseApprovalSlashCommand(rawRest: string): CoreAgentSlashCommand | null {
+  const tokens = tokenizeCommandLine(firstCommandLine(rawRest));
+  const subcommand = tokens[0]?.toLowerCase();
+  if (!subcommand) return null;
+  if (subcommand === "create") {
+    const goalId = tokens[1];
+    const reason = tokens.slice(2).join(" ").trim();
+    if (!goalId) return null;
+    return {
+      kind: "approvalsCreate",
+      goalId: GoalId.makeUnsafe(goalId),
+      ...(reason.length > 0 ? { reason } : {}),
+    };
+  }
+  if (subcommand === "approve") {
+    const goalId = tokens[1];
+    const approvalId = tokens[2];
+    const reason = tokens.slice(3).join(" ").trim();
+    if (!goalId || !approvalId) return null;
+    return {
+      kind: "approvalsApprove",
+      goalId: GoalId.makeUnsafe(goalId),
+      approvalId: ApprovalGateId.makeUnsafe(approvalId),
+      ...(reason.length > 0 ? { reason } : {}),
+    };
+  }
+  if (subcommand === "reject") {
+    const goalId = tokens[1];
+    const approvalId = tokens[2];
+    const reason = tokens.slice(3).join(" ").trim();
+    if (!goalId || !approvalId || reason.length === 0) return null;
+    return {
+      kind: "approvalsReject",
+      goalId: GoalId.makeUnsafe(goalId),
+      approvalId: ApprovalGateId.makeUnsafe(approvalId),
+      reason,
+    };
+  }
+  const onlyToken = tokens[0];
+  if (tokens.length === 1 && onlyToken) {
+    return { kind: "approvalsShow", goalId: GoalId.makeUnsafe(onlyToken) };
+  }
+  return null;
+}
+
+function parseGoalCreateTokens(
+  tokens: ReadonlyArray<string>,
+): { text: string; parentId?: string; level?: GoalLevel; ownerAgentId?: string } | null {
+  const textTokens: string[] = [];
+  let parentId: string | undefined;
+  let level: GoalLevel | undefined;
+  let ownerAgentId: string | undefined;
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === "--parent") {
+      parentId = tokens[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === "--level") {
+      const value = tokens[index + 1];
+      if (!isGoalLevel(value)) return null;
+      level = value;
+      index += 1;
+      continue;
+    }
+    if (token === "--agent") {
+      ownerAgentId = tokens[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token) textTokens.push(token);
+  }
+  return {
+    text: textTokens.join(" ").trim(),
+    ...(parentId ? { parentId } : {}),
+    ...(level ? { level } : {}),
+    ...(ownerAgentId ? { ownerAgentId } : {}),
+  };
+}
+
+function firstCommandLine(value: string): string {
+  return (value.split(/\r?\n/)[0] ?? "").trim();
+}
+
+function tokenizeCommandLine(value: string): string[] {
+  const tokens: string[] = [];
+  let current = "";
+  let quote: '"' | "'" | null = null;
+  for (const char of value) {
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+    if (char === `"` || char === `'`) {
+      quote = char;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      if (current.length > 0) {
+        tokens.push(current);
+        current = "";
+      }
+      continue;
+    }
+    current += char;
+  }
+  if (current.length > 0) tokens.push(current);
+  return tokens;
+}
+
+function isGoalStatus(value: string | undefined): value is GoalStatus {
+  return value === "planned" || value === "active" || value === "achieved" || value === "cancelled";
+}
+
+function isGoalLevel(value: string | undefined): value is GoalLevel {
+  return value === "company" || value === "team" || value === "agent" || value === "task";
 }
 
 function unquote(value: string): string {
@@ -229,6 +602,307 @@ function findAgentByNameOrId(
   return agents.find(
     (agent) => agent.id.toLowerCase() === normalized || agent.name.toLowerCase() === normalized,
   );
+}
+
+async function listGoalsForCurrentProject(
+  organizing: { readonly projectId?: ProjectId; readonly goals?: GoalsSlashService } | undefined,
+): Promise<string> {
+  const validation = requireProjectGoals(organizing, "/goals");
+  if (typeof validation === "string") return validation;
+  const { goals } = await Effect.runPromise(
+    validation.goals.listGoalsByProject({ projectId: validation.projectId }),
+  );
+  if (goals.length === 0) {
+    return "No goals found for this project.";
+  }
+  return formatGoalTree(goals);
+}
+
+async function createGoalForCurrentProject(
+  organizing: { readonly projectId?: ProjectId; readonly goals?: GoalsSlashService } | undefined,
+  command: Extract<CoreAgentSlashCommand, { readonly kind: "goalsCreate" }>,
+): Promise<string> {
+  const validation = requireProjectGoals(organizing, "/goals create");
+  if (typeof validation === "string") return validation;
+  const { goal } = await Effect.runPromise(
+    validation.goals.createGoal({
+      projectId: validation.projectId,
+      text: command.text,
+      isMain: false,
+      status: "planned",
+      ...(command.parentId ? { parentId: command.parentId } : {}),
+      ...(command.level ? { level: command.level } : {}),
+      ...(command.ownerAgentId ? { ownerAgentId: command.ownerAgentId } : {}),
+    }),
+  );
+  return [
+    "Created goal:",
+    `${statusIcon(goal.status)} [${goal.status}] [${goal.level}] ${goal.text}`,
+    `ID: ${goal.id}`,
+    `Project: ${goal.projectId}`,
+    ...(goal.parentId ? [`Parent: ${goal.parentId}`] : []),
+    ...(goal.ownerAgentId ? [`Agent: ${goal.ownerAgentId}`] : []),
+  ].join("\n");
+}
+
+async function updateGoalStatus(
+  organizing: { readonly goals?: GoalsSlashService } | undefined,
+  command: Extract<CoreAgentSlashCommand, { readonly kind: "goalsUpdateStatus" }>,
+): Promise<string> {
+  if (!organizing?.goals) return "Goal commands are unavailable in this session.";
+  const current = (await Effect.runPromise(organizing.goals.getGoal({ id: command.goalId }))).goal;
+  if (!isAllowedGoalStatusTransition(current.status, command.status)) {
+    return `Cannot move goal ${current.id} from ${current.status} to ${command.status}. Allowed transitions are planned -> active -> achieved, or any status -> cancelled.`;
+  }
+  const { goal } = await Effect.runPromise(
+    organizing.goals.updateGoal({ id: command.goalId, status: command.status }),
+  );
+  return [
+    "Updated goal status:",
+    `${statusIcon(goal.status)} [${goal.status}] [${goal.level}] ${goal.text}`,
+    `ID: ${goal.id}`,
+  ].join("\n");
+}
+
+async function listDocumentsForGoal(
+  organizing: { readonly documents?: DocumentsSlashService } | undefined,
+  goalId: GoalId,
+): Promise<string> {
+  if (!organizing?.documents) return "Document commands are unavailable in this session.";
+  const { documents } = await Effect.runPromise(
+    organizing.documents.listDocumentsByGoal({ goalId }),
+  );
+  if (documents.length === 0) {
+    return `No documents found for goal ${goalId}.`;
+  }
+  return [
+    `Documents for goal ${goalId}:`,
+    ...documents.map((document) => `- v${document.version} ${document.title} (${document.id})`),
+  ].join("\n");
+}
+
+async function createDocumentForGoal(
+  organizing: { readonly documents?: DocumentsSlashService } | undefined,
+  command: Extract<CoreAgentSlashCommand, { readonly kind: "documentsCreate" }>,
+): Promise<string> {
+  if (!organizing?.documents) return "Document commands are unavailable in this session.";
+  const { document } = await Effect.runPromise(
+    organizing.documents.createDocument({
+      goalId: command.goalId,
+      title: command.title,
+      content: command.content,
+    }),
+  );
+  return [
+    "Created document:",
+    `${document.title} (${document.id})`,
+    `Goal: ${document.goalId}`,
+    `Version: v${document.version}`,
+  ].join("\n");
+}
+
+async function readDocumentForGoal(
+  organizing: { readonly documents?: DocumentsSlashService } | undefined,
+  command: Extract<CoreAgentSlashCommand, { readonly kind: "documentsRead" }>,
+): Promise<string> {
+  if (!organizing?.documents) return "Document commands are unavailable in this session.";
+  const { document } = await Effect.runPromise(
+    organizing.documents.readDocument({
+      goalId: command.goalId,
+      documentId: command.documentId,
+    }),
+  );
+  return formatDocument(document);
+}
+
+async function showApprovalStatus(
+  organizing: { readonly approvals?: ApprovalsSlashService } | undefined,
+  goalId: GoalId,
+): Promise<string> {
+  if (!organizing?.approvals) return "Approval commands are unavailable in this session.";
+  const { approvals } = await Effect.runPromise(
+    organizing.approvals.listApprovalsByGoal({ goalId }),
+  );
+  return formatApprovalStatus(goalId, approvals);
+}
+
+async function createApprovalGate(
+  organizing: { readonly approvals?: ApprovalsSlashService; readonly actorId?: string } | undefined,
+  command: Extract<CoreAgentSlashCommand, { readonly kind: "approvalsCreate" }>,
+): Promise<string> {
+  if (!organizing?.approvals) return "Approval commands are unavailable in this session.";
+  const { approval } = await Effect.runPromise(
+    organizing.approvals.createApproval({
+      goalId: command.goalId,
+      requestedBy: organizing.actorId ?? "rowl",
+      ...(command.reason ? { reason: command.reason } : {}),
+    }),
+  );
+  return [
+    "Created approval gate:",
+    `${approvalStatusIcon(approval.status)} [${approval.status}] ${approval.id}`,
+    `Goal: ${approval.goalId}`,
+    `Requested by: ${approval.requestedBy}`,
+    ...(approval.reason ? [`Reason: ${approval.reason}`] : []),
+  ].join("\n");
+}
+
+async function reviewApprovalGate(
+  organizing: { readonly approvals?: ApprovalsSlashService; readonly actorId?: string } | undefined,
+  command:
+    | Extract<CoreAgentSlashCommand, { readonly kind: "approvalsApprove" }>
+    | Extract<CoreAgentSlashCommand, { readonly kind: "approvalsReject" }>,
+  status: "approved" | "rejected",
+): Promise<string> {
+  if (!organizing?.approvals) return "Approval commands are unavailable in this session.";
+  const reviewedBy = organizing.actorId ?? "rowl";
+  const result =
+    status === "approved"
+      ? await Effect.runPromise(
+          organizing.approvals.approve({
+            goalId: command.goalId,
+            approvalId: command.approvalId,
+            reviewedBy,
+            ...(command.reason ? { reason: command.reason } : {}),
+          }),
+        )
+      : await Effect.runPromise(
+          organizing.approvals.reject({
+            goalId: command.goalId,
+            approvalId: command.approvalId,
+            reviewedBy,
+            ...(command.reason ? { reason: command.reason } : {}),
+          }),
+        );
+  const approval = result.approval;
+  return [
+    status === "approved" ? "Approved gate:" : "Rejected gate:",
+    `${approvalStatusIcon(approval.status)} [${approval.status}] ${approval.id}`,
+    `Goal: ${approval.goalId}`,
+    `Reviewed by: ${approval.reviewedBy ?? reviewedBy}`,
+    ...(approval.reason ? [`Reason: ${approval.reason}`] : []),
+  ].join("\n");
+}
+
+function requireProjectGoals(
+  organizing: { readonly projectId?: ProjectId; readonly goals?: GoalsSlashService } | undefined,
+  commandName: string,
+): { readonly projectId: ProjectId; readonly goals: GoalsSlashService } | string {
+  if (!organizing?.goals) return "Goal commands are unavailable in this session.";
+  if (!organizing.projectId) {
+    return `${commandName} needs an active project workspace. Open a project-backed thread, then run it again.`;
+  }
+  return { projectId: organizing.projectId, goals: organizing.goals };
+}
+
+function isAllowedGoalStatusTransition(current: GoalStatus, next: GoalStatus): boolean {
+  if (current === next) return true;
+  if (next === "cancelled") return true;
+  if (current === "planned" && next === "active") return true;
+  if (current === "active" && next === "achieved") return true;
+  return false;
+}
+
+function formatGoalTree(goals: ReadonlyArray<Goal>): string {
+  const sorted = goals.toSorted((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const byId = new Map(sorted.map((goal) => [goal.id, goal]));
+  const childrenByParent = new Map<string, Goal[]>();
+  const roots: Goal[] = [];
+  for (const goal of sorted) {
+    if (goal.parentId && byId.has(goal.parentId)) {
+      const children = childrenByParent.get(goal.parentId) ?? [];
+      children.push(goal);
+      childrenByParent.set(goal.parentId, children);
+    } else {
+      roots.push(goal);
+    }
+  }
+
+  const lines = ["Goals:"];
+  const visit = (goal: Goal, depth: number) => {
+    lines.push(`${"  ".repeat(depth)}- ${formatGoalLine(goal)}`);
+    for (const child of childrenByParent.get(goal.id) ?? []) {
+      visit(child, depth + 1);
+    }
+  };
+  for (const root of roots) {
+    visit(root, 0);
+  }
+  return lines.join("\n");
+}
+
+function formatGoalLine(goal: Goal): string {
+  const details = [
+    `${statusIcon(goal.status)} [${goal.status}]`,
+    `[${goal.level}]`,
+    goal.text,
+    `(${goal.id})`,
+  ];
+  if (goal.ownerAgentId) details.push(`agent:${goal.ownerAgentId}`);
+  return details.join(" ");
+}
+
+function statusIcon(status: GoalStatus): string {
+  switch (status) {
+    case "planned":
+      return "○";
+    case "active":
+      return "▶";
+    case "achieved":
+      return "✓";
+    case "cancelled":
+      return "×";
+  }
+}
+
+function formatDocument(document: GoalDocument): string {
+  return [
+    `${document.title} (${document.id})`,
+    `Goal: ${document.goalId}`,
+    `Version: v${document.version}`,
+    `Created: ${document.createdAt}`,
+    `Updated: ${document.updatedAt}`,
+    "",
+    document.content,
+  ].join("\n");
+}
+
+function formatApprovalStatus(goalId: GoalId, approvals: ReadonlyArray<ApprovalGate>): string {
+  const aggregate = approvalAggregate(approvals);
+  const lines = [
+    `Approval status for goal ${goalId}: ${aggregate}`,
+    "",
+    approvals.length === 0 ? "No approval gates." : "Approval gates:",
+  ];
+  for (const approval of approvals) {
+    lines.push(
+      `- ${approvalStatusIcon(approval.status)} [${approval.status}] ${approval.id}${
+        approval.reason ? ` - ${approval.reason}` : ""
+      }`,
+    );
+  }
+  return lines.join("\n");
+}
+
+function approvalAggregate(
+  approvals: ReadonlyArray<ApprovalGate>,
+): "approved" | "pending" | "rejected" {
+  if (approvals.some((approval) => approval.status === "rejected")) return "rejected";
+  if (approvals.length > 0 && approvals.every((approval) => approval.status === "approved")) {
+    return "approved";
+  }
+  return "pending";
+}
+
+function approvalStatusIcon(status: ApprovalGateStatus): string {
+  switch (status) {
+    case "pending":
+      return "○";
+    case "approved":
+      return "✓";
+    case "rejected":
+      return "×";
+  }
 }
 
 type WorkspaceContext = {

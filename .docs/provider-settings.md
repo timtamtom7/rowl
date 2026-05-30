@@ -197,9 +197,12 @@ The composer also supports lightweight image input:
 
 The composer now surfaces repo-owned workspace behavior directly:
 
-- Rowl ships built-in slash commands for common thread actions and memory maintenance, including `/new`, `/summarize`, `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`, `/init`, `/doctor`, `/compact`, `/reflect`, `/plan`, `/default`, `/model`, and `/mcp` when the active provider supports MCP.
+- Rowl ships built-in slash commands for common thread actions, memory maintenance, and organizing-layer workflows, including `/new`, `/summarize`, `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`, `/init`, `/doctor`, `/compact`, `/reflect`, `/goals`, `/doc`, `/approve`, `/plan`, `/default`, `/model`, and `/mcp` when the active provider supports MCP.
 - Rowl checks the active workspace root for `AGENTS.md` and shows whether it is currently available.
 - `/init` seeds project memory notes from git metadata, `package.json`, README content, and existing `.rowl/` files. `/doctor` reports memory note count, empty notes, freshness, and active-agent metadata consistency. `/compact` saves the current conversation summary as a tagged memory note, and `/reflect` reads existing notes to report patterns, gaps, contradictions, and suggestions without modifying memory.
+- `/goals` lists the current project's goal hierarchy. `/goals create <text>` creates a planned goal and accepts `--parent <id>`, `--level <level>`, and `--agent <id>`. `/goals update <id> --status <status>` moves goals through `planned -> active -> achieved`, or to `cancelled`.
+- `/doc <goal-id>` lists goal documents, `/doc create <goal-id> <title>` creates a versioned markdown document from following lines, and `/doc read <goal-id> <doc-id>` reads a document with metadata.
+- `/approve <goal-id>` shows approval gates and aggregate status. `/approve create <goal-id> [reason]`, `/approve approve <goal-id> <gate-id> [reason]`, and `/approve reject <goal-id> <gate-id> <reason>` manage goal approval gates.
 - Rowl loads repo-local slash-command templates from `.rowl/commands/*.md`.
 - Template frontmatter supports `description`, optional `provider`, optional `model`, optional `interactionMode`, optional `runtimeMode`, and optional `sendImmediately`.
 - Template bodies can interpolate `$ARGUMENTS` and `$1` through `$9`.
