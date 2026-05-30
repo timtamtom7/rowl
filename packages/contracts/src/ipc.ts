@@ -93,6 +93,10 @@ import type {
   CreateGoalResult,
   DeleteGoalInput,
   DeleteGoalResult,
+  GetGoalAncestorsInput,
+  GetGoalAncestorsResult,
+  GetGoalChildrenInput,
+  GetGoalChildrenResult,
   GetGoalInput,
   GetGoalResult,
   LinkThreadToGoalInput,
@@ -103,9 +107,33 @@ import type {
   SetMainGoalResult,
   UnlinkThreadFromGoalInput,
   UnlinkThreadFromGoalResult,
+  UpdateGoalInput,
+  UpdateGoalResult,
   UpdateGoalTextInput,
   UpdateGoalTextResult,
 } from "./goals";
+import type {
+  CreateGoalDocumentInput,
+  DeleteGoalDocumentInput,
+  DeleteGoalDocumentResult,
+  GoalDocumentResult,
+  ListDocumentsByGoalInput,
+  ListDocumentsByGoalResult,
+  ReadGoalDocumentInput,
+  UpdateGoalDocumentInput,
+  WriteGoalDocumentInput,
+} from "./documents";
+import type {
+  ApprovalGateResult,
+  ApproveInput,
+  CreateApprovalInput,
+  IsGoalApprovedInput,
+  IsGoalApprovedResult,
+  ListApprovalsByGoalInput,
+  ListApprovalsByGoalResult,
+  RejectInput,
+} from "./approvals";
+import type { OrganizingChangedEvent } from "./ws";
 import type {
   CreateWorktreeInput,
   CreateWorktreeResult,
@@ -401,11 +429,32 @@ export interface NativeApi {
     create: (input: CreateGoalInput) => Promise<CreateGoalResult>;
     get: (input: GetGoalInput) => Promise<GetGoalResult>;
     listByProject: (input: ListGoalsByProjectInput) => Promise<ListGoalsByProjectResult>;
+    update: (input: UpdateGoalInput) => Promise<UpdateGoalResult>;
+    getChildren: (input: GetGoalChildrenInput) => Promise<GetGoalChildrenResult>;
+    getAncestors: (input: GetGoalAncestorsInput) => Promise<GetGoalAncestorsResult>;
     setMain: (input: SetMainGoalInput) => Promise<SetMainGoalResult>;
     linkThread: (input: LinkThreadToGoalInput) => Promise<LinkThreadToGoalResult>;
     unlinkThread: (input: UnlinkThreadFromGoalInput) => Promise<UnlinkThreadFromGoalResult>;
     updateText: (input: UpdateGoalTextInput) => Promise<UpdateGoalTextResult>;
     delete: (input: DeleteGoalInput) => Promise<DeleteGoalResult>;
+    onChanged: (callback: (event: OrganizingChangedEvent) => void) => () => void;
+  };
+  documents: {
+    listByGoal: (input: ListDocumentsByGoalInput) => Promise<ListDocumentsByGoalResult>;
+    read: (input: ReadGoalDocumentInput) => Promise<GoalDocumentResult>;
+    write: (input: WriteGoalDocumentInput) => Promise<GoalDocumentResult>;
+    create: (input: CreateGoalDocumentInput) => Promise<GoalDocumentResult>;
+    update: (input: UpdateGoalDocumentInput) => Promise<GoalDocumentResult>;
+    delete: (input: DeleteGoalDocumentInput) => Promise<DeleteGoalDocumentResult>;
+    onChanged: (callback: (event: OrganizingChangedEvent) => void) => () => void;
+  };
+  approvals: {
+    listByGoal: (input: ListApprovalsByGoalInput) => Promise<ListApprovalsByGoalResult>;
+    create: (input: CreateApprovalInput) => Promise<ApprovalGateResult>;
+    approve: (input: ApproveInput) => Promise<ApprovalGateResult>;
+    reject: (input: RejectInput) => Promise<ApprovalGateResult>;
+    isGoalApproved: (input: IsGoalApprovedInput) => Promise<IsGoalApprovedResult>;
+    onChanged: (callback: (event: OrganizingChangedEvent) => void) => () => void;
   };
   shell: {
     openInEditor: (cwd: string, editor: EditorId) => Promise<void>;

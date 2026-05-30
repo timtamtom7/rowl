@@ -2057,50 +2057,180 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return yield* featureService.updateFeatureStage(stripRequestTag(request.body) as any);
       case WS_METHODS.featuresDelete:
         return yield* featureService.deleteFeature(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsCreate:
-        return yield* goalsService.createGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsCreate: {
+        const result = yield* goalsService.createGoal(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "create",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
       case WS_METHODS.goalsList:
         return yield* goalsService.listGoalsByProject(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsUpdate:
-        return yield* goalsService.updateGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsUpdate: {
+        const result = yield* goalsService.updateGoal(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "update",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
       case WS_METHODS.goalsGet:
         return yield* goalsService.getGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsListByProject:
         return yield* goalsService.listGoalsByProject(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsSetMain:
-        return yield* goalsService.setMainGoal(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsLinkThread:
-        return yield* goalsService.linkThreadToGoal(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsUnlinkThread:
-        return yield* goalsService.unlinkThreadFromGoal(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsUpdateText:
-        return yield* goalsService.updateGoalText(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsSetMain: {
+        const result = yield* goalsService.setMainGoal(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "setMain",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.goalsLinkThread: {
+        const result = yield* goalsService.linkThreadToGoal(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "linkThread",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.goalsUnlinkThread: {
+        const result = yield* goalsService.unlinkThreadFromGoal(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "unlinkThread",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.goalsUpdateText: {
+        const result = yield* goalsService.updateGoalText(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "updateText",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
       case WS_METHODS.goalsChildren:
         return yield* goalsService.getGoalChildren(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsAncestors:
         return yield* goalsService.getGoalAncestors(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsDelete:
-        return yield* goalsService.deleteGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsDelete: {
+        const input = stripRequestTag(request.body) as any;
+        const result = yield* goalsService.deleteGoal(input);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "delete",
+          goalId: input.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
       case WS_METHODS.documentsList:
         return yield* documentService.listDocumentsByGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.documentsRead:
         return yield* documentService.readDocument(stripRequestTag(request.body) as any);
-      case WS_METHODS.documentsWrite:
-        return yield* documentService.writeDocument(stripRequestTag(request.body) as any);
-      case WS_METHODS.documentsCreate:
-        return yield* documentService.createDocument(stripRequestTag(request.body) as any);
-      case WS_METHODS.documentsUpdate:
-        return yield* documentService.updateDocument(stripRequestTag(request.body) as any);
-      case WS_METHODS.documentsDelete:
-        return yield* documentService.deleteDocument(stripRequestTag(request.body) as any);
+      case WS_METHODS.documentsWrite: {
+        const result = yield* documentService.writeDocument(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "documents",
+          action: "write",
+          goalId: result.document.goalId,
+          documentId: result.document.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.documentsCreate: {
+        const result = yield* documentService.createDocument(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "documents",
+          action: "create",
+          goalId: result.document.goalId,
+          documentId: result.document.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.documentsUpdate: {
+        const result = yield* documentService.updateDocument(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "documents",
+          action: "update",
+          goalId: result.document.goalId,
+          documentId: result.document.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.documentsDelete: {
+        const input = stripRequestTag(request.body) as any;
+        const result = yield* documentService.deleteDocument(input);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "documents",
+          action: "delete",
+          goalId: input.goalId,
+          documentId: input.documentId,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
       case WS_METHODS.approvalsList:
         return yield* approvalService.listApprovalsByGoal(stripRequestTag(request.body) as any);
-      case WS_METHODS.approvalsCreate:
-        return yield* approvalService.createApproval(stripRequestTag(request.body) as any);
-      case WS_METHODS.approvalsApprove:
-        return yield* approvalService.approve(stripRequestTag(request.body) as any);
-      case WS_METHODS.approvalsReject:
-        return yield* approvalService.reject(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalsCreate: {
+        const result = yield* approvalService.createApproval(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "approvals",
+          action: "create",
+          goalId: result.approval.goalId,
+          documentId: result.approval.documentId,
+          approvalId: result.approval.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.approvalsApprove: {
+        const result = yield* approvalService.approve(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "approvals",
+          action: "approve",
+          goalId: result.approval.goalId,
+          documentId: result.approval.documentId,
+          approvalId: result.approval.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.approvalsReject: {
+        const result = yield* approvalService.reject(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "approvals",
+          action: "reject",
+          goalId: result.approval.goalId,
+          documentId: result.approval.documentId,
+          approvalId: result.approval.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
       case WS_METHODS.approvalsIsGoalApproved:
         return yield* approvalService.isGoalApproved(stripRequestTag(request.body) as any);
       case WS_METHODS.reviewApprove: {

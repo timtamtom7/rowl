@@ -7,17 +7,17 @@ import {
   TargetIcon,
   DatabaseIcon,
   FolderIcon,
+  GitBranchIcon,
   NetworkIcon,
   BrainIcon,
 } from "lucide-react";
-import type { ProjectId } from "@t3tools/contracts";
+import type { GoalId, ProjectId } from "@t3tools/contracts";
 import { cn } from "~/lib/utils";
 import { useStore } from "~/store";
 import { useRightSidebar } from "./RightSidebarContext";
 import { resolveServerHttpUrl } from "~/lib/serverUrl";
 import { ThreadsTabContent } from "./ThreadsTabContent";
 import { FeaturesTabContent } from "./FeaturesTabContent";
-import { GoalsTabContent } from "./GoalsTabContent";
 import { ContextTabContent } from "./ContextTabContent";
 import { PMChatTabContent } from "./PMChatTabContent";
 import { ProjectBrief } from "./ProjectBrief";
@@ -26,6 +26,10 @@ import { MemoryTabContent } from "./MemoryTabContent";
 import { LiveMapTabContent } from "./LiveMapTabContent";
 import { ProjectPromptsSection } from "./ProjectPromptsSection";
 import { AgentPanel } from "~/core-agent/AgentPanel";
+import { ApprovalPanel } from "~/organizing/ApprovalPanel";
+import { DocumentPanel } from "~/organizing/DocumentPanel";
+import { GoalsPanel } from "~/organizing/GoalsPanel";
+import { WorktreePanel } from "~/git/WorktreePanel";
 
 export { RightSidebarProvider } from "./RightSidebarContext";
 
@@ -34,6 +38,7 @@ export type RightSidebarTab =
   | "threads"
   | "features"
   | "goals"
+  | "worktrees"
   | "context"
   | "memory"
   | "map";
@@ -49,6 +54,7 @@ const TABS: TabConfig[] = [
   { id: "threads", label: "Threads", icon: <ListIcon className="size-4" /> },
   { id: "features", label: "Features", icon: <LayoutGridIcon className="size-4" /> },
   { id: "goals", label: "Goals", icon: <TargetIcon className="size-4" /> },
+  { id: "worktrees", label: "Worktrees", icon: <GitBranchIcon className="size-4" /> },
   { id: "context", label: "Context", icon: <DatabaseIcon className="size-4" /> },
   { id: "memory", label: "Memory", icon: <BrainIcon className="size-4" /> },
   { id: "map", label: "Map", icon: <NetworkIcon className="size-4" /> },
@@ -73,11 +79,12 @@ function renderTabContent(
     return <FeaturesTabContent projectId={projectId} />;
   }
   if (activeTab === "goals" && projectId) {
+    return <OrganizingTabContent projectId={projectId} projectCwd={projectCwd} />;
+  }
+  if (activeTab === "worktrees" && projectId) {
     return (
-      <div className="flex flex-col h-full overflow-y-auto">
-        {projectCwd && <ProjectBrief projectCwd={projectCwd} />}
-        <GoalsTabContent projectId={projectId} />
-        <ProjectPromptsSection projectId={projectId} />
+      <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+        <WorktreePanel cwd={projectCwd} />
       </div>
     );
   }
@@ -108,6 +115,30 @@ function renderTabContent(
       <p className="text-xs text-muted-foreground/50 mt-1">
         Add a project folder from the sidebar to access PM, features, goals, and more.
       </p>
+    </div>
+  );
+}
+
+function OrganizingTabContent({
+  projectId,
+  projectCwd,
+}: {
+  readonly projectId: ProjectId;
+  readonly projectCwd?: string | undefined;
+}) {
+  const [selectedGoalId, setSelectedGoalId] = useState<GoalId | null>(null);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+      {projectCwd && <ProjectBrief projectCwd={projectCwd} />}
+      <GoalsPanel
+        projectId={projectId}
+        selectedGoalId={selectedGoalId}
+        onSelectedGoalIdChange={(goalId) => setSelectedGoalId(goalId)}
+      />
+      <DocumentPanel goalId={selectedGoalId} />
+      <ApprovalPanel goalId={selectedGoalId} />
+      <ProjectPromptsSection projectId={projectId} />
     </div>
   );
 }

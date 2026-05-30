@@ -34,16 +34,24 @@ import {
   ActivateHarnessResult,
   DeactivateHarnessResult,
   DeleteFeatureResult,
+  DeleteGoalDocumentResult,
   DeleteGoalResult,
   DispatchResult,
   GetFeatureResult,
   GetGoalResult,
+  GetGoalAncestorsResult,
+  GetGoalChildrenResult,
+  ApprovalGateResult,
   ListContextNodesByProjectResult,
   ListContextNodesByThreadResult,
   ListFeaturesByProjectResult,
   LinkThreadToGoalResult,
   ListGoalsByProjectResult,
+  ListApprovalsByGoalResult,
+  ListDocumentsByGoalResult,
   CreateWorktreeResult,
+  GoalDocumentResult,
+  IsGoalApprovedResult,
   GitCreateWorktreeResult,
   GitIntegrationResult,
   GitListBranchesResult,
@@ -76,6 +84,7 @@ import {
   SetMainGoalResult,
   UpdateFeatureResult,
   UpdateFeatureStageResult,
+  UpdateGoalResult,
   ServerOpenCodeState,
   ServerUpsertKeybindingResult,
   TerminalSessionSnapshot,
@@ -402,6 +411,11 @@ export function createWsNativeApi(): NativeApi {
       get: (input) => requestWithSchema(WS_METHODS.goalsGet, GetGoalResult, input),
       listByProject: (input) =>
         requestWithSchema(WS_METHODS.goalsListByProject, ListGoalsByProjectResult, input),
+      update: (input) => requestWithSchema(WS_METHODS.goalsUpdate, UpdateGoalResult, input),
+      getChildren: (input) =>
+        requestWithSchema(WS_METHODS.goalsChildren, GetGoalChildrenResult, input),
+      getAncestors: (input) =>
+        requestWithSchema(WS_METHODS.goalsAncestors, GetGoalAncestorsResult, input),
       setMain: (input) => requestWithSchema(WS_METHODS.goalsSetMain, SetMainGoalResult, input),
       linkThread: (input) =>
         requestWithSchema(WS_METHODS.goalsLinkThread, LinkThreadToGoalResult, input),
@@ -410,6 +424,32 @@ export function createWsNativeApi(): NativeApi {
       updateText: (input) =>
         requestWithSchema(WS_METHODS.goalsUpdateText, UpdateGoalTextResult, input),
       delete: (input) => requestWithSchema(WS_METHODS.goalsDelete, DeleteGoalResult, input),
+      onChanged: (callback) =>
+        transport.subscribe(WS_CHANNELS.organizingChanged, (message) => callback(message.data)),
+    },
+    documents: {
+      listByGoal: (input) =>
+        requestWithSchema(WS_METHODS.documentsList, ListDocumentsByGoalResult, input),
+      read: (input) => requestWithSchema(WS_METHODS.documentsRead, GoalDocumentResult, input),
+      write: (input) => requestWithSchema(WS_METHODS.documentsWrite, GoalDocumentResult, input),
+      create: (input) => requestWithSchema(WS_METHODS.documentsCreate, GoalDocumentResult, input),
+      update: (input) => requestWithSchema(WS_METHODS.documentsUpdate, GoalDocumentResult, input),
+      delete: (input) =>
+        requestWithSchema(WS_METHODS.documentsDelete, DeleteGoalDocumentResult, input),
+      onChanged: (callback) =>
+        transport.subscribe(WS_CHANNELS.organizingChanged, (message) => callback(message.data)),
+    },
+    approvals: {
+      listByGoal: (input) =>
+        requestWithSchema(WS_METHODS.approvalsList, ListApprovalsByGoalResult, input),
+      create: (input) => requestWithSchema(WS_METHODS.approvalsCreate, ApprovalGateResult, input),
+      approve: (input) =>
+        requestWithSchema(WS_METHODS.approvalsApprove, ApprovalGateResult, input),
+      reject: (input) => requestWithSchema(WS_METHODS.approvalsReject, ApprovalGateResult, input),
+      isGoalApproved: (input) =>
+        requestWithSchema(WS_METHODS.approvalsIsGoalApproved, IsGoalApprovedResult, input),
+      onChanged: (callback) =>
+        transport.subscribe(WS_CHANNELS.organizingChanged, (message) => callback(message.data)),
     },
     shell: {
       openInEditor: (cwd, editor) =>

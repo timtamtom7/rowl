@@ -1,5 +1,12 @@
 import { Schema, Struct } from "effect";
-import { NonNegativeInt, ProjectId, ThreadId, TrimmedNonEmptyString, TurnId } from "./baseSchemas";
+import {
+  IsoDateTime,
+  NonNegativeInt,
+  ProjectId,
+  ThreadId,
+  TrimmedNonEmptyString,
+  TurnId,
+} from "./baseSchemas";
 
 import {
   ClientOrchestrationCommand,
@@ -436,6 +443,7 @@ export const WS_CHANNELS = {
   serverWelcome: "server.welcome",
   serverConfigUpdated: "server.configUpdated",
   fileActivity: "file.activity",
+  organizingChanged: "organizing.changed",
   coreAgentActiveChanged: "coreAgent.activeChanged",
   memoryChanged: "memory-changed",
 } as const;
@@ -448,6 +456,17 @@ export const FileActivityEvent = Schema.Struct({
   timestamp: Schema.String,
 });
 export type FileActivityEvent = typeof FileActivityEvent.Type;
+
+export const OrganizingChangedEvent = Schema.Struct({
+  domain: Schema.Literals(["goals", "documents", "approvals"]),
+  action: TrimmedNonEmptyString,
+  projectId: Schema.optional(ProjectId),
+  goalId: Schema.optional(TrimmedNonEmptyString),
+  documentId: Schema.optional(TrimmedNonEmptyString),
+  approvalId: Schema.optional(TrimmedNonEmptyString),
+  timestamp: IsoDateTime,
+});
+export type OrganizingChangedEvent = typeof OrganizingChangedEvent.Type;
 
 // -- Tagged Union of all request body schemas ─────────────────────────
 
@@ -656,6 +675,7 @@ export interface WsPushPayloadByChannel {
   readonly [WS_CHANNELS.terminalEvent]: typeof TerminalEvent.Type;
   readonly [ORCHESTRATION_WS_CHANNELS.domainEvent]: OrchestrationEvent;
   readonly [WS_CHANNELS.fileActivity]: FileActivityEvent;
+  readonly [WS_CHANNELS.organizingChanged]: OrganizingChangedEvent;
   readonly [WS_CHANNELS.coreAgentActiveChanged]: typeof CoreAgentActiveChangedEvent.Type;
   readonly [WS_CHANNELS.memoryChanged]: typeof MemoryChangedEvent.Type;
 }
@@ -685,6 +705,10 @@ export const WsPushOrchestrationDomainEvent = makeWsPushSchema(
   OrchestrationEvent,
 );
 export const WsPushFileActivity = makeWsPushSchema(WS_CHANNELS.fileActivity, FileActivityEvent);
+export const WsPushOrganizingChanged = makeWsPushSchema(
+  WS_CHANNELS.organizingChanged,
+  OrganizingChangedEvent,
+);
 export const WsPushCoreAgentActiveChanged = makeWsPushSchema(
   WS_CHANNELS.coreAgentActiveChanged,
   CoreAgentActiveChangedEvent,
@@ -696,6 +720,7 @@ export const WsPushChannelSchema = Schema.Literals([
   WS_CHANNELS.serverConfigUpdated,
   WS_CHANNELS.terminalEvent,
   WS_CHANNELS.fileActivity,
+  WS_CHANNELS.organizingChanged,
   WS_CHANNELS.coreAgentActiveChanged,
   WS_CHANNELS.memoryChanged,
   ORCHESTRATION_WS_CHANNELS.domainEvent,
@@ -707,6 +732,7 @@ export const WsPush = Schema.Union([
   WsPushServerConfigUpdated,
   WsPushTerminalEvent,
   WsPushFileActivity,
+  WsPushOrganizingChanged,
   WsPushCoreAgentActiveChanged,
   WsPushMemoryChanged,
   WsPushOrchestrationDomainEvent,
