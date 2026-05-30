@@ -63,7 +63,7 @@ Use the matching host OS when possible. Cross-platform packaging is not the defa
 - Pick `Full access` or `Supervised` in the toolbar depending on whether you want direct execution or approval-gated actions.
 - Switch between `Chat` and `Plan` when you want plan-first collaboration with the plan sidebar.
 - While a turn is running, use the composer Queue/Steer controls to line up the next follow-up. `Enter` uses the currently selected follow-up mode, and `Cmd/Ctrl+Enter` uses the opposite mode for that one message.
-- Use the thread actions menu or composer slash commands such as `/share`, `/unshare`, `/compact`, `/undo`, `/redo`, `/export`, and `/details` to manage the current thread. Shared links open a read-only viewer that can import the snapshot into another local project.
+- Use the thread actions menu or composer slash commands such as `/share`, `/unshare`, `/summarize`, `/undo`, `/redo`, `/export`, and `/details` to manage the current thread. Shared links open a read-only viewer that can import the snapshot into another local project.
 - Use the thread header `Undo` and `Redo` controls, or the matching slash commands, to move through recent restore snapshots after destructive changes.
 - Use `Fork thread here` on a message to branch from that point, and use the diff panel to fork from a completed checkpoint.
 - Use the sidebar search box plus the `Active`, `All`, and `Archived` filters to find threads quickly. Projects and threads can be pinned or archived locally, projects can switch between recent and manual ordering, and each project shows the 10 most recent matching threads before you expand the rest.

@@ -1045,6 +1045,8 @@ If you're unsure, say so clearly instead of claiming success.
         memory: memoryPalaceService,
         scope: workspaceCwd ? { type: "project", projectRoot: workspaceCwd } : { type: "global" },
         stateDir: serverConfig.stateDir,
+        conversationMessages: thread.messages,
+        summarizer: contextTrimmer,
         text: message.text,
       }),
     ).pipe(Effect.catch(() => Effect.succeed(null)));

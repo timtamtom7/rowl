@@ -3120,8 +3120,16 @@ export default function ChatView({ threadId }: ChatViewProps) {
           type: "slash-command",
           command: "compact",
           label: "/compact",
-          description: "Compact this thread into a continuation summary",
+          description: "Save a conversation summary to memory",
           aliases: getComposerSlashCommandAliases("compact"),
+        },
+        {
+          id: "slash:reflect",
+          type: "slash-command",
+          command: "reflect",
+          label: "/reflect",
+          description: "Analyze memory patterns and gaps",
+          aliases: getComposerSlashCommandAliases("reflect"),
         },
         {
           id: "slash:share",

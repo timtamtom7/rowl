@@ -16,7 +16,8 @@ export type ComposerSlashCommand =
   | "export"
   | "details"
   | "remember"
-  | "memory";
+  | "memory"
+  | "reflect";
 
 export interface ComposerSlashInvocation {
   command: string;
@@ -46,6 +47,7 @@ const COMPOSER_SLASH_COMMAND_ALIASES: Record<ComposerSlashCommand, ReadonlyArray
   details: [],
   remember: [],
   memory: [],
+  reflect: [],
 };
 
 export function getComposerSlashCommandAliases(
@@ -283,12 +285,15 @@ export function parseStandaloneComposerSlashCommand(
   if (!match) {
     return null;
   }
-  const normalized = normalizeBuiltInComposerSlashCommand(match[1] ?? "");
+  const rawCommand = (match[1] ?? "").toLowerCase();
+  const normalized = normalizeBuiltInComposerSlashCommand(rawCommand);
   if (
     normalized === null ||
     normalized === "model" ||
     normalized === "mcp" ||
-    normalized === "init"
+    normalized === "init" ||
+    rawCommand === "compact" ||
+    rawCommand === "reflect"
   ) {
     return null;
   }

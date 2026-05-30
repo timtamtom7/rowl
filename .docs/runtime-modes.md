@@ -32,7 +32,7 @@ The thread surface also exposes history and collaboration controls that build on
 - **Undo / Redo**: move through recent restore snapshots without manually selecting checkpoints.
 - **Fork / Export**: keep the existing fork and export controls from the thread actions menu, message actions, and diff panel.
 
-These controls are also reachable from the composer with built-in slash commands such as `/share`, `/unshare`, `/compact`, `/undo`, `/redo`, `/export`, and `/details`.
+These controls are also reachable from the composer with built-in slash commands such as `/share`, `/unshare`, `/summarize`, `/undo`, `/redo`, `/export`, and `/details`.
 
 The sidebar now complements those controls with project/thread search, local pin/archive state, active/all/archived filters, project recent/manual sort, and a default 10-thread preview per project before `Show more` expands the rest.
 

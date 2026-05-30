@@ -54,6 +54,11 @@ Phase 1D adds memory maintenance commands handled by the same server slash-comma
 - `/init` seeds or refreshes project memory notes from the active workspace. It reads repository context including git metadata, `package.json`, README content, and existing `.rowl/` files, then writes `project-overview`, `tech-stack`, and `conventions` notes through the Memory Palace service.
 - `/doctor` diagnoses memory health for the active agent and scope. It reports note count, last updated time, empty notes, active-agent metadata consistency, and suggested fixes such as running `/init`.
 
+Phase 1E adds consolidation commands:
+
+- `/compact` summarizes the current conversation and writes a tagged Memory Palace note with `compacted` and `conversation-summary` tags. The response includes the created note filename.
+- `/reflect` reads all memory notes for the active agent and returns a read-only diagnostic covering patterns, gaps, contradictions, and suggestions.
+
 The existing `/new` flow creates a new draft thread and creates a project-scoped child agent that inherits the current agent's personality, description, tags, and default model. Rowl sets the child active before opening the draft thread.
 
 ## Memory Blocks

@@ -781,12 +781,12 @@ interface QueuedThreadTurn {
 
 - `ComposerTriggerKind`: `"path" | "slash-command" | "slash-model" | "slash-mcp"`
 - `ComposerTrigger`: `{ kind, query, rangeStart, rangeEnd }`
-- `ComposerSlashCommand`: `"path" | "model" | "mcp" | "plan" | "default" | "init" | "new" | "compact" | "share" | "unshare" | "undo" | "redo" | "export" | "details"`
+- `ComposerSlashCommand`: `"path" | "model" | "mcp" | "plan" | "default" | "init" | "new" | "compact" | "reflect" | "share" | "unshare" | "undo" | "redo" | "export" | "details"`
 
 **Key functions:**
 
 - `detectComposerTrigger(text, cursorPos)` — detects `@path`, `/slash`, `/model`, `/mcp` triggers
-- `parseStandaloneComposerSlashCommand(text)` — parses `/plan`, `/default`, `/init`, `/new` (alias: `/clear`), `/compact` (alias: `/summarize`), `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`
+- `parseStandaloneComposerSlashCommand(text)` — parses `/plan`, `/default`, `/init`, `/new` (alias: `/clear`), `/summarize`, `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`; typed `/compact` passes through to the server memory command
 - `parseStandaloneComposerSlashInvocation(text)` — parses custom commands like `/fix-tests src/web`
 - `replaceTextRange(text, start, end, replacement)` — replaces text and returns new cursor position
 - `expandCollapsedComposerCursor(text, collapsedCursor)` — maps collapsed mention cursor to expanded

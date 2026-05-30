@@ -18,11 +18,26 @@ export type CoreAgentSlashCommand =
   | { readonly kind: "switch"; readonly target: string }
   | { readonly kind: "persona"; readonly value: string }
   | { readonly kind: "init" }
-  | { readonly kind: "doctor" };
+  | { readonly kind: "doctor" }
+  | { readonly kind: "compact" }
+  | { readonly kind: "reflect" };
 
 export type CoreAgentSlashCommandResult = {
   readonly handled: true;
   readonly response: string;
+};
+
+export type CoreAgentConversationMessage = {
+  readonly role: string;
+  readonly text?: string;
+  readonly content?: string;
+};
+
+export type ConversationSummarizer = {
+  readonly summarizeConversation: (input: {
+    readonly messages: ReadonlyArray<{ role: string; content: string }>;
+    readonly maxSummaryTokens: number;
+  }) => Effect.Effect<{ readonly summary: string; readonly tokensSaved: number }>;
 };
 
 export function parseCoreAgentSlashCommand(text: string): CoreAgentSlashCommand | null {
@@ -49,6 +64,12 @@ export function parseCoreAgentSlashCommand(text: string): CoreAgentSlashCommand 
   if (command === "doctor" && rest.length === 0) {
     return { kind: "doctor" };
   }
+  if (command === "compact" && rest.length === 0) {
+    return { kind: "compact" };
+  }
+  if (command === "reflect" && rest.length === 0) {
+    return { kind: "reflect" };
+  }
   return null;
 }
 
@@ -58,6 +79,9 @@ export async function executeCoreAgentSlashCommand(input: {
     "listAgents" | "resolveActiveAgent" | "setActiveAgent" | "updateAgent"
   >;
   readonly memory?: Pick<MemoryPalaceServiceShape, "list" | "read" | "write">;
+  readonly conversationMessages?: ReadonlyArray<CoreAgentConversationMessage>;
+  readonly summarizer?: ConversationSummarizer;
+  readonly now?: () => string;
   readonly scope: CoreAgentScope;
   readonly stateDir?: string;
   readonly text: string;
@@ -112,6 +136,31 @@ export async function executeCoreAgentSlashCommand(input: {
         memory: input.memory,
         scope: input.scope,
         stateDir: input.stateDir,
+      }),
+    };
+  }
+
+  if (command.kind === "compact") {
+    return {
+      handled: true,
+      response: await compactConversationIntoMemory({
+        service: input.service,
+        memory: input.memory,
+        scope: input.scope,
+        conversationMessages: input.conversationMessages,
+        summarizer: input.summarizer,
+        now: input.now,
+      }),
+    };
+  }
+
+  if (command.kind === "reflect") {
+    return {
+      handled: true,
+      response: await reflectOnMemory({
+        service: input.service,
+        memory: input.memory,
+        scope: input.scope,
       }),
     };
   }
@@ -328,6 +377,192 @@ async function diagnoseMemory(input: {
     "",
     "Suggested fixes:",
     ...dedupe(fixes).map((fix) => `- ${fix}`),
+  ].join("\n");
+}
+
+async function compactConversationIntoMemory(input: {
+  readonly service: Pick<CoreAgentService, "resolveActiveAgent">;
+  readonly memory: Pick<MemoryPalaceServiceShape, "write"> | undefined;
+  readonly scope: CoreAgentScope;
+  readonly conversationMessages: ReadonlyArray<CoreAgentConversationMessage> | undefined;
+  readonly summarizer: ConversationSummarizer | undefined;
+  readonly now: (() => string) | undefined;
+}): Promise<string> {
+  if (!input.memory) {
+    return "/compact cannot save a summary because the Memory Palace service is unavailable.";
+  }
+
+  const active = await input.service.resolveActiveAgent({ scope: input.scope });
+  const compactedAt = input.now?.() ?? new Date().toISOString();
+  const messages = normalizeConversationMessages(input.conversationMessages);
+  let summaryResult = {
+    summary: summarizeConversationHeuristically(messages),
+    tokensSaved: 0,
+  };
+  if (input.summarizer && messages.length > 0) {
+    try {
+      summaryResult = await Effect.runPromise(
+        input.summarizer.summarizeConversation({
+          messages,
+          maxSummaryTokens: 700,
+        }),
+      );
+    } catch {
+      // Keep /compact useful even if a future summarizer implementation fails.
+    }
+  }
+
+  const filename = `conversation-summary-${timestampSlug(compactedAt)}`;
+  const content = [
+    `# Conversation summary`,
+    "",
+    `- Agent: ${active.agent.name} (${active.activeAgentId})`,
+    `- Compacted at: ${compactedAt}`,
+    `- Messages summarized: ${messages.length}`,
+    summaryResult.tokensSaved > 0 ? `- Estimated tokens saved: ${summaryResult.tokensSaved}` : null,
+    "",
+    "## Summary",
+    "",
+    summaryResult.summary.trim() || "No prior conversation messages were available to compact.",
+  ]
+    .filter((line): line is string => line !== null)
+    .join("\n");
+
+  await Effect.runPromise(
+    input.memory.write({
+      scope: input.scope,
+      agentId: active.activeAgentId,
+      filename,
+      title: "Conversation summary",
+      tags: ["compacted", "conversation-summary"],
+      content,
+    }),
+  );
+
+  return `Compacted conversation into memory note: ${filename}`;
+}
+
+async function reflectOnMemory(input: {
+  readonly service: Pick<CoreAgentService, "resolveActiveAgent">;
+  readonly memory: Pick<MemoryPalaceServiceShape, "list" | "read"> | undefined;
+  readonly scope: CoreAgentScope;
+}): Promise<string> {
+  const active = await input.service.resolveActiveAgent({ scope: input.scope });
+  if (!input.memory) {
+    return "Reflection could not run because the Memory Palace service is unavailable.";
+  }
+
+  const list = await Effect.runPromise(
+    input.memory.list({ scope: input.scope, agentId: active.activeAgentId }),
+  );
+  const notes = (
+    await Promise.all(
+      list.notes.map((note) =>
+        Effect.runPromise(
+          input.memory!.read({
+            scope: input.scope,
+            agentId: active.activeAgentId,
+            filename: note.filename,
+          }),
+        ).catch(() => null),
+      ),
+    )
+  ).filter((note): note is NonNullable<typeof note> => note !== null);
+
+  const tagCounts = countTags(notes.flatMap((note) => note.tags));
+  const emptyNotes = notes
+    .filter((note) => isEffectivelyEmptyNote(note.content))
+    .map((note) => note.filename);
+  const duplicateTitles = duplicateValues(notes.map((note) => note.title.toLowerCase()));
+  const compactedNotes = notes.filter((note) => note.tags.includes("conversation-summary"));
+  const starterTags = new Set(notes.flatMap((note) => note.tags));
+  const missingStarterTags = ["overview", "tech-stack", "conventions"].filter(
+    (tag) => !starterTags.has(tag),
+  );
+
+  const patterns: string[] =
+    notes.length === 0
+      ? ["No memory notes found for this agent and scope."]
+      : [
+          `${notes.length} memory note${notes.length === 1 ? "" : "s"} available.`,
+          tagCounts.length > 0
+            ? `Most common tags: ${tagCounts
+                .slice(0, 5)
+                .map(([tag, count]) => `${tag} (${count})`)
+                .join(", ")}.`
+            : "No tags are used yet.",
+          compactedNotes.length > 0
+            ? `${compactedNotes.length} compacted conversation summar${compactedNotes.length === 1 ? "y" : "ies"} found.`
+            : "No compacted conversation summaries found.",
+        ];
+  const gaps: string[] = [];
+  if (missingStarterTags.length > 0) {
+    gaps.push(`Starter memory coverage is missing: ${missingStarterTags.join(", ")}.`);
+  }
+  if (emptyNotes.length > 0) {
+    gaps.push(`Empty or placeholder notes: ${emptyNotes.join(", ")}.`);
+  }
+  if (notes.length === 0) {
+    gaps.push("Run /init or create notes before relying on memory context.");
+  }
+  if (gaps.length === 0) {
+    gaps.push("No obvious coverage gaps detected by heuristic scan.");
+  }
+
+  const contradictions: string[] = [];
+  if (duplicateTitles.length > 0) {
+    contradictions.push(
+      `Duplicate note titles may need consolidation: ${duplicateTitles.join(", ")}.`,
+    );
+  }
+  const contradictionHints = notes
+    .filter((note) =>
+      /\b(conflict|contradict|instead of|no longer|deprecated|obsolete)\b/i.test(note.content),
+    )
+    .map((note) => note.filename);
+  if (contradictionHints.length > 0) {
+    contradictions.push(
+      `Notes with possible stale or contradictory language: ${contradictionHints.join(", ")}.`,
+    );
+  }
+  if (contradictions.length === 0) {
+    contradictions.push("No obvious contradictions detected by heuristic scan.");
+  }
+
+  const suggestions: string[] = [];
+  if (notes.length === 0) {
+    suggestions.push(
+      "Seed memory with /init, then add project-specific conventions as they emerge.",
+    );
+  }
+  if (missingStarterTags.length > 0) {
+    suggestions.push("Run /init or add overview, tech-stack, and conventions notes manually.");
+  }
+  if (compactedNotes.length > 3) {
+    suggestions.push("Consolidate older conversation-summary notes into durable project facts.");
+  } else {
+    suggestions.push(
+      "Use /compact after long threads to preserve decisions before context trimming.",
+    );
+  }
+  if (emptyNotes.length > 0) {
+    suggestions.push("Fill or delete empty notes from the Memory panel.");
+  }
+
+  return [
+    `Memory reflection for ${active.agent.name} (${active.activeAgentId})`,
+    "",
+    "Patterns:",
+    ...patterns.map((pattern) => `- ${pattern}`),
+    "",
+    "Gaps:",
+    ...dedupe(gaps).map((gap) => `- ${gap}`),
+    "",
+    "Contradictions:",
+    ...dedupe(contradictions).map((contradiction) => `- ${contradiction}`),
+    "",
+    "Suggestions:",
+    ...dedupe(suggestions).map((suggestion) => `- ${suggestion}`),
   ].join("\n");
 }
 
@@ -587,6 +822,89 @@ function appendDependencySection(
   }
 }
 
+function normalizeConversationMessages(
+  messages: ReadonlyArray<CoreAgentConversationMessage> | undefined,
+): ReadonlyArray<{ role: string; content: string }> {
+  return (messages ?? [])
+    .map((message) => ({
+      role: message.role,
+      content: (message.content ?? message.text ?? "").trim(),
+    }))
+    .filter((message) => message.content.length > 0)
+    .filter((message) => !/^\/compact\s*$/i.test(message.content));
+}
+
+function summarizeConversationHeuristically(
+  messages: ReadonlyArray<{ role: string; content: string }>,
+): string {
+  if (messages.length === 0) {
+    return "No prior conversation messages were available to compact.";
+  }
+
+  const userMessages = messages.filter((message) => message.role === "user");
+  const assistantMessages = messages.filter((message) => message.role === "assistant");
+  const recentRequests = userMessages
+    .map((message) => firstSentence(message.content))
+    .filter(Boolean)
+    .slice(-5);
+  const assistantActions = assistantMessages
+    .flatMap((message) => extractActionSentences(message.content))
+    .slice(-8);
+
+  const sections: string[] = [];
+  if (recentRequests.length > 0) {
+    sections.push("User requests:\n" + recentRequests.map((request) => `- ${request}`).join("\n"));
+  }
+  if (assistantActions.length > 0) {
+    sections.push(
+      "Assistant actions:\n" + assistantActions.map((action) => `- ${action}`).join("\n"),
+    );
+  }
+  sections.push(
+    `Conversation shape: ${userMessages.length} user message${userMessages.length === 1 ? "" : "s"}, ${assistantMessages.length} assistant response${assistantMessages.length === 1 ? "" : "s"}.`,
+  );
+  return sections.join("\n\n");
+}
+
+function firstSentence(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const sentence = /(.{20,220}?[.!?])(?:\s|$)/.exec(normalized)?.[1] ?? normalized.slice(0, 220);
+  return sentence.trim();
+}
+
+function extractActionSentences(value: string): string[] {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const sentences = normalized.split(/(?<=[.!?])\s+/g);
+  return sentences
+    .filter((sentence) =>
+      /\b(added|built|changed|created|deleted|fixed|implemented|moved|read|removed|renamed|updated|verified|wrote)\b/i.test(
+        sentence,
+      ),
+    )
+    .map((sentence) => sentence.slice(0, 220).trim())
+    .filter(Boolean);
+}
+
+function timestampSlug(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 14) || "unknown";
+}
+
+function countTags(tags: ReadonlyArray<string>): ReadonlyArray<readonly [string, number]> {
+  const counts = new Map<string, number>();
+  for (const tag of tags) {
+    counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  }
+  return [...counts.entries()].toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function duplicateValues(values: ReadonlyArray<string>): string[] {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts.entries()].filter(([, count]) => count > 1).map(([value]) => value);
+}
+
 function isEffectivelyEmptyNote(content: string): boolean {
   const stripped = content
     .split(/\r?\n/g)
@@ -620,7 +938,9 @@ async function readOptionalFile(filePath: string): Promise<string | undefined> {
 
 function excerptMarkdown(raw: string, maxChars: number): string {
   const normalized = raw.replace(/\r\n/g, "\n").trim();
-  return normalized.length > maxChars ? `${normalized.slice(0, maxChars).trimEnd()}\n...` : normalized;
+  return normalized.length > maxChars
+    ? `${normalized.slice(0, maxChars).trimEnd()}\n...`
+    : normalized;
 }
 
 function recordField(value: unknown): Readonly<Record<string, string>> {

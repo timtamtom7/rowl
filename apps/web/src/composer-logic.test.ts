@@ -248,13 +248,14 @@ describe("parseStandaloneComposerSlashCommand", () => {
     expect(parseStandaloneComposerSlashCommand("/default")).toBe("default");
   });
 
-  it("does not intercept /init because the server handles memory initialization", () => {
+  it("does not intercept server-handled memory commands", () => {
     expect(parseStandaloneComposerSlashCommand("/init")).toBeNull();
+    expect(parseStandaloneComposerSlashCommand("/compact")).toBeNull();
+    expect(parseStandaloneComposerSlashCommand("/reflect")).toBeNull();
   });
 
   it("parses OpenCode-inspired session actions", () => {
     expect(parseStandaloneComposerSlashCommand("/new")).toBe("new");
-    expect(parseStandaloneComposerSlashCommand("/compact")).toBe("compact");
     expect(parseStandaloneComposerSlashCommand("/share")).toBe("share");
     expect(parseStandaloneComposerSlashCommand("/unshare")).toBe("unshare");
     expect(parseStandaloneComposerSlashCommand("/undo")).toBe("undo");
