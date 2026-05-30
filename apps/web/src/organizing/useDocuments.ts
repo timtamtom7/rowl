@@ -5,12 +5,13 @@ import type {
   GoalDocumentId,
   GoalId,
   NativeApi,
-  PositiveInt,
   UpdateGoalDocumentInput,
   WriteGoalDocumentInput,
 } from "@t3tools/contracts";
 
 import { readNativeApi } from "~/nativeApi";
+
+type DocumentVersion = GoalDocument["version"];
 
 export type DocumentsController = {
   readonly documents: ReadonlyArray<GoalDocument>;
@@ -22,12 +23,12 @@ export type DocumentsController = {
   readonly refresh: () => Promise<void>;
   readonly selectDocument: (
     documentId: GoalDocumentId,
-    version?: PositiveInt,
+    version?: DocumentVersion,
   ) => Promise<GoalDocument | null>;
   readonly listByGoal: (goalId?: GoalId) => Promise<ReadonlyArray<GoalDocument>>;
   readonly read: (input: {
     readonly documentId: GoalDocumentId;
-    readonly version?: PositiveInt;
+    readonly version?: DocumentVersion;
   }) => Promise<GoalDocument | null>;
   readonly write: (input: Omit<WriteGoalDocumentInput, "goalId">) => Promise<GoalDocument>;
   readonly create: (input: Omit<CreateGoalDocumentInput, "goalId">) => Promise<GoalDocument>;
@@ -124,7 +125,10 @@ export function useDocuments(input: {
   }, [api, goalId, refresh]);
 
   const read = useCallback(
-    async (readInput: { readonly documentId: GoalDocumentId; readonly version?: PositiveInt }) => {
+    async (readInput: {
+      readonly documentId: GoalDocumentId;
+      readonly version?: DocumentVersion;
+    }) => {
       if (!actions) return null;
       setIsReading(true);
       setError(null);
@@ -144,7 +148,8 @@ export function useDocuments(input: {
   );
 
   const selectDocument = useCallback(
-    (documentId: GoalDocumentId, version?: PositiveInt) => read({ documentId, version }),
+    (documentId: GoalDocumentId, version?: DocumentVersion) =>
+      read({ documentId, ...(version === undefined ? {} : { version }) }),
     [read],
   );
 

@@ -7,10 +7,12 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { GoalDocument, GoalDocumentId, GoalId, PositiveInt } from "@t3tools/contracts";
+import type { GoalDocument, GoalDocumentId, GoalId } from "@t3tools/contracts";
 
 import { cn } from "~/lib/utils";
 import { useDocuments, type DocumentsController } from "./useDocuments";
+
+type DocumentVersion = GoalDocument["version"];
 
 export function DocumentPanel({
   goalId,
@@ -187,7 +189,7 @@ export function DocumentPanel({
                         onChange={(event) =>
                           void documents.selectDocument(
                             documents.selectedDocumentId as GoalDocumentId,
-                            Number(event.target.value) as PositiveInt,
+                            Number(event.target.value) as DocumentVersion,
                           )
                         }
                         className="h-6 rounded-md border border-border/60 bg-background px-1.5 text-[10px]"

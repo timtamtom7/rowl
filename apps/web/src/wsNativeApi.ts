@@ -49,6 +49,7 @@ import {
   ListGoalsByProjectResult,
   ListApprovalsByGoalResult,
   ListDocumentsByGoalResult,
+  ListWorktreeCheckpointsResult,
   CreateWorktreeResult,
   GoalDocumentResult,
   IsGoalApprovedResult,
@@ -82,9 +83,11 @@ import {
   ServerOpenCodeCredentialResult,
   RestoreContextNodeResult,
   SetMainGoalResult,
+  StackBranchResult,
   UpdateFeatureResult,
   UpdateFeatureStageResult,
   UpdateGoalResult,
+  WorktreeCheckpointResult,
   ServerOpenCodeState,
   ServerUpsertKeybindingResult,
   TerminalSessionSnapshot,
@@ -482,6 +485,8 @@ export function createWsNativeApi(): NativeApi {
         requestWithSchema(WS_METHODS.gitCherryPick, GitIntegrationResult, input),
       mergeBranch: (input) =>
         requestWithSchema(WS_METHODS.gitMergeBranch, GitIntegrationResult, input),
+      stackBranch: (input) =>
+        requestWithSchema(WS_METHODS.gitStackBranch, StackBranchResult, input),
       worktrees: {
         create: (input) =>
           requestWithSchema(WS_METHODS.worktreesCreate, CreateWorktreeResult, input),
@@ -498,6 +503,16 @@ export function createWsNativeApi(): NativeApi {
         requestWithSchema(
           WS_METHODS.gitPreparePullRequestThread,
           GitPreparePullRequestThreadResult,
+          input,
+        ),
+    },
+    checkpoints: {
+      createInWorktree: (input) =>
+        requestWithSchema(WS_METHODS.checkpointsCreateInWorktree, WorktreeCheckpointResult, input),
+      listByWorktree: (input) =>
+        requestWithSchema(
+          WS_METHODS.checkpointsListByWorktree,
+          ListWorktreeCheckpointsResult,
           input,
         ),
     },

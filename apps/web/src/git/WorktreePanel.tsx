@@ -1,4 +1,6 @@
 import {
+  ChevronDownIcon,
+  ChevronRightIcon,
   GitBranchIcon,
   GitMergeIcon,
   Loader2Icon,
@@ -10,6 +12,7 @@ import {
 import { useState } from "react";
 
 import { cn } from "~/lib/utils";
+import { WorktreeCheckpointPanel } from "./WorktreeCheckpointPanel";
 import { useWorktrees, type WorktreesController } from "./useWorktrees";
 
 export function WorktreePanel({
@@ -25,6 +28,7 @@ export function WorktreePanel({
   const [baseBranch, setBaseBranch] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [busyBranch, setBusyBranch] = useState<string | null>(null);
+  const [expandedBranches, setExpandedBranches] = useState<ReadonlySet<string>>(() => new Set());
 
   const createWorktree = async () => {
     const nextBranch = branch.trim();
@@ -55,13 +59,34 @@ export function WorktreePanel({
     setBusyBranch(`${mode}:${branchName}`);
     try {
       if (mode === "cherry-pick") {
-        await worktrees.cherryPick({ sourceRef: branchName });
+        await worktrees.cherryPick({ sourceRef: branchName, targetBranch: "main" });
       } else {
-        await worktrees.merge({ branch: branchName });
+        await worktrees.merge({ branch: branchName, targetBranch: "main" });
       }
     } finally {
       setBusyBranch(null);
     }
+  };
+
+  const cherryPickCheckpoint = async (checkpointRef: string) => {
+    setBusyBranch(`checkpoint:${checkpointRef}`);
+    try {
+      await worktrees.cherryPick({ sourceRef: checkpointRef, targetBranch: "main" });
+    } finally {
+      setBusyBranch(null);
+    }
+  };
+
+  const toggleExpanded = (branchName: string) => {
+    setExpandedBranches((current) => {
+      const next = new Set(current);
+      if (next.has(branchName)) {
+        next.delete(branchName);
+      } else {
+        next.add(branchName);
+      }
+      return next;
+    });
   };
 
   return (
@@ -112,7 +137,18 @@ export function WorktreePanel({
             <div key={worktree.path} className="rounded-md border border-border/50 bg-muted/10 p-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(worktree.branch)}
+                    className="flex max-w-full items-center gap-1.5 text-left hover:text-foreground"
+                    aria-expanded={expandedBranches.has(worktree.branch)}
+                    aria-label={`Toggle checkpoints for ${worktree.branch}`}
+                  >
+                    {expandedBranches.has(worktree.branch) ? (
+                      <ChevronDownIcon className="size-3 shrink-0 text-muted-foreground/45" />
+                    ) : (
+                      <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground/45" />
+                    )}
                     <GitBranchIcon className="size-3 shrink-0 text-muted-foreground/45" />
                     <span className="truncate text-[12px] font-medium">{worktree.branch}</span>
                     {worktree.isLocked ? (
@@ -120,7 +156,7 @@ export function WorktreePanel({
                         locked
                       </span>
                     ) : null}
-                  </div>
+                  </button>
                   <div className="mt-0.5 truncate text-[9px] text-muted-foreground/50">
                     {worktree.path}
                   </div>
@@ -171,6 +207,14 @@ export function WorktreePanel({
                   Merge
                 </button>
               </div>
+              {expandedBranches.has(worktree.branch) ? (
+                <WorktreeCheckpointPanel
+                  cwd={cwd}
+                  worktreeBranch={worktree.branch}
+                  onCherryPickCheckpoint={cherryPickCheckpoint}
+                  onMergeWorktreeBranch={(branchName) => integrate(branchName, "merge")}
+                />
+              ) : null}
             </div>
           ))}
         </div>

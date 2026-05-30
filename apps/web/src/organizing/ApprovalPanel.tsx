@@ -42,12 +42,11 @@ export function ApprovalPanel({
   };
 
   const review = (approval: ApprovalGate, decision: "approve" | "reject") => {
+    const trimmedReason = reviewReasonById[approval.id]?.trim();
     const input = {
       approvalId: approval.id,
       reviewedBy: reviewedBy.trim() || "user",
-      ...(reviewReasonById[approval.id]?.trim()
-        ? { reason: reviewReasonById[approval.id]?.trim() }
-        : {}),
+      ...(trimmedReason ? { reason: trimmedReason } : {}),
     };
     if (decision === "approve") {
       void approvals.approve(input);
