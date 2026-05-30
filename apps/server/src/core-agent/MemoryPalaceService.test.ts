@@ -8,6 +8,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { writeAgentMetadata } from "./agentMetadataStore.ts";
 import {
+  createCoreAgentService,
+  createFileCoreAgentStore,
+  type CoreAgentService,
+} from "./CoreAgentService.ts";
+import { executeCoreAgentSlashCommand } from "./coreAgentSlashCommands.ts";
+import {
+  createMemoryPalaceService,
   MemoryPalaceLive,
   MemoryPalaceService,
   migrateMemoryNotesFromAgentMetadata,
@@ -18,10 +25,12 @@ const UPDATED = "2026-05-29T12:10:00.000Z";
 
 let stateDir: string;
 let projectRoot: string;
+let generatedIds: string[];
 
 beforeEach(async () => {
   stateDir = await fs.mkdtemp(path.join(os.tmpdir(), "rowl-memory-palace-state-"));
   projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "rowl-memory-palace-project-"));
+  generatedIds = [];
 });
 
 afterEach(async () => {
@@ -52,7 +61,34 @@ function metadata(overrides: Partial<CoreAgentMetadata> = {}): CoreAgentMetadata
   };
 }
 
-function run<T>(effect: Effect.Effect<T>): Promise<T> {
+function coreAgents(): CoreAgentService {
+  return createCoreAgentService({
+    store: createFileCoreAgentStore({ stateDir }),
+    now: () => NOW,
+    generateId: () => {
+      const id = generatedIds.shift();
+      if (!id) throw new Error("Test did not provide a generated agent id");
+      return id;
+    },
+  });
+}
+
+async function createActiveProjectAgent(): Promise<CoreAgentService> {
+  const service = coreAgents();
+  generatedIds.push("agent-alpha");
+  await service.createAgent({
+    scope: projectScope(),
+    name: "Alpha",
+    personality: {
+      kind: "custom",
+      instructions: "Project agent.",
+    },
+  });
+  await service.setActiveAgent({ scope: projectScope(), agentId: "agent-alpha" });
+  return service;
+}
+
+function run<T>(effect: Effect.Effect<T, never, MemoryPalaceService>): Promise<T> {
   return Effect.runPromise(
     effect.pipe(Effect.provide(MemoryPalaceLive({ stateDir, now: () => NOW }))),
   );
@@ -221,5 +257,94 @@ describe("MemoryPalaceService", () => {
       unknown
     >;
     expect(migratedRaw.memoryNotes).toBeUndefined();
+  });
+
+  it("seeds project-overview, tech-stack, and conventions through /init", async () => {
+    await fs.writeFile(
+      path.join(projectRoot, "package.json"),
+      JSON.stringify(
+        {
+          name: "rowl-fixture",
+          description: "Fixture project",
+          packageManager: "bun@1.3.0",
+          scripts: { test: "vitest run" },
+          dependencies: { react: "^19.0.0" },
+          devDependencies: { vitest: "^4.1.0" },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "README.md"),
+      "# Rowl Fixture\n\nA project README used to seed memory.",
+      "utf8",
+    );
+    await fs.mkdir(path.join(projectRoot, ".rowl"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, ".rowl", "project-brief.md"), "Brief.", "utf8");
+
+    const service = await createActiveProjectAgent();
+    const memory = createMemoryPalaceService({ stateDir, now: () => NOW });
+    const result = await executeCoreAgentSlashCommand({
+      service,
+      memory,
+      scope: projectScope(),
+      stateDir,
+      text: "/init",
+    });
+
+    expect(result?.response).toContain("Seeded memory for Alpha (agent-alpha).");
+    expect(result?.response).toContain("project-overview");
+    expect(result?.response).toContain("tech-stack");
+    expect(result?.response).toContain("conventions");
+    expect(result?.response).toContain(".rowl/project-brief.md");
+
+    await expect(
+      fs.readFile(path.join(projectRoot, ".rowl", "memory", "project-overview.md"), "utf8"),
+    ).resolves.toContain("A project README used to seed memory.");
+    await expect(
+      fs.readFile(path.join(projectRoot, ".rowl", "memory", "tech-stack.md"), "utf8"),
+    ).resolves.toContain("react: ^19.0.0");
+    await expect(
+      fs.readFile(path.join(projectRoot, ".rowl", "memory", "conventions.md"), "utf8"),
+    ).resolves.toContain("# Conventions");
+  });
+
+  it("reports memory health through /doctor", async () => {
+    const service = await createActiveProjectAgent();
+    const memory = createMemoryPalaceService({ stateDir, now: () => NOW });
+
+    const emptyDoctor = await executeCoreAgentSlashCommand({
+      service,
+      memory,
+      scope: projectScope(),
+      stateDir,
+      text: "/doctor",
+    });
+    expect(emptyDoctor?.response).toContain("No memory notes exist");
+    expect(emptyDoctor?.response).toContain("Run /init to seed starter memories.");
+
+    await executeCoreAgentSlashCommand({
+      service,
+      memory,
+      scope: projectScope(),
+      stateDir,
+      text: "/init",
+    });
+
+    const doctor = await executeCoreAgentSlashCommand({
+      service,
+      memory,
+      scope: projectScope(),
+      stateDir,
+      text: "/doctor",
+    });
+
+    expect(doctor?.response).toContain("Memory doctor for Alpha (agent-alpha)");
+    expect(doctor?.response).toContain("3 memory notes found.");
+    expect(doctor?.response).toContain("Empty notes: conventions.");
+    expect(doctor?.response).toContain("Agent metadata.json matches the active agent id.");
+    expect(doctor?.response).toContain("Agent metadata.json scope matches the active scope.");
   });
 });

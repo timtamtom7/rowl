@@ -278,13 +278,18 @@ export function detectComposerTrigger(text: string, cursorInput: number): Compos
 
 export function parseStandaloneComposerSlashCommand(
   text: string,
-): Exclude<ComposerSlashCommand, "model" | "mcp"> | null {
+): Exclude<ComposerSlashCommand, "model" | "mcp" | "init"> | null {
   const match = /^\/([a-z0-9][a-z0-9_-]*)\s*$/i.exec(text.trim());
   if (!match) {
     return null;
   }
   const normalized = normalizeBuiltInComposerSlashCommand(match[1] ?? "");
-  if (normalized === null || normalized === "model" || normalized === "mcp") {
+  if (
+    normalized === null ||
+    normalized === "model" ||
+    normalized === "mcp" ||
+    normalized === "init"
+  ) {
     return null;
   }
   return normalized;

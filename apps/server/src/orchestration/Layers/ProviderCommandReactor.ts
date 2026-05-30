@@ -42,6 +42,7 @@ import {
   createCoreAgentService,
   createFileCoreAgentStore,
 } from "../../core-agent/CoreAgentService.ts";
+import { createMemoryPalaceService } from "../../core-agent/MemoryPalaceService.ts";
 import { GitCore } from "../../git/Services/GitCore.ts";
 import { ProviderAdapterRequestError, ProviderServiceError } from "../../provider/Errors.ts";
 import { takeTransientTurnStartProviderOptions } from "../../provider/transientProviderOptions.ts";
@@ -281,6 +282,10 @@ const make = Effect.gen(function* () {
     store: createFileCoreAgentStore({ stateDir: serverConfig.stateDir }),
     now: () => new Date().toISOString(),
     generateId: () => crypto.randomUUID(),
+  });
+  const memoryPalaceService = createMemoryPalaceService({
+    stateDir: serverConfig.stateDir,
+    now: () => new Date().toISOString(),
   });
   const projectPromptsService = yield* ProjectPromptsService;
   const git = yield* GitCore;
@@ -1037,7 +1042,9 @@ If you're unsure, say so clearly instead of claiming success.
     const slashResult = yield* Effect.promise(() =>
       executeCoreAgentSlashCommand({
         service: coreAgentService,
+        memory: memoryPalaceService,
         scope: workspaceCwd ? { type: "project", projectRoot: workspaceCwd } : { type: "global" },
+        stateDir: serverConfig.stateDir,
         text: message.text,
       }),
     ).pipe(Effect.catch(() => Effect.succeed(null)));

@@ -49,6 +49,11 @@ Phase 1B adds server-handled agent commands:
 - `/persona <preset>` updates the active agent to a built-in preset.
 - `/persona <custom instructions>` replaces the active agent personality with custom instructions.
 
+Phase 1D adds memory maintenance commands handled by the same server slash-command path:
+
+- `/init` seeds or refreshes project memory notes from the active workspace. It reads repository context including git metadata, `package.json`, README content, and existing `.rowl/` files, then writes `project-overview`, `tech-stack`, and `conventions` notes through the Memory Palace service.
+- `/doctor` diagnoses memory health for the active agent and scope. It reports note count, last updated time, empty notes, active-agent metadata consistency, and suggested fixes such as running `/init`.
+
 The existing `/new` flow creates a new draft thread and creates a project-scoped child agent that inherits the current agent's personality, description, tags, and default model. Rowl sets the child active before opening the draft thread.
 
 ## Memory Blocks
@@ -66,6 +71,12 @@ Project memory blocks are per project in Phase 1B:
 ```
 
 When a turn starts, Rowl injects the active agent identity, editable personality, global agent memory, and project memory into the provider-agnostic memory preamble. Switching agents changes which global memory blocks are read. Project memory remains shared for the project and is gitignored by default.
+
+## Editable Memory Notes
+
+The right-sidebar Agent panel includes a Memory tab. Users can create notes with **New Note**, edit the selected note's title, filename, tags, and markdown body, then save through `memoryNotes.write`. Each note row has a delete control with confirmation before `memoryNotes.delete`.
+
+After writes and deletes, the server publishes `memory-changed`; connected clients refresh matching active-agent memory notes from that push event.
 
 ## WebSocket API
 
@@ -86,3 +97,12 @@ Requests use the shared schemas from `@t3tools/contracts`:
 - `CoreAgentSetActiveRequest`
 
 `coreAgents.setActive` also publishes `coreAgent.activeChanged` so connected clients can refresh selectors and active-agent labels.
+
+Memory note operations use the same WebSocket RPC envelope:
+
+- `memoryNotes.list`
+- `memoryNotes.read`
+- `memoryNotes.write`
+- `memoryNotes.delete`
+
+`memoryNotes.write` and `memoryNotes.delete` publish `memory-changed` with the affected scope, agent id, filename, and operation.

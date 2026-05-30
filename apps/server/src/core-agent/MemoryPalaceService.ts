@@ -192,7 +192,7 @@ export async function migrateGlobalAgentMetadataMemoryNotes(input: {
       const result = await migrateMemoryNotesFromAgentMetadata({
         stateDir: input.stateDir,
         metadataPath,
-        now: input.now,
+        ...(input.now ? { now: input.now } : {}),
       });
       if (result.migrated > 0) {
         agents += 1;

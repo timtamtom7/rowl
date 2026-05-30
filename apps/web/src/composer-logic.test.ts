@@ -248,8 +248,8 @@ describe("parseStandaloneComposerSlashCommand", () => {
     expect(parseStandaloneComposerSlashCommand("/default")).toBe("default");
   });
 
-  it("parses standalone /init command", () => {
-    expect(parseStandaloneComposerSlashCommand("/init")).toBe("init");
+  it("does not intercept /init because the server handles memory initialization", () => {
+    expect(parseStandaloneComposerSlashCommand("/init")).toBeNull();
   });
 
   it("parses OpenCode-inspired session actions", () => {

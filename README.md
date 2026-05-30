@@ -67,7 +67,7 @@ Rowl now recognizes three repo-owned workspace surfaces:
 
 From the composer:
 
-- Run built-in slash commands such as `/new` (`/clear`), `/compact` (`/summarize`), `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`, `/init`, `/plan`, `/default`, `/model`, and `/mcp` (when the active provider supports MCP).
+- Run built-in slash commands such as `/new` (`/clear`), `/compact` (`/summarize`), `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`, `/init` (seed project memory), `/doctor` (diagnose memory), `/plan`, `/default`, `/model`, and `/mcp` (when the active provider supports MCP).
 - Type `/` to see those built-in commands plus any templates discovered from `.rowl/commands/*.md`.
 - Open the Skills picker to attach repo-local skills discovered from `.rowl/skills/<name>/SKILL.md`. Skill files must include `name` and `description` frontmatter, and `name` must match the lowercase hyphenated directory name.
 - Attach up to **8 images per message** with the paperclip button, drag-and-drop, or paste. Rowl accepts image files only, enforces a **10 MB per image** limit, shows inline previews in the composer and thread timeline, and includes attachment names in bootstrap/export summaries.

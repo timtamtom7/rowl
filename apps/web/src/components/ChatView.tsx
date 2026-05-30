@@ -3104,10 +3104,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
           type: "slash-command",
           command: "init",
           label: "/init",
-          description:
-            agentsFileQuery.data?.status === "available"
-              ? "Update the workspace AGENTS.md file"
-              : "Create the workspace AGENTS.md file",
+          description: "Seed project memory notes from this workspace",
           aliases: getComposerSlashCommandAliases("init"),
         },
         {
@@ -4841,11 +4838,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
   }, [activeThread, canRedoThread, redoThreadMutation]);
 
   const runStandaloneSlashCommand = useCallback(
-    async (command: Exclude<ComposerSlashCommand, "model" | "mcp">) => {
-      if (command === "init") {
-        await runInitCommand();
-        return;
-      }
+    async (command: Exclude<ComposerSlashCommand, "model" | "mcp" | "init">) => {
       if (command === "plan" || command === "default") {
         await handleInteractionModeChange(command);
         return;
@@ -4959,7 +4952,6 @@ export default function ChatView({ threadId }: ChatViewProps) {
       projects,
       redoThread,
       revokeThreadShare,
-      runInitCommand,
       settings.showToolDetails,
       undoThread,
       updateSettings,
@@ -7379,7 +7371,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                     <div className="px-2.5 pb-2 pt-1 text-[11px] text-muted-foreground/70 sm:px-3">
                       {agentsFileQuery.data?.status === "available"
                         ? `Using workspace instructions from ${agentsFileQuery.data.relativePath}`
-                        : "No workspace AGENTS.md found. Run /init to create one."}
+                        : "No workspace AGENTS.md found."}
                     </div>
                   ) : null}
                 </div>

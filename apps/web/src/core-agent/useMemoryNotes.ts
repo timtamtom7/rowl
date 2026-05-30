@@ -3,6 +3,7 @@ import type {
   CoreAgentScope,
   MemoryNote,
   MemoryNoteSummary,
+  MemoryNoteWriteRequest,
   NativeApi,
 } from "@t3tools/contracts";
 
@@ -17,6 +18,10 @@ export type MemoryNotesController = {
   readonly error: string | null;
   readonly refresh: () => Promise<void>;
   readonly selectNote: (filename: string) => Promise<void>;
+  readonly write: (
+    input: Omit<MemoryNoteWriteRequest, "scope" | "agentId">,
+  ) => Promise<MemoryNote | null>;
+  readonly deleteNote: (filename: string) => Promise<void>;
 };
 
 export function useMemoryNotes(input: {
@@ -85,6 +90,42 @@ export function useMemoryNotes(input: {
     [api, requestBase],
   );
 
+  const write = useCallback(
+    async (note: Omit<MemoryNoteWriteRequest, "scope" | "agentId">) => {
+      if (!api?.memoryNotes || !requestBase) return null;
+      setError(null);
+      try {
+        const result = await api.memoryNotes.write({ ...requestBase, ...note });
+        setSelectedFilename(result.note.filename);
+        setSelectedNote(result.note);
+        await refresh();
+        return result.note;
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "Could not save memory note.");
+        return null;
+      }
+    },
+    [api, refresh, requestBase],
+  );
+
+  const deleteNote = useCallback(
+    async (filename: string) => {
+      if (!api?.memoryNotes || !requestBase) return;
+      setError(null);
+      try {
+        await api.memoryNotes.delete({ ...requestBase, filename });
+        if (selectedFilename === filename) {
+          setSelectedFilename(null);
+          setSelectedNote(null);
+        }
+        await refresh();
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "Could not delete memory note.");
+      }
+    },
+    [api, refresh, requestBase, selectedFilename],
+  );
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -119,5 +160,7 @@ export function useMemoryNotes(input: {
     error,
     refresh,
     selectNote,
+    write,
+    deleteNote,
   };
 }

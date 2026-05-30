@@ -4,6 +4,7 @@ import type { CoreAgentMetadata, CoreAgentScope, NativeApi } from "@t3tools/cont
 
 import { AgentPanel } from "./AgentPanel";
 import { createCoreAgentActions } from "./useCoreAgents";
+import type { MemoryNotesController } from "./useMemoryNotes";
 
 const NOW = "2026-05-29T12:00:00.000Z";
 
@@ -24,6 +25,37 @@ function agent(overrides: Partial<CoreAgentMetadata> = {}): CoreAgentMetadata {
     },
     createdAt: NOW,
     updatedAt: NOW,
+    ...overrides,
+  };
+}
+
+function memoryController(overrides: Partial<MemoryNotesController> = {}): MemoryNotesController {
+  return {
+    notes: [
+      {
+        filename: "api-contracts",
+        title: "API contracts",
+        tags: ["api"],
+        created: NOW,
+        updated: NOW,
+      },
+    ],
+    selectedFilename: "api-contracts",
+    selectedNote: {
+      filename: "api-contracts",
+      title: "API contracts",
+      tags: ["api"],
+      created: NOW,
+      updated: NOW,
+      content: "# API contracts\n\nKeep shared schemas in contracts.",
+    },
+    isLoading: false,
+    isReading: false,
+    error: null,
+    refresh: vi.fn(),
+    selectNote: vi.fn(),
+    write: vi.fn(async () => null),
+    deleteNote: vi.fn(async () => undefined),
     ...overrides,
   };
 }
@@ -79,29 +111,7 @@ describe("AgentPanel", () => {
           createFromPreset: vi.fn(),
         }}
         memoryController={{
-          notes: [
-            {
-              filename: "api-contracts",
-              title: "API contracts",
-              tags: ["api"],
-              created: NOW,
-              updated: NOW,
-            },
-          ],
-          selectedFilename: "api-contracts",
-          selectedNote: {
-            filename: "api-contracts",
-            title: "API contracts",
-            tags: ["api"],
-            created: NOW,
-            updated: NOW,
-            content: "# API contracts\n\nKeep shared schemas in contracts.",
-          },
-          isLoading: false,
-          isReading: false,
-          error: null,
-          refresh: vi.fn(),
-          selectNote: vi.fn(),
+          ...memoryController(),
         }}
       />,
     );
@@ -109,6 +119,51 @@ describe("AgentPanel", () => {
     expect(html).toContain("Memory");
     expect(html).toContain("API contracts");
     expect(html).toContain("Keep shared schemas");
+  });
+
+  it("renders editable memory controls including New Note and Save", () => {
+    const html = renderToStaticMarkup(
+      <AgentPanel
+        defaultTab="memory"
+        controller={{
+          agents: [agent()],
+          activeAgentId: "agent-reviewer",
+          activeAgent: agent(),
+          isLoading: false,
+          error: null,
+          refresh: vi.fn(),
+          setActiveAgent: vi.fn(),
+          createFromPreset: vi.fn(),
+        }}
+        memoryController={memoryController()}
+      />,
+    );
+
+    expect(html).toContain("New Note");
+    expect(html).toContain("Save");
+    expect(html).toContain("textarea");
+    expect(html).toContain("api-contracts");
+  });
+
+  it("renders delete controls for memory notes", () => {
+    const html = renderToStaticMarkup(
+      <AgentPanel
+        defaultTab="memory"
+        controller={{
+          agents: [agent()],
+          activeAgentId: "agent-reviewer",
+          activeAgent: agent(),
+          isLoading: false,
+          error: null,
+          refresh: vi.fn(),
+          setActiveAgent: vi.fn(),
+          createFromPreset: vi.fn(),
+        }}
+        memoryController={memoryController()}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Delete memory note api-contracts"');
   });
 
   it("uses core-agent WebSocket API calls for list, switch, and preset creation", async () => {

@@ -57,7 +57,7 @@ async function seededService() {
 }
 
 describe("core agent slash command parsing", () => {
-  it("parses /agents, /switch, and /persona", () => {
+  it("parses /agents, /switch, /persona, /init, and /doctor", () => {
     expect(parseCoreAgentSlashCommand(" /agents ")).toEqual({ kind: "agents" });
     expect(parseCoreAgentSlashCommand("/switch beta")).toEqual({
       kind: "switch",
@@ -75,6 +75,8 @@ describe("core agent slash command parsing", () => {
       kind: "persona",
       value: "Be terse.",
     });
+    expect(parseCoreAgentSlashCommand("/init")).toEqual({ kind: "init" });
+    expect(parseCoreAgentSlashCommand("/doctor")).toEqual({ kind: "doctor" });
   });
 
   it("ignores unrelated slash commands", () => {

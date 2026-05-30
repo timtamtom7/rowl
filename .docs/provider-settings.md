@@ -197,9 +197,9 @@ The composer also supports lightweight image input:
 
 The composer now surfaces repo-owned workspace behavior directly:
 
-- Rowl ships built-in slash commands for common thread actions, including `/new`, `/compact`, `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`, `/init`, `/plan`, `/default`, `/model`, and `/mcp` when the active provider supports MCP.
+- Rowl ships built-in slash commands for common thread actions, including `/new`, `/compact`, `/share`, `/unshare`, `/undo`, `/redo`, `/export`, `/details`, `/init`, `/doctor`, `/plan`, `/default`, `/model`, and `/mcp` when the active provider supports MCP.
 - Rowl checks the active workspace root for `AGENTS.md` and shows whether it is currently available.
-- `/init` drafts or updates `AGENTS.md` using the current workspace shape, then saves it through the same guarded project-write path used by other workspace actions.
+- `/init` seeds project memory notes from git metadata, `package.json`, README content, and existing `.rowl/` files. `/doctor` reports memory note count, empty notes, freshness, and active-agent metadata consistency.
 - Rowl loads repo-local slash-command templates from `.rowl/commands/*.md`.
 - Template frontmatter supports `description`, optional `provider`, optional `model`, optional `interactionMode`, optional `runtimeMode`, and optional `sendImmediately`.
 - Template bodies can interpolate `$ARGUMENTS` and `$1` through `$9`.
