@@ -47,7 +47,8 @@ export const EvaluatorServiceLive = Layer.effect(
           };
         }
 
-        const checks: Array<{ name: string; status: "pass" | "fail" | "skipped"; detail: string }> = [];
+        const checks: Array<{ name: string; status: "pass" | "fail" | "skipped"; detail: string }> =
+          [];
         const t = thread as any;
 
         // Check 1: Were files actually changed?

@@ -69,7 +69,9 @@ export type MemoryPalaceLiveOptions = {
 const decodeAgentId = Schema.decodeUnknownSync(CoreAgentId);
 const NOTE_FILENAME_RE = /^[a-z0-9][a-z0-9-]*$/;
 
-export function MemoryPalaceLive(options: MemoryPalaceLiveOptions): Layer.Layer<MemoryPalaceService> {
+export function MemoryPalaceLive(
+  options: MemoryPalaceLiveOptions,
+): Layer.Layer<MemoryPalaceService> {
   return Layer.succeed(MemoryPalaceService, createMemoryPalaceService(options));
 }
 
@@ -148,7 +150,10 @@ export async function migrateMemoryNotesFromAgentMetadata(input: {
 }): Promise<{ readonly migrated: number; readonly agentId: string }> {
   const raw = JSON.parse(await fs.readFile(input.metadataPath, "utf8")) as Record<string, unknown>;
   const agentId = decodeAgentId(raw.id);
-  const memoryNotes = normalizeLegacyMemoryNotes(raw.memoryNotes, input.now ?? (() => new Date().toISOString()));
+  const memoryNotes = normalizeLegacyMemoryNotes(
+    raw.memoryNotes,
+    input.now ?? (() => new Date().toISOString()),
+  );
   if (memoryNotes.length === 0) {
     return { migrated: 0, agentId };
   }
@@ -214,7 +219,10 @@ function memoryDirForRequest(stateDir: string, request: MemoryPalaceListRequest)
 }
 
 function notePathForRequest(stateDir: string, request: MemoryPalaceReadRequest): string {
-  return path.join(memoryDirForRequest(stateDir, request), blockFileName(normalizeFilename(request.filename)));
+  return path.join(
+    memoryDirForRequest(stateDir, request),
+    blockFileName(normalizeFilename(request.filename)),
+  );
 }
 
 function normalizeFilename(filename: string): string {
@@ -253,7 +261,8 @@ async function readNoteFile(filePath: string): Promise<MemoryNote> {
   try {
     const { frontmatter, body } = parseFrontmatterSection(raw);
     const fm = parseFlatFrontmatter(frontmatter);
-    const title = firstHeading(body) ?? stringField(fm.title) ?? stringField(fm.description) ?? filename;
+    const title =
+      firstHeading(body) ?? stringField(fm.title) ?? stringField(fm.description) ?? filename;
     const created = stringField(fm.created) ?? fallbackIsoDate();
     const updated = stringField(fm.updated) ?? created;
     return {
@@ -297,7 +306,10 @@ function serializeNote(input: {
     "read_only: false",
     `scope: ${input.scope}`,
     "version: 1",
-    `tags: [${input.tags.map((tag) => tag.trim()).filter(Boolean).join(", ")}]`,
+    `tags: [${input.tags
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .join(", ")}]`,
     `created: ${input.created}`,
     `updated: ${input.updated}`,
     "---",
@@ -315,9 +327,7 @@ function parseTags(value: unknown): string[] {
   if (typeof value !== "string") return [];
   const trimmed = value.trim();
   if (!trimmed) return [];
-  const inner = trimmed.startsWith("[") && trimmed.endsWith("]")
-    ? trimmed.slice(1, -1)
-    : trimmed;
+  const inner = trimmed.startsWith("[") && trimmed.endsWith("]") ? trimmed.slice(1, -1) : trimmed;
   return inner
     .split(",")
     .map((tag) => tag.trim().replace(/^['"]|['"]$/g, ""))

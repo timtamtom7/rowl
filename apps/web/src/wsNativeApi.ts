@@ -319,8 +319,7 @@ export function createWsNativeApi(): NativeApi {
         requestWithSchema(WS_METHODS.coreAgentsSetActive, CoreAgentSetActiveResponse, input),
     },
     memoryNotes: {
-      list: (input) =>
-        requestWithSchema(WS_METHODS.memoryNotesList, MemoryNoteListResponse, input),
+      list: (input) => requestWithSchema(WS_METHODS.memoryNotesList, MemoryNoteListResponse, input),
       read: (input) => requestWithSchema(WS_METHODS.memoryNotesRead, MemoryNoteResponse, input),
       write: (input) => requestWithSchema(WS_METHODS.memoryNotesWrite, MemoryNoteResponse, input),
       delete: (input) =>

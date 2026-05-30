@@ -107,104 +107,106 @@ export function AgentPanel({
 
       {activeTab === "memory" ? <MemoryNotesPanel memory={memory} /> : null}
       {activeTab === "agents" ? (
-      <div className="space-y-2 px-3 pb-3">
-        {agents.isLoading ? (
-          <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground/55">
-            <Loader2Icon className="size-3 animate-spin" />
-            Loading agents...
-          </div>
-        ) : null}
-
-        {agents.error ? (
-          <div className="rounded-md border border-destructive/20 bg-destructive/10 px-2 py-1.5 text-[11px] text-destructive">
-            {agents.error}
-          </div>
-        ) : null}
-
-        {!agents.isLoading && agents.agents.length === 0 ? (
-          <div className="rounded-md border border-border/50 bg-muted/15 px-2 py-2 text-[11px] text-muted-foreground/60">
-            No agents yet. Create one from a preset to bind it to this scope.
-          </div>
-        ) : null}
-
-        {agents.activeAgent ? (
-          <div className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-primary/70">
-              <CheckIcon className="size-3" />
-              Active
-            </div>
-            <div className="mt-0.5 truncate text-[12px] font-medium text-foreground/90">
-              {agents.activeAgent.name}
-            </div>
-            {agents.activeAgent.description ? (
-              <div className="truncate text-[10px] text-muted-foreground/55">
-                {agents.activeAgent.description}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {agents.agents.length > 0 ? (
-          <div className="space-y-1">
-            {agents.agents.map((agent) => {
-              const isActive = agent.id === agents.activeAgentId;
-              return (
-                <button
-                  key={agent.id}
-                  type="button"
-                  onClick={() => void agents.setActiveAgent(agent.id)}
-                  aria-current={isActive ? "true" : undefined}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
-                    isActive
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground/75 hover:bg-accent/50 hover:text-foreground/85",
-                  )}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-[12px] font-medium">{agent.name}</span>
-                    <span className="block truncate text-[10px] text-muted-foreground/55">
-                      {agent.personality.kind === "preset" ? agent.personality.presetId : "custom"}
-                    </span>
-                  </span>
-                  {isActive ? <CheckIcon className="size-3 shrink-0" /> : null}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-
-        <div className="flex items-center gap-1.5">
-          <label className="sr-only" htmlFor="core-agent-preset">
-            Create from preset
-          </label>
-          <select
-            id="core-agent-preset"
-            value={presetId}
-            onChange={(event) => setPresetId(event.target.value as CoreAgentPresetId)}
-            className="min-w-0 flex-1 rounded-md border border-border/60 bg-background px-2 py-1 text-[11px]"
-          >
-            {CORE_AGENT_PRESETS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => void createAgent()}
-            disabled={isCreating}
-            className="flex h-7 shrink-0 items-center gap-1 rounded-md bg-primary px-2 text-[11px] font-medium text-primary-foreground disabled:opacity-60"
-          >
-            {isCreating ? (
+        <div className="space-y-2 px-3 pb-3">
+          {agents.isLoading ? (
+            <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground/55">
               <Loader2Icon className="size-3 animate-spin" />
-            ) : (
-              <PlusIcon className="size-3" />
-            )}
-            Create from preset
-          </button>
+              Loading agents...
+            </div>
+          ) : null}
+
+          {agents.error ? (
+            <div className="rounded-md border border-destructive/20 bg-destructive/10 px-2 py-1.5 text-[11px] text-destructive">
+              {agents.error}
+            </div>
+          ) : null}
+
+          {!agents.isLoading && agents.agents.length === 0 ? (
+            <div className="rounded-md border border-border/50 bg-muted/15 px-2 py-2 text-[11px] text-muted-foreground/60">
+              No agents yet. Create one from a preset to bind it to this scope.
+            </div>
+          ) : null}
+
+          {agents.activeAgent ? (
+            <div className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-primary/70">
+                <CheckIcon className="size-3" />
+                Active
+              </div>
+              <div className="mt-0.5 truncate text-[12px] font-medium text-foreground/90">
+                {agents.activeAgent.name}
+              </div>
+              {agents.activeAgent.description ? (
+                <div className="truncate text-[10px] text-muted-foreground/55">
+                  {agents.activeAgent.description}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {agents.agents.length > 0 ? (
+            <div className="space-y-1">
+              {agents.agents.map((agent) => {
+                const isActive = agent.id === agents.activeAgentId;
+                return (
+                  <button
+                    key={agent.id}
+                    type="button"
+                    onClick={() => void agents.setActiveAgent(agent.id)}
+                    aria-current={isActive ? "true" : undefined}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
+                      isActive
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground/75 hover:bg-accent/50 hover:text-foreground/85",
+                    )}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[12px] font-medium">{agent.name}</span>
+                      <span className="block truncate text-[10px] text-muted-foreground/55">
+                        {agent.personality.kind === "preset"
+                          ? agent.personality.presetId
+                          : "custom"}
+                      </span>
+                    </span>
+                    {isActive ? <CheckIcon className="size-3 shrink-0" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          <div className="flex items-center gap-1.5">
+            <label className="sr-only" htmlFor="core-agent-preset">
+              Create from preset
+            </label>
+            <select
+              id="core-agent-preset"
+              value={presetId}
+              onChange={(event) => setPresetId(event.target.value as CoreAgentPresetId)}
+              className="min-w-0 flex-1 rounded-md border border-border/60 bg-background px-2 py-1 text-[11px]"
+            >
+              {CORE_AGENT_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void createAgent()}
+              disabled={isCreating}
+              className="flex h-7 shrink-0 items-center gap-1 rounded-md bg-primary px-2 text-[11px] font-medium text-primary-foreground disabled:opacity-60"
+            >
+              {isCreating ? (
+                <Loader2Icon className="size-3 animate-spin" />
+              ) : (
+                <PlusIcon className="size-3" />
+              )}
+              Create from preset
+            </button>
+          </div>
         </div>
-      </div>
       ) : null}
     </section>
   );

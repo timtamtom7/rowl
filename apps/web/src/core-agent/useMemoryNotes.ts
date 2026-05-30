@@ -60,7 +60,7 @@ export function useMemoryNotes(input: {
       const nextSelected =
         selectedFilename && result.notes.some((note) => note.filename === selectedFilename)
           ? selectedFilename
-          : result.notes[0]?.filename ?? null;
+          : (result.notes[0]?.filename ?? null);
       setSelectedFilename(nextSelected);
       if (!nextSelected) {
         setSelectedNote(null);
