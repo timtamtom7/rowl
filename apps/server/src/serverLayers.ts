@@ -49,6 +49,8 @@ import { MemoryEntryRepositoryLive } from "./persistence/Layers/MemoryEntries";
 import { OverseerReactorLive } from "./orchestration/Layers/OverseerReactor";
 import { FeatureServiceLive } from "./orchestration/Layers/FeatureServiceLive";
 import { GoalsServiceLive } from "./orchestration/Layers/GoalsServiceLive";
+import { DocumentServiceLive } from "./orchestration/Layers/DocumentServiceLive";
+import { ApprovalServiceLive } from "./orchestration/Layers/ApprovalServiceLive";
 import { PMChatContextServiceLive } from "./orchestration/Layers/PMChatContextServiceLive";
 import { ProjectionContextNodeRepositoryLive } from "./persistence/Layers/ProjectionContextNodes";
 import { ProjectionFeatureRepositoryLive } from "./persistence/Layers/ProjectionFeatures";
@@ -159,6 +161,8 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provide(ProjectionFeatureRepositoryLive),
   );
   const goalsServiceLayer = GoalsServiceLive.pipe(Layer.provide(ProjectionGoalRepositoryLive));
+  const documentServiceLayer = DocumentServiceLive;
+  const approvalServiceLayer = ApprovalServiceLive;
   const pmChatContextServiceLayer = PMChatContextServiceLive.pipe(
     Layer.provide(orchestrationLayer),
     Layer.provide(goalsServiceLayer),
@@ -243,6 +247,8 @@ export function makeServerRuntimeServicesLayer() {
     contextBudgetCalculatorLayer,
     featureServiceLayer,
     goalsServiceLayer,
+    documentServiceLayer,
+    approvalServiceLayer,
     FeatureThreadLinkServiceLive,
     handoffServiceLayer,
     memoryServiceLayer,

@@ -6,6 +6,10 @@ import {
   type CreateGoalResult,
   type DeleteGoalInput,
   type DeleteGoalResult,
+  type GetGoalAncestorsInput,
+  type GetGoalAncestorsResult,
+  type GetGoalChildrenInput,
+  type GetGoalChildrenResult,
   type GetGoalInput,
   type GetGoalResult,
   type LinkThreadToGoalInput,
@@ -16,26 +20,40 @@ import {
   type SetMainGoalResult,
   type UnlinkThreadFromGoalInput,
   type UnlinkThreadFromGoalResult,
+  type UpdateGoalInput,
+  type UpdateGoalResult,
   type UpdateGoalTextInput,
   type UpdateGoalTextResult,
   type ThreadId,
 } from "@t3tools/contracts";
 import { Effect, Layer, Option } from "effect";
 
+import { ServerConfig } from "../../config.ts";
 import { GoalServiceError } from "../Errors.ts";
 import { GoalsService, type GoalsServiceShape } from "../Services/GoalsService.ts";
 import {
   ProjectionGoalRepository,
   type ProjectionGoal,
 } from "../../persistence/Services/ProjectionGoals.ts";
+import {
+  deleteGoalFiles,
+  listGoalMetadata,
+  readGoalMetadata,
+  writeGoalMetadata,
+} from "../goalFileStorage.ts";
 
-function toGoal(row: ProjectionGoal): Goal {
+function toGoal(row: ProjectionGoal, metadata?: Goal | null): Goal {
   return {
     id: row.goalId,
     projectId: row.projectId,
     text: row.text,
     isMain: row.isMain,
     linkedThreadIds: [...row.linkedThreadIds] as ThreadId[],
+    ...(metadata?.parentId ? { parentId: metadata.parentId } : {}),
+    status: metadata?.status ?? "active",
+    level: metadata?.level ?? "task",
+    ...(metadata?.ownerAgentId ? { ownerAgentId: metadata.ownerAgentId } : {}),
+    ...(metadata?.description ? { description: metadata.description } : {}),
     createdAt: row.createdAt,
   } as Goal;
 }
@@ -44,6 +62,7 @@ export const GoalsServiceLive = Layer.effect(
   GoalsService,
   Effect.gen(function* () {
     const goalRepo = yield* ProjectionGoalRepository;
+    const { stateDir } = yield* ServerConfig;
 
     const requireGoal = (goalId: GoalId, operation: string) =>
       goalRepo.getById({ goalId }).pipe(
@@ -63,6 +82,31 @@ export const GoalsServiceLive = Layer.effect(
           }),
         ),
       );
+
+    const readMetadata = (goalId: GoalId, operation: string) =>
+      Effect.tryPromise({
+        try: () => readGoalMetadata(stateDir, goalId),
+        catch: (cause) =>
+          new GoalServiceError({
+            operation,
+            detail: `Failed to read goal metadata for '${goalId}'.`,
+            cause,
+          }),
+      });
+
+    const persistGoalMetadata = (goal: Goal, operation: string) =>
+      Effect.tryPromise({
+        try: () => writeGoalMetadata({ stateDir, goal }),
+        catch: (cause) =>
+          new GoalServiceError({
+            operation,
+            detail: `Failed to write goal metadata for '${goal.id}'.`,
+            cause,
+          }),
+      });
+
+    const goalFromRow = (row: ProjectionGoal, operation: string) =>
+      readMetadata(row.goalId, operation).pipe(Effect.map((metadata) => toGoal(row, metadata)));
 
     const createGoal: GoalsServiceShape["createGoal"] = (input: CreateGoalInput) =>
       Effect.gen(function* () {
@@ -107,37 +151,61 @@ export const GoalsServiceLive = Layer.effect(
           ),
         );
 
-        return { goal: toGoal(row) } satisfies CreateGoalResult;
+        const goal = toGoal(row, {
+          id: goalId,
+          projectId: input.projectId,
+          text: input.text,
+          isMain: input.isMain,
+          linkedThreadIds: [],
+          ...(input.parentId ? { parentId: input.parentId } : {}),
+          status: input.status ?? "active",
+          level: input.level ?? "task",
+          ...(input.ownerAgentId ? { ownerAgentId: input.ownerAgentId } : {}),
+          ...(input.description ? { description: input.description } : {}),
+          createdAt: now,
+        } as Goal);
+        yield* persistGoalMetadata(goal, "createGoal");
+
+        return { goal } satisfies CreateGoalResult;
       });
 
     const getGoal: GoalsServiceShape["getGoal"] = (input: GetGoalInput) =>
       Effect.gen(function* () {
         const row = yield* requireGoal(input.id, "getGoal");
-        return { goal: toGoal(row) } satisfies GetGoalResult;
+        return { goal: yield* goalFromRow(row, "getGoal") } satisfies GetGoalResult;
       });
 
     const listGoalsByProject: GoalsServiceShape["listGoalsByProject"] = (
       input: ListGoalsByProjectInput,
     ) =>
-      goalRepo.listByProjectId({ projectId: input.projectId }).pipe(
-        Effect.map((rows) => ({
-          goals: rows.map(toGoal),
-        })),
-        Effect.mapError(
-          (cause) =>
-            new GoalServiceError({
-              operation: "listGoalsByProject",
-              detail: String(cause),
-              cause,
-            }),
-        ),
-      ) as Effect.Effect<ListGoalsByProjectResult, GoalServiceError>;
-
-    const setMainGoal: GoalsServiceShape["setMainGoal"] = (input: SetMainGoalInput) =>
       Effect.gen(function* () {
-        const row = yield* requireGoal(input.id, "setMainGoal");
+        const rows = yield* goalRepo.listByProjectId({ projectId: input.projectId }).pipe(
+          Effect.mapError(
+            (cause) =>
+              new GoalServiceError({
+                operation: "listGoalsByProject",
+                detail: String(cause),
+                cause,
+              }),
+          ),
+        );
+        const goals = yield* Effect.forEach(rows, (row) => goalFromRow(row, "listGoalsByProject"));
+        return { goals } satisfies ListGoalsByProjectResult;
+      });
 
-        if (input.isMain) {
+    const updateGoal: GoalsServiceShape["updateGoal"] = (input: UpdateGoalInput) =>
+      Effect.gen(function* () {
+        const row = yield* requireGoal(input.id, "updateGoal");
+        if (input.parentId === input.id) {
+          return yield* Effect.fail(
+            new GoalServiceError({
+              operation: "updateGoal",
+              detail: "A goal cannot be its own parent.",
+            }),
+          );
+        }
+
+        if (input.isMain === true) {
           yield* goalRepo
             .clearMainGoalForProject({
               projectId: row.projectId,
@@ -147,7 +215,7 @@ export const GoalsServiceLive = Layer.effect(
               Effect.mapError(
                 (cause) =>
                   new GoalServiceError({
-                    operation: "setMainGoal",
+                    operation: "updateGoal",
                     detail: String(cause),
                     cause,
                   }),
@@ -155,106 +223,163 @@ export const GoalsServiceLive = Layer.effect(
             );
         }
 
-        const updated = { ...row, isMain: input.isMain } as ProjectionGoal;
-        yield* goalRepo.upsert(updated).pipe(
+        const current = yield* goalFromRow(row, "updateGoal");
+        const updatedGoal: Goal = {
+          ...current,
+          ...(input.text ? { text: input.text } : {}),
+          ...(input.isMain !== undefined ? { isMain: input.isMain } : {}),
+          ...(input.linkedThreadIds ? { linkedThreadIds: input.linkedThreadIds } : {}),
+          ...(input.parentId !== undefined && input.parentId !== null
+            ? { parentId: input.parentId }
+            : {}),
+          ...(input.status ? { status: input.status } : {}),
+          ...(input.level ? { level: input.level } : {}),
+          ...(input.ownerAgentId !== undefined && input.ownerAgentId !== null
+            ? { ownerAgentId: input.ownerAgentId }
+            : {}),
+          ...(input.description !== undefined && input.description !== null
+            ? { description: input.description }
+            : {}),
+        };
+        if (input.parentId === null) delete (updatedGoal as { parentId?: GoalId }).parentId;
+        if (input.ownerAgentId === null) {
+          delete (updatedGoal as { ownerAgentId?: string }).ownerAgentId;
+        }
+        if (input.description === null) {
+          delete (updatedGoal as { description?: string }).description;
+        }
+
+        const updatedRow = {
+          ...row,
+          text: updatedGoal.text,
+          isMain: updatedGoal.isMain,
+          linkedThreadIds: updatedGoal.linkedThreadIds,
+        } as ProjectionGoal;
+        yield* goalRepo.upsert(updatedRow).pipe(
           Effect.mapError(
             (cause) =>
               new GoalServiceError({
-                operation: "setMainGoal",
+                operation: "updateGoal",
                 detail: String(cause),
                 cause,
               }),
           ),
         );
+        yield* persistGoalMetadata(updatedGoal, "updateGoal");
 
-        return { goal: toGoal(updated) } satisfies SetMainGoalResult;
+        return { goal: updatedGoal } satisfies UpdateGoalResult;
       });
+
+    const getGoalChildren: GoalsServiceShape["getGoalChildren"] = (input: GetGoalChildrenInput) =>
+      Effect.tryPromise({
+        try: async () => {
+          const metadata = await listGoalMetadata(stateDir);
+          const goals = metadata
+            .filter((goal) => goal.parentId === input.parentId)
+            .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          return { goals } satisfies GetGoalChildrenResult;
+        },
+        catch: (cause) =>
+          new GoalServiceError({
+            operation: "getGoalChildren",
+            detail: `Failed to list child goals for '${input.parentId}'.`,
+            cause,
+          }),
+      });
+
+    const getGoalAncestors: GoalsServiceShape["getGoalAncestors"] = (
+      input: GetGoalAncestorsInput,
+    ) =>
+      Effect.gen(function* () {
+        const ancestors: Goal[] = [];
+        const visited = new Set<string>();
+        let current = (yield* getGoal({ id: input.id })).goal;
+
+        while (current.parentId) {
+          if (visited.has(current.parentId)) {
+            return yield* Effect.fail(
+              new GoalServiceError({
+                operation: "getGoalAncestors",
+                detail: `Cycle detected while walking ancestors for '${input.id}'.`,
+              }),
+            );
+          }
+          visited.add(current.parentId);
+          current = (yield* getGoal({ id: current.parentId })).goal;
+          ancestors.push(current);
+        }
+
+        return { goals: ancestors } satisfies GetGoalAncestorsResult;
+      });
+
+    const setMainGoal: GoalsServiceShape["setMainGoal"] = (input: SetMainGoalInput) =>
+      updateGoal({ id: input.id, isMain: input.isMain }).pipe(
+        Effect.map(({ goal }) => ({ goal }) satisfies SetMainGoalResult),
+      );
 
     const linkThreadToGoal: GoalsServiceShape["linkThreadToGoal"] = (
       input: LinkThreadToGoalInput,
     ) =>
       Effect.gen(function* () {
-        const row = yield* requireGoal(input.goalId, "linkThreadToGoal");
-        const threadIds = new Set(row.linkedThreadIds);
+        const goal = (yield* getGoal({ id: input.goalId })).goal;
+        const threadIds = new Set(goal.linkedThreadIds);
         threadIds.add(input.threadId);
-
-        const updated = {
-          ...row,
-          linkedThreadIds: [...threadIds],
-        } as ProjectionGoal;
-        yield* goalRepo.upsert(updated).pipe(
-          Effect.mapError(
-            (cause) =>
-              new GoalServiceError({
-                operation: "linkThreadToGoal",
-                detail: String(cause),
-                cause,
-              }),
-          ),
-        );
-
-        return { goal: toGoal(updated) } satisfies LinkThreadToGoalResult;
+        const result = yield* updateGoal({
+          id: input.goalId,
+          linkedThreadIds: [...threadIds] as ThreadId[],
+        });
+        return { goal: result.goal } satisfies LinkThreadToGoalResult;
       });
 
     const unlinkThreadFromGoal: GoalsServiceShape["unlinkThreadFromGoal"] = (
       input: UnlinkThreadFromGoalInput,
     ) =>
       Effect.gen(function* () {
-        const row = yield* requireGoal(input.goalId, "unlinkThreadFromGoal");
-        const updated = {
-          ...row,
-          linkedThreadIds: row.linkedThreadIds.filter((id) => id !== input.threadId),
-        } as ProjectionGoal;
-        yield* goalRepo.upsert(updated).pipe(
-          Effect.mapError(
-            (cause) =>
-              new GoalServiceError({
-                operation: "unlinkThreadFromGoal",
-                detail: String(cause),
-                cause,
-              }),
-          ),
-        );
-
-        return { goal: toGoal(updated) } satisfies UnlinkThreadFromGoalResult;
+        const goal = (yield* getGoal({ id: input.goalId })).goal;
+        const result = yield* updateGoal({
+          id: input.goalId,
+          linkedThreadIds: goal.linkedThreadIds.filter((id) => id !== input.threadId),
+        });
+        return { goal: result.goal } satisfies UnlinkThreadFromGoalResult;
       });
 
     const updateGoalText: GoalsServiceShape["updateGoalText"] = (input: UpdateGoalTextInput) =>
+      updateGoal({ id: input.id, text: input.text }).pipe(
+        Effect.map(({ goal }) => ({ goal }) satisfies UpdateGoalTextResult),
+      );
+
+    const deleteGoal: GoalsServiceShape["deleteGoal"] = (input: DeleteGoalInput) =>
       Effect.gen(function* () {
-        const row = yield* requireGoal(input.id, "updateGoalText");
-        const updated = { ...row, text: input.text } as ProjectionGoal;
-        yield* goalRepo.upsert(updated).pipe(
+        yield* goalRepo.deleteById({ goalId: input.id }).pipe(
           Effect.mapError(
             (cause) =>
               new GoalServiceError({
-                operation: "updateGoalText",
+                operation: "deleteGoal",
                 detail: String(cause),
                 cause,
               }),
           ),
         );
-
-        return { goal: toGoal(updated) } satisfies UpdateGoalTextResult;
-      });
-
-    const deleteGoal: GoalsServiceShape["deleteGoal"] = (input: DeleteGoalInput) =>
-      goalRepo.deleteById({ goalId: input.id }).pipe(
-        Effect.map(() => ({}) satisfies DeleteGoalResult),
-        Effect.mapError(
-          (cause) =>
+        yield* Effect.tryPromise({
+          try: () => deleteGoalFiles(stateDir, input.id),
+          catch: (cause) =>
             new GoalServiceError({
               operation: "deleteGoal",
-              detail: String(cause),
+              detail: `Failed to delete goal files for '${input.id}'.`,
               cause,
             }),
-        ),
-      );
+        });
+        return {} satisfies DeleteGoalResult;
+      });
 
     return {
       createGoal,
       getGoal,
       listGoalsByProject,
       setMainGoal,
+      updateGoal,
+      getGoalChildren,
+      getGoalAncestors,
       linkThreadToGoal,
       unlinkThreadFromGoal,
       updateGoalText,

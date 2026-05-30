@@ -214,6 +214,10 @@ import {
   CreateGoalResult,
   DeleteGoalInput,
   DeleteGoalResult,
+  GetGoalAncestorsInput,
+  GetGoalAncestorsResult,
+  GetGoalChildrenInput,
+  GetGoalChildrenResult,
   GetGoalInput,
   GetGoalResult,
   LinkThreadToGoalInput,
@@ -224,9 +228,32 @@ import {
   SetMainGoalResult,
   UnlinkThreadFromGoalInput,
   UnlinkThreadFromGoalResult,
+  UpdateGoalInput,
+  UpdateGoalResult,
   UpdateGoalTextInput,
   UpdateGoalTextResult,
 } from "./goals";
+import {
+  CreateGoalDocumentInput,
+  DeleteGoalDocumentInput,
+  DeleteGoalDocumentResult,
+  GoalDocumentResult,
+  ListDocumentsByGoalInput,
+  ListDocumentsByGoalResult,
+  ReadGoalDocumentInput,
+  UpdateGoalDocumentInput,
+  WriteGoalDocumentInput,
+} from "./documents";
+import {
+  ApprovalGateResult,
+  ApproveInput,
+  CreateApprovalInput,
+  IsGoalApprovedInput,
+  IsGoalApprovedResult,
+  ListApprovalsByGoalInput,
+  ListApprovalsByGoalResult,
+  RejectInput,
+} from "./approvals";
 
 // ── WebSocket RPC Method Names ───────────────────────────────────────
 
@@ -303,13 +330,32 @@ export const WS_METHODS = {
 
   // Goals methods
   goalsCreate: "goals.create",
+  goalsList: "goals.list",
+  goalsUpdate: "goals.update",
   goalsGet: "goals.get",
   goalsListByProject: "goals.listByProject",
   goalsSetMain: "goals.setMain",
   goalsLinkThread: "goals.linkThread",
   goalsUnlinkThread: "goals.unlinkThread",
   goalsUpdateText: "goals.updateText",
+  goalsChildren: "goals.children",
+  goalsAncestors: "goals.ancestors",
   goalsDelete: "goals.delete",
+
+  // Goal document methods
+  documentsList: "documents.list",
+  documentsRead: "documents.read",
+  documentsWrite: "documents.write",
+  documentsCreate: "documents.create",
+  documentsUpdate: "documents.update",
+  documentsDelete: "documents.delete",
+
+  // Goal approval methods
+  approvalsList: "approvals.list",
+  approvalsCreate: "approvals.create",
+  approvalsApprove: "approvals.approve",
+  approvalsReject: "approvals.reject",
+  approvalsIsGoalApproved: "approvals.isGoalApproved",
 
   // Context methods
   contextCreateNode: "context.createNode",
@@ -477,13 +523,32 @@ const WebSocketRequestBody = Schema.Union([
 
   // Goals methods
   tagRequestBody(WS_METHODS.goalsCreate, CreateGoalInput),
+  tagRequestBody(WS_METHODS.goalsList, ListGoalsByProjectInput),
+  tagRequestBody(WS_METHODS.goalsUpdate, UpdateGoalInput),
   tagRequestBody(WS_METHODS.goalsGet, GetGoalInput),
   tagRequestBody(WS_METHODS.goalsListByProject, ListGoalsByProjectInput),
   tagRequestBody(WS_METHODS.goalsSetMain, SetMainGoalInput),
   tagRequestBody(WS_METHODS.goalsLinkThread, LinkThreadToGoalInput),
   tagRequestBody(WS_METHODS.goalsUnlinkThread, UnlinkThreadFromGoalInput),
   tagRequestBody(WS_METHODS.goalsUpdateText, UpdateGoalTextInput),
+  tagRequestBody(WS_METHODS.goalsChildren, GetGoalChildrenInput),
+  tagRequestBody(WS_METHODS.goalsAncestors, GetGoalAncestorsInput),
   tagRequestBody(WS_METHODS.goalsDelete, DeleteGoalInput),
+
+  // Goal document methods
+  tagRequestBody(WS_METHODS.documentsList, ListDocumentsByGoalInput),
+  tagRequestBody(WS_METHODS.documentsRead, ReadGoalDocumentInput),
+  tagRequestBody(WS_METHODS.documentsWrite, WriteGoalDocumentInput),
+  tagRequestBody(WS_METHODS.documentsCreate, CreateGoalDocumentInput),
+  tagRequestBody(WS_METHODS.documentsUpdate, UpdateGoalDocumentInput),
+  tagRequestBody(WS_METHODS.documentsDelete, DeleteGoalDocumentInput),
+
+  // Goal approval methods
+  tagRequestBody(WS_METHODS.approvalsList, ListApprovalsByGoalInput),
+  tagRequestBody(WS_METHODS.approvalsCreate, CreateApprovalInput),
+  tagRequestBody(WS_METHODS.approvalsApprove, ApproveInput),
+  tagRequestBody(WS_METHODS.approvalsReject, RejectInput),
+  tagRequestBody(WS_METHODS.approvalsIsGoalApproved, IsGoalApprovedInput),
 
   // Context methods
   tagRequestBody(WS_METHODS.contextCreateNode, CreateContextNodeInput),
@@ -699,13 +764,32 @@ export const WsRpcResultSchemaByMethod = {
 
   // Goals methods
   [WS_METHODS.goalsCreate]: CreateGoalResult,
+  [WS_METHODS.goalsList]: ListGoalsByProjectResult,
+  [WS_METHODS.goalsUpdate]: UpdateGoalResult,
   [WS_METHODS.goalsGet]: GetGoalResult,
   [WS_METHODS.goalsListByProject]: ListGoalsByProjectResult,
   [WS_METHODS.goalsSetMain]: SetMainGoalResult,
   [WS_METHODS.goalsLinkThread]: LinkThreadToGoalResult,
   [WS_METHODS.goalsUnlinkThread]: UnlinkThreadFromGoalResult,
   [WS_METHODS.goalsUpdateText]: UpdateGoalTextResult,
+  [WS_METHODS.goalsChildren]: GetGoalChildrenResult,
+  [WS_METHODS.goalsAncestors]: GetGoalAncestorsResult,
   [WS_METHODS.goalsDelete]: DeleteGoalResult,
+
+  // Goal document methods
+  [WS_METHODS.documentsList]: ListDocumentsByGoalResult,
+  [WS_METHODS.documentsRead]: GoalDocumentResult,
+  [WS_METHODS.documentsWrite]: GoalDocumentResult,
+  [WS_METHODS.documentsCreate]: GoalDocumentResult,
+  [WS_METHODS.documentsUpdate]: GoalDocumentResult,
+  [WS_METHODS.documentsDelete]: DeleteGoalDocumentResult,
+
+  // Goal approval methods
+  [WS_METHODS.approvalsList]: ListApprovalsByGoalResult,
+  [WS_METHODS.approvalsCreate]: ApprovalGateResult,
+  [WS_METHODS.approvalsApprove]: ApprovalGateResult,
+  [WS_METHODS.approvalsReject]: ApprovalGateResult,
+  [WS_METHODS.approvalsIsGoalApproved]: IsGoalApprovedResult,
 
   // Context methods
   [WS_METHODS.contextCreateNode]: CreateContextNodeResult,

@@ -14,6 +14,8 @@ export * from "./project";
 export * from "./threadFeatures";
 export * from "./features";
 export * from "./goals";
+export * from "./documents";
+export * from "./approvals";
 export * from "./context";
 export * from "./memory";
 export * from "./core-agent";

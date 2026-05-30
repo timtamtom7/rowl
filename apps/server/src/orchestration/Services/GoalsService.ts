@@ -11,6 +11,10 @@ import type {
   CreateGoalResult,
   DeleteGoalInput,
   DeleteGoalResult,
+  GetGoalAncestorsInput,
+  GetGoalAncestorsResult,
+  GetGoalChildrenInput,
+  GetGoalChildrenResult,
   GetGoalInput,
   GetGoalResult,
   LinkThreadToGoalInput,
@@ -21,6 +25,8 @@ import type {
   SetMainGoalResult,
   UnlinkThreadFromGoalInput,
   UnlinkThreadFromGoalResult,
+  UpdateGoalInput,
+  UpdateGoalResult,
   UpdateGoalTextInput,
   UpdateGoalTextResult,
 } from "@t3tools/contracts";
@@ -43,6 +49,18 @@ export interface GoalsServiceShape {
   readonly setMainGoal: (
     input: SetMainGoalInput,
   ) => Effect.Effect<SetMainGoalResult, GoalServiceError>;
+
+  readonly updateGoal: (
+    input: UpdateGoalInput,
+  ) => Effect.Effect<UpdateGoalResult, GoalServiceError>;
+
+  readonly getGoalChildren: (
+    input: GetGoalChildrenInput,
+  ) => Effect.Effect<GetGoalChildrenResult, GoalServiceError>;
+
+  readonly getGoalAncestors: (
+    input: GetGoalAncestorsInput,
+  ) => Effect.Effect<GetGoalAncestorsResult, GoalServiceError>;
 
   readonly linkThreadToGoal: (
     input: LinkThreadToGoalInput,

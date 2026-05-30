@@ -182,6 +182,65 @@ it.effect("accepts memory note websocket requests", () =>
   }),
 );
 
+it.effect("accepts organizing-layer websocket requests", () =>
+  Effect.gen(function* () {
+    const updateGoal = yield* decodeWebSocketRequest({
+      id: "req-goal-update",
+      body: {
+        _tag: WS_METHODS.goalsUpdate,
+        id: "goal-1",
+        parentId: "goal-parent",
+        status: "active",
+        level: "agent",
+      },
+    });
+    assert.strictEqual(updateGoal.body._tag, WS_METHODS.goalsUpdate);
+
+    const listDocuments = yield* decodeWebSocketRequest({
+      id: "req-documents-list",
+      body: {
+        _tag: WS_METHODS.documentsList,
+        goalId: "goal-1",
+      },
+    });
+    assert.strictEqual(listDocuments.body._tag, WS_METHODS.documentsList);
+
+    const writeDocument = yield* decodeWebSocketRequest({
+      id: "req-documents-write",
+      body: {
+        _tag: WS_METHODS.documentsWrite,
+        goalId: "goal-1",
+        documentId: "doc-1",
+        title: "Research",
+        content: "# Research",
+      },
+    });
+    assert.strictEqual(writeDocument.body._tag, WS_METHODS.documentsWrite);
+
+    const createApproval = yield* decodeWebSocketRequest({
+      id: "req-approvals-create",
+      body: {
+        _tag: WS_METHODS.approvalsCreate,
+        goalId: "goal-1",
+        documentId: "doc-1",
+        requestedBy: "agent-1",
+      },
+    });
+    assert.strictEqual(createApproval.body._tag, WS_METHODS.approvalsCreate);
+
+    const approve = yield* decodeWebSocketRequest({
+      id: "req-approvals-approve",
+      body: {
+        _tag: WS_METHODS.approvalsApprove,
+        goalId: "goal-1",
+        approvalId: "approval-1",
+        reviewedBy: "mauriello",
+      },
+    });
+    assert.strictEqual(approve.body._tag, WS_METHODS.approvalsApprove);
+  }),
+);
+
 it.effect("rejects core-agent websocket requests with unsafe agent ids", () =>
   Effect.gen(function* () {
     const result = yield* Effect.exit(

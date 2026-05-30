@@ -90,6 +90,8 @@ import { ContextBudgetCalculator } from "./orchestration/Services/ContextBudgetC
 import { MemoryService } from "./orchestration/Services/MemoryService";
 import { FeatureService } from "./orchestration/Services/FeatureService";
 import { GoalsService } from "./orchestration/Services/GoalsService";
+import { DocumentService } from "./orchestration/Services/DocumentService";
+import { ApprovalService } from "./orchestration/Services/ApprovalService";
 import { ProviderHealth } from "./provider/Services/ProviderHealth";
 import { OpenCodeState } from "./provider/Services/OpenCodeState";
 import { CheckpointDiffQuery } from "./checkpointing/Services/CheckpointDiffQuery";
@@ -391,6 +393,8 @@ export type ServerRuntimeServices =
   | ContextBudgetCalculator
   | FeatureService
   | GoalsService
+  | DocumentService
+  | ApprovalService
   | MemoryService
   | MultiAgentCoordinator
   | FeatureThreadLinkService
@@ -449,6 +453,8 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const projectPromptsService = yield* ProjectPromptsService;
   const featureService = yield* FeatureService;
   const goalsService = yield* GoalsService;
+  const documentService = yield* DocumentService;
+  const approvalService = yield* ApprovalService;
   const git = yield* GitCore;
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -1979,6 +1985,10 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return yield* featureService.deleteFeature(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsCreate:
         return yield* goalsService.createGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsList:
+        return yield* goalsService.listGoalsByProject(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsUpdate:
+        return yield* goalsService.updateGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsGet:
         return yield* goalsService.getGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsListByProject:
@@ -1991,8 +2001,34 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return yield* goalsService.unlinkThreadFromGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsUpdateText:
         return yield* goalsService.updateGoalText(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsChildren:
+        return yield* goalsService.getGoalChildren(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsAncestors:
+        return yield* goalsService.getGoalAncestors(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsDelete:
         return yield* goalsService.deleteGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.documentsList:
+        return yield* documentService.listDocumentsByGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.documentsRead:
+        return yield* documentService.readDocument(stripRequestTag(request.body) as any);
+      case WS_METHODS.documentsWrite:
+        return yield* documentService.writeDocument(stripRequestTag(request.body) as any);
+      case WS_METHODS.documentsCreate:
+        return yield* documentService.createDocument(stripRequestTag(request.body) as any);
+      case WS_METHODS.documentsUpdate:
+        return yield* documentService.updateDocument(stripRequestTag(request.body) as any);
+      case WS_METHODS.documentsDelete:
+        return yield* documentService.deleteDocument(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalsList:
+        return yield* approvalService.listApprovalsByGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalsCreate:
+        return yield* approvalService.createApproval(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalsApprove:
+        return yield* approvalService.approve(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalsReject:
+        return yield* approvalService.reject(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalsIsGoalApproved:
+        return yield* approvalService.isGoalApproved(stripRequestTag(request.body) as any);
       case WS_METHODS.reviewApprove: {
         const reviewBody = stripRequestTag(request.body) as any;
         yield* orchestrationEngine.dispatch({
