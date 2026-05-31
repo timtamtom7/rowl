@@ -35,7 +35,10 @@ type ThreadApprovalServiceOptions = {
   readonly stateDir: string;
   readonly now?: () => string;
   readonly generateId?: () => string;
-  readonly appendActivity?: (gate: ThreadApprovalGateType, action: GateActivityAction) => Effect.Effect<void, unknown>;
+  readonly appendActivity?: (
+    gate: ThreadApprovalGateType,
+    action: GateActivityAction,
+  ) => Effect.Effect<void, unknown>;
 };
 
 type GateActivityAction = "create" | "approve" | "reject";
@@ -153,31 +156,33 @@ export const ThreadApprovalServiceLive = Layer.effect(
     return createThreadApprovalService({
       stateDir,
       appendActivity: (gate, action) =>
-        orchestrationEngine.dispatch({
-          type: "thread.activity.append",
-          commandId: CommandId.makeUnsafe(`approval-gate:${action}:${gate.id}`),
-          threadId: gate.threadId,
-          activity: {
-            id: EventId.makeUnsafe(`approval-gate:${action}:${gate.id}`),
-            tone: action === "reject" ? "error" : "approval",
-            kind: `approval-gate.${action === "create" ? "created" : action === "approve" ? "approved" : "rejected"}`,
-            summary:
-              action === "create"
-                ? gate.description
-                : action === "approve"
-                  ? "Approval gate approved"
-                  : `Approval rejected: ${gate.description}`,
-            payload: {
-              gateId: gate.id,
-              type: gate.type,
-              status: gate.status,
-              proposedChange: gate.proposedChange,
+        orchestrationEngine
+          .dispatch({
+            type: "thread.activity.append",
+            commandId: CommandId.makeUnsafe(`approval-gate:${action}:${gate.id}`),
+            threadId: gate.threadId,
+            activity: {
+              id: EventId.makeUnsafe(`approval-gate:${action}:${gate.id}`),
+              tone: action === "reject" ? "error" : "approval",
+              kind: `approval-gate.${action === "create" ? "created" : action === "approve" ? "approved" : "rejected"}`,
+              summary:
+                action === "create"
+                  ? gate.description
+                  : action === "approve"
+                    ? "Approval gate approved"
+                    : `Approval rejected: ${gate.description}`,
+              payload: {
+                gateId: gate.id,
+                type: gate.type,
+                status: gate.status,
+                proposedChange: gate.proposedChange,
+              },
+              turnId: gate.turnId,
+              createdAt: new Date().toISOString(),
             },
-            turnId: gate.turnId,
             createdAt: new Date().toISOString(),
-          },
-          createdAt: new Date().toISOString(),
-        }).pipe(Effect.asVoid),
+          })
+          .pipe(Effect.asVoid),
     });
   }),
 );
@@ -209,10 +214,7 @@ async function readGate(
   return Schema.decodeUnknownSync(ThreadApprovalGate)(raw);
 }
 
-async function findGate(
-  stateDir: string,
-  gateId: string,
-): Promise<ThreadApprovalGateType> {
+async function findGate(stateDir: string, gateId: string): Promise<ThreadApprovalGateType> {
   let threadDirs: string[];
   try {
     threadDirs = await fs.readdir(gatesRoot(stateDir));

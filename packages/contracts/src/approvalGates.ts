@@ -1,11 +1,6 @@
 import { Schema } from "effect";
 
-import {
-  IsoDateTime,
-  ThreadId,
-  TrimmedNonEmptyString,
-  TurnId,
-} from "./baseSchemas";
+import { IsoDateTime, ThreadId, TrimmedNonEmptyString, TurnId } from "./baseSchemas";
 
 export const ThreadApprovalGateId = TrimmedNonEmptyString.check(
   Schema.isMaxLength(128),

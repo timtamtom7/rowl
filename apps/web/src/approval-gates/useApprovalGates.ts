@@ -60,21 +60,18 @@ export function useApprovalGates(input: {
     return () => window.clearInterval(interval);
   }, [refresh, threadId]);
 
-  const track = useCallback(
-    async (operation: () => Promise<{ gate: ThreadApprovalGate }>) => {
-      setError(null);
-      try {
-        const { gate } = await operation();
-        setGates((current) => [...current.filter((item) => item.id !== gate.id), gate]);
-        return gate;
-      } catch (caught) {
-        const message = caught instanceof Error ? caught.message : "Could not update approval gate.";
-        setError(message);
-        throw new Error(message, { cause: caught });
-      }
-    },
-    [],
-  );
+  const track = useCallback(async (operation: () => Promise<{ gate: ThreadApprovalGate }>) => {
+    setError(null);
+    try {
+      const { gate } = await operation();
+      setGates((current) => [...current.filter((item) => item.id !== gate.id), gate]);
+      return gate;
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Could not update approval gate.";
+      setError(message);
+      throw new Error(message, { cause: caught });
+    }
+  }, []);
 
   return {
     gates,

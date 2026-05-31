@@ -55,6 +55,7 @@ import { useProjectCreationActions } from "../hooks/useProjectCreationActions";
 import { serverConfigQueryOptions } from "../lib/serverReactQuery";
 import { readNativeApi } from "../nativeApi";
 import { useComposerDraftStore } from "../composerDraftStore";
+import { clearPersistedDraft } from "../composer/useDraftPersistence";
 import { selectThreadTerminalState, useTerminalStateStore } from "../terminalStateStore";
 import { toastManager } from "./ui/toast";
 import {
@@ -864,6 +865,7 @@ export default function Sidebar() {
         // Terminal may already be closed
       }
       clearComposerDraftForThread(threadId);
+      clearPersistedDraft(threadId);
       clearProjectDraftThreadById(thread.projectId, thread.id);
       clearTerminalState(threadId);
       if (shouldNavigateToFallback) {
@@ -1162,6 +1164,7 @@ export default function Sidebar() {
         const projectDraftThread = getDraftThreadByProjectId(projectId);
         if (projectDraftThread) {
           clearComposerDraftForThread(projectDraftThread.threadId);
+          clearPersistedDraft(projectDraftThread.threadId);
         }
         clearProjectDraftThreadId(projectId);
         await api.orchestration.dispatchCommand({

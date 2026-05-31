@@ -1300,7 +1300,11 @@ const make = Effect.gen(function* () {
         return;
       }
 
-      if (event.type === "request.opened" && event.requestId && event.payload.requestType !== "tool_user_input") {
+      if (
+        event.type === "request.opened" &&
+        event.requestId &&
+        event.payload.requestType !== "tool_user_input"
+      ) {
         const requestKind = requestKindFromCanonicalRequestType(event.payload.requestType);
         const turnId = eventTurnId ?? activeTurnId ?? undefined;
         if (requestKind === "file-change" && turnId) {

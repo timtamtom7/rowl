@@ -316,6 +316,7 @@ import {
   useComposerDraftStore,
   useComposerThreadDraft,
 } from "../composerDraftStore";
+import { useDraftPersistence } from "../composer/useDraftPersistence";
 import { shouldUseCompactComposerFooter } from "./composerFooterLayout";
 import { selectThreadTerminalState, useTerminalStateStore } from "../terminalStateStore";
 import { type QueuedThreadTurn, useThreadSendQueueStore } from "../threadSendQueue";
@@ -1310,6 +1311,21 @@ export default function ChatView({ threadId }: ChatViewProps) {
     },
     [setComposerDraftPrompt, threadId],
   );
+  const restoreComposerDraftText = useCallback(
+    (restoredPrompt: string) => {
+      promptRef.current = restoredPrompt;
+      setPrompt(restoredPrompt);
+      const restoredCursor = collapseExpandedComposerCursor(restoredPrompt, restoredPrompt.length);
+      setComposerCursor(restoredCursor);
+      setComposerTrigger(detectComposerTrigger(restoredPrompt, restoredPrompt.length));
+    },
+    [setPrompt],
+  );
+  const { clearDraft: clearPersistedComposerTextDraft } = useDraftPersistence({
+    threadId,
+    text: prompt,
+    onRestoreDraft: restoreComposerDraftText,
+  });
   const setSelectedSkills = useCallback(
     (skills: ReadonlyArray<ProjectSkillName>) => {
       setComposerDraftSelectedSkills(threadId, skills);
@@ -4992,6 +5008,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
         await runStandaloneSlashCommand(standaloneSlashCommand);
         promptRef.current = "";
         clearComposerDraftContent(activeThread.id);
+        clearPersistedComposerTextDraft(activeThread.id);
         setPendingTemplateOverrides(null);
         setComposerHighlightedItemId(null);
         setComposerCursor(0);
@@ -5123,6 +5140,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
       composerImages,
       copilotReasoningProbeQuery.data,
       clearComposerDraftContent,
+      clearPersistedComposerTextDraft,
       ensureOpenRouterModelSupportsToolsForDispatch,
       ensureProviderCredentialsForDispatch,
       interactionMode,
@@ -5144,12 +5162,13 @@ export default function ChatView({ threadId }: ChatViewProps) {
     (targetThreadId: ThreadId) => {
       promptRef.current = "";
       clearComposerDraftContent(targetThreadId);
+      clearPersistedComposerTextDraft(targetThreadId);
       setPendingTemplateOverrides(null);
       setComposerHighlightedItemId(null);
       setComposerCursor(0);
       setComposerTrigger(null);
     },
-    [clearComposerDraftContent],
+    [clearComposerDraftContent, clearPersistedComposerTextDraft],
   );
 
   const queueCurrentComposerTurn = useCallback(
@@ -5404,6 +5423,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
       });
       promptRef.current = "";
       clearComposerDraftContent(activeThread.id);
+      clearPersistedComposerTextDraft(activeThread.id);
       setComposerHighlightedItemId(null);
       setComposerCursor(0);
       setComposerTrigger(null);
