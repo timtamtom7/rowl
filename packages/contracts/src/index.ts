@@ -18,6 +18,7 @@ export * from "./goals";
 export * from "./documents";
 export * from "./approvals";
 export * from "./context";
+export * from "./contextMeter";
 export * from "./memory";
 export * from "./core-agent";
 export * from "./codebaseHealth";

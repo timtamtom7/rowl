@@ -97,6 +97,7 @@ import { OpenCodeState } from "./provider/Services/OpenCodeState";
 import { CheckpointDiffQuery } from "./checkpointing/Services/CheckpointDiffQuery";
 import { CheckpointStore } from "./checkpointing/Services/CheckpointStore";
 import { WorktreeCheckpointService } from "./checkpointing/Services/WorktreeCheckpointService";
+import { ContextMeter } from "./context-meter/ContextMeter.ts";
 import { clamp } from "effect/Number";
 import { Open, resolveAvailableEditors } from "./open";
 import { ServerConfig } from "./config";
@@ -380,6 +381,7 @@ export type ServerCoreRuntimeServices =
   | CheckpointDiffQuery
   | CheckpointStore
   | WorktreeCheckpointService
+  | ContextMeter
   | OrchestrationReactor
   | ProviderService
   | ProviderHealth
@@ -449,6 +451,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const worktreeService = yield* WorktreeService;
   const checkpointStore = yield* CheckpointStore;
   const worktreeCheckpointService = yield* WorktreeCheckpointService;
+  const contextMeter = yield* ContextMeter;
   const terminalManager = yield* TerminalManager;
   const keybindingsManager = yield* Keybindings;
   const providerService = yield* ProviderService;
@@ -2339,6 +2342,27 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           projectId: budgetBody.projectId,
         });
         return { breakdown };
+      }
+
+      case WS_METHODS.contextMeterGet: {
+        const body = stripRequestTag(request.body);
+        const { thread } = yield* resolveLiveThreadContext(body.threadId);
+        const provider =
+          thread.session?.providerName === "codex" ||
+          thread.session?.providerName === "copilot" ||
+          thread.session?.providerName === "kilocode" ||
+          thread.session?.providerName === "kimi" ||
+          thread.session?.providerName === "minimax" ||
+          thread.session?.providerName === "opencode" ||
+          thread.session?.providerName === "pi"
+            ? thread.session.providerName
+            : undefined;
+        const snapshot = yield* contextMeter.getSnapshot({
+          threadId: body.threadId,
+          model: thread.model,
+          ...(provider !== undefined ? { provider } : {}),
+        });
+        return { snapshot };
       }
 
       // Memory methods

@@ -248,6 +248,49 @@ it.effect("accepts memory note websocket requests", () =>
   }),
 );
 
+it.effect("accepts context meter websocket requests and responses", () =>
+  Effect.gen(function* () {
+    const parsed = yield* decodeWebSocketRequest({
+      id: "req-context-meter",
+      body: {
+        _tag: WS_METHODS.contextMeterGet,
+        threadId: "thread-1",
+      },
+    });
+    assert.strictEqual(parsed.body._tag, WS_METHODS.contextMeterGet);
+
+    const response = yield* decodeWsResponse({
+      id: "req-context-meter",
+      result: {
+        snapshot: {
+          threadId: "thread-1",
+          model: "gpt-5-codex",
+          contextWindowTokens: 400_000,
+          usedTokens: 280_000,
+          percentUsed: 70,
+          level: "warning",
+          warningThresholdPercent: 70,
+          criticalThresholdPercent: 90,
+          updatedAt: "2026-05-30T00:00:00.000Z",
+          history: [
+            {
+              turnId: "turn-1",
+              provider: "codex",
+              model: "gpt-5-codex",
+              usedTokens: 280_000,
+              contextWindowTokens: 400_000,
+              percentUsed: 70,
+              level: "warning",
+              observedAt: "2026-05-30T00:00:00.000Z",
+            },
+          ],
+        },
+      },
+    });
+    assert.strictEqual("id" in response ? response.id : null, "req-context-meter");
+  }),
+);
+
 it.effect("accepts organizing-layer websocket requests", () =>
   Effect.gen(function* () {
     const updateGoal = yield* decodeWebSocketRequest({

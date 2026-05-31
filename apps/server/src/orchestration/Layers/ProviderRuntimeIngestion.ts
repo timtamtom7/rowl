@@ -15,6 +15,7 @@ import { Cache, Cause, Duration, Effect, Layer, Option, Ref, Stream } from "effe
 import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 
 import { ProviderService } from "../../provider/Services/ProviderService.ts";
+import { ContextMeter } from "../../context-meter/ContextMeter.ts";
 import { resolveThreadWorkspaceCwd } from "../../checkpointing/Utils.ts";
 import { isGitRepository } from "../../git/isRepo.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
@@ -581,6 +582,7 @@ function runtimeEventToActivities(
 const make = Effect.gen(function* () {
   const orchestrationEngine = yield* OrchestrationEngineService;
   const providerService = yield* ProviderService;
+  const contextMeter = yield* ContextMeter;
 
   const assistantDeliveryModeRef = yield* Ref.make<AssistantDeliveryMode>(
     DEFAULT_ASSISTANT_DELIVERY_MODE,
@@ -947,6 +949,18 @@ const make = Effect.gen(function* () {
                   : {}),
               })
             : undefined;
+        if (event.type === "turn.completed" && nextTokenUsage !== undefined) {
+          yield* contextMeter
+            .recordTurnUsage({
+              threadId: thread.id,
+              ...(eventTurnId !== undefined ? { turnId: eventTurnId } : {}),
+              provider: event.provider,
+              model: thread.model,
+              usage: nextTokenUsage,
+              observedAt: now,
+            })
+            .pipe(Effect.catch(() => Effect.void));
+        }
         const nextActiveTurnId =
           event.type === "turn.started"
             ? (eventTurnId ?? null)
@@ -1007,6 +1021,16 @@ const make = Effect.gen(function* () {
       }
 
       if (event.type === "thread.token-usage.updated") {
+        yield* contextMeter
+          .recordTurnUsage({
+            threadId: thread.id,
+            ...(eventTurnId !== undefined ? { turnId: eventTurnId } : {}),
+            provider: event.provider,
+            model: thread.model,
+            usage: event.payload.usage,
+            observedAt: now,
+          })
+          .pipe(Effect.catch(() => Effect.void));
         yield* orchestrationEngine.dispatch({
           type: "thread.session.set",
           commandId: providerCommandId(event, "thread-token-usage-session-set"),

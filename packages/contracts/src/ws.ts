@@ -160,6 +160,7 @@ import {
   GetContextBudgetInput,
   GetContextBudgetResult,
 } from "./context";
+import { ContextMeterGetInput, ContextMeterGetResult } from "./contextMeter";
 import {
   CreateMemoryInput,
   CreateMemoryResult,
@@ -404,6 +405,7 @@ export const WS_METHODS = {
   contextRestoreNode: "context.restoreNode",
   contextDeleteNode: "context.deleteNode",
   contextGetBudget: "context.getBudget",
+  contextMeterGet: "contextMeter.get",
 
   // Codebase Intelligence
   codebaseHealthSummary: "codebase.healthSummary",
@@ -622,6 +624,7 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.contextRestoreNode, RestoreContextNodeInput),
   tagRequestBody(WS_METHODS.contextDeleteNode, DeleteContextNodeInput),
   tagRequestBody(WS_METHODS.contextGetBudget, GetContextBudgetInput),
+  tagRequestBody(WS_METHODS.contextMeterGet, ContextMeterGetInput),
   tagRequestBody(WS_METHODS.memoryCreate, CreateMemoryInput),
   tagRequestBody(WS_METHODS.memorySearch, SearchMemoryInput),
   tagRequestBody(WS_METHODS.memoryListByProject, ListMemoryByProjectInput),
@@ -879,6 +882,7 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.contextRestoreNode]: RestoreContextNodeResult,
   [WS_METHODS.contextDeleteNode]: DeleteContextNodeResult,
   [WS_METHODS.contextGetBudget]: GetContextBudgetResult,
+  [WS_METHODS.contextMeterGet]: ContextMeterGetResult,
   [WS_METHODS.memoryCreate]: CreateMemoryResult,
   [WS_METHODS.memorySearch]: SearchMemoryResult,
   [WS_METHODS.memoryListByProject]: ListMemoryByProjectResult,
