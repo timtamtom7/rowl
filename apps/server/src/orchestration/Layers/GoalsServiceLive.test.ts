@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { Effect, Layer, Option } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ProjectId } from "@t3tools/contracts";
 
 import { ServerConfig } from "../../config.ts";
 import {
@@ -78,14 +79,12 @@ function configLayer() {
   });
 }
 
-function runWithGoals<T>(effect: Effect.Effect<T, unknown, GoalsService>): Promise<T> {
-  return Effect.runPromise(
-    effect.pipe(
-      Effect.provide(GoalsServiceLive),
-      Effect.provide(repositoryLayer()),
-      Effect.provide(configLayer()),
-    ),
+function runWithGoals<T, E>(effect: Effect.Effect<T, E, GoalsService>): Promise<T> {
+  const layer = GoalsServiceLive.pipe(
+    Layer.provide(repositoryLayer()),
+    Layer.provide(configLayer()),
   );
+  return Effect.runPromise(effect.pipe(Effect.provide(layer)));
 }
 
 describe("GoalsServiceLive hierarchy", () => {
@@ -94,14 +93,14 @@ describe("GoalsServiceLive hierarchy", () => {
       Effect.gen(function* () {
         const goals = yield* GoalsService;
         const parent = yield* goals.createGoal({
-          projectId: "project-1",
+          projectId: ProjectId.makeUnsafe("project-1"),
           text: "Company objective",
           isMain: true,
           status: "planned",
           level: "company",
         });
         const child = yield* goals.createGoal({
-          projectId: "project-1",
+          projectId: ProjectId.makeUnsafe("project-1"),
           text: "Agent task",
           isMain: false,
           parentId: parent.goal.id,
@@ -134,7 +133,7 @@ describe("GoalsServiceLive hierarchy", () => {
       Effect.gen(function* () {
         const goals = yield* GoalsService;
         const created = yield* goals.createGoal({
-          projectId: "project-1",
+          projectId: ProjectId.makeUnsafe("project-1"),
           text: "Draft plan",
           isMain: false,
           status: "planned",

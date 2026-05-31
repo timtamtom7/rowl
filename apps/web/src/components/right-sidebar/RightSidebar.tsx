@@ -235,10 +235,10 @@ function ExpandedSidebarContent({
             onClick={() => setActiveTab(tab.id)}
             aria-selected={activeTab === tab.id}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-[background-color,color,box-shadow]",
+              "app-interactive-motion flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-[background-color,color,box-shadow,transform]",
               activeTab === tab.id
                 ? "bg-accent/90 text-accent-foreground shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_6%,transparent)]"
-                : "text-muted-foreground/60 hover:bg-accent/50 hover:text-foreground/80",
+                : "text-muted-foreground/60 hover:bg-accent/50 hover:text-foreground/80 motion-safe:hover:-translate-y-px",
             )}
           >
             {tab.icon}
@@ -248,7 +248,9 @@ function ExpandedSidebarContent({
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {renderTabContent(activeTab, projectId, projectCwd)}
+        <div key={activeTab} className="app-right-sidebar-tab-motion h-full min-h-0">
+          {renderTabContent(activeTab, projectId, projectCwd)}
+        </div>
       </div>
     </>
   );

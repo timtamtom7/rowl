@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { Effect } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ThreadId, TurnId } from "@t3tools/contracts";
 
 import { createThreadApprovalService } from "./ThreadApprovalService.ts";
 
@@ -35,8 +36,8 @@ describe("ThreadApprovalService", () => {
 
     const created = await Effect.runPromise(
       approvals.createGate({
-        threadId: "thread-1",
-        turnId: "turn-1",
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        turnId: TurnId.makeUnsafe("turn-1"),
         type: "file-change",
         description: "Approve README edit",
         proposedChange: {
@@ -47,7 +48,9 @@ describe("ThreadApprovalService", () => {
 
     expect(created.gate.status).toBe("pending");
 
-    const list = await Effect.runPromise(approvals.listGates({ threadId: "thread-1" }));
+    const list = await Effect.runPromise(
+      approvals.listGates({ threadId: ThreadId.makeUnsafe("thread-1") }),
+    );
     expect(list.gates.map((gate) => gate.id)).toEqual(["gate-1"]);
     expect(list.gates[0]?.proposedChange.files?.[0]?.path).toBe("README.md");
   });
@@ -59,8 +62,8 @@ describe("ThreadApprovalService", () => {
     const created = await Effect.runPromise(
       approvals.createGate(
         {
-          threadId: "thread-1",
-          turnId: "turn-1",
+          threadId: ThreadId.makeUnsafe("thread-1"),
+          turnId: TurnId.makeUnsafe("turn-1"),
           type: "file-change",
           description: "Approve README edit",
           proposedChange: { details: "patch" },
@@ -82,8 +85,8 @@ describe("ThreadApprovalService", () => {
     const created = await Effect.runPromise(
       approvals.createGate(
         {
-          threadId: "thread-1",
-          turnId: "turn-1",
+          threadId: ThreadId.makeUnsafe("thread-1"),
+          turnId: TurnId.makeUnsafe("turn-1"),
           type: "file-change",
           description: "Approve README edit",
           proposedChange: { details: "patch" },

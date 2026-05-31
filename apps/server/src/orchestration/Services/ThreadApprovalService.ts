@@ -266,7 +266,7 @@ async function runExecution(execution: ThreadApprovalGateExecution): Promise<voi
     return;
   }
   if (Effect.isEffect(execution)) {
-    await Effect.runPromise(execution);
+    await runEffect(execution);
     return;
   }
   await execution;
@@ -274,7 +274,18 @@ async function runExecution(execution: ThreadApprovalGateExecution): Promise<voi
 
 async function runEffect(effect: Effect.Effect<void, unknown> | undefined): Promise<void> {
   if (!effect) return;
-  await Effect.runPromise(effect);
+  await Effect.runPromise(
+    effect.pipe(
+      Effect.mapError(
+        (cause) =>
+          new ApprovalServiceError({
+            operation: "ThreadApprovalService.runEffect",
+            detail: "Approval gate callback failed.",
+            cause,
+          }),
+      ),
+    ),
+  );
 }
 
 function safeSegment(value: string): string {

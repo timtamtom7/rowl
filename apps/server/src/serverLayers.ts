@@ -242,7 +242,7 @@ export function makeServerRuntimeServicesLayer() {
   );
 
   const gitManagerLayer = GitManagerLive.pipe(
-    Layer.provideMerge(gitCoreLayer),
+    Layer.provide(gitCoreLayer),
     Layer.provideMerge(GitHubCliLive),
     Layer.provideMerge(textGenerationLayer),
   );

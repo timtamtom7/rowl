@@ -61,6 +61,54 @@ function resolveThreadWorkspaceCwd(
   return project?.workspaceRoot ?? null;
 }
 
+function measureProjectAgentsFile(workspaceCwd: string | null): number {
+  if (!workspaceCwd) return 0;
+  try {
+    const agentsFile = readProjectAgentsFile({
+      cwd: workspaceCwd,
+      includeContents: true,
+    });
+    return agentsFile?.status === "available" ? estimateTokens(agentsFile.contents) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function readProjectBriefFileSafely(workspaceCwd: string | null): string | null {
+  if (!workspaceCwd) return null;
+  try {
+    return readProjectBriefFile(workspaceCwd);
+  } catch {
+    return null;
+  }
+}
+
+function measureResumeSummary(activities: unknown): number {
+  try {
+    const resumeContext = parseLatestResumeContext(activities as any);
+    return resumeContext?.summary ? estimateTokens(resumeContext.summary) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function measureSelectedSkills(activities: ReadonlyArray<unknown>): number {
+  try {
+    const skillsActivity = activities
+      .filter((a: any) => a.kind === THREAD_SKILLS_ACTIVITY_KIND)
+      .pop();
+    const payload = (skillsActivity as any)?.payload;
+    if (!payload?.skills) return 0;
+    let skillsTokens = 0;
+    for (const skill of payload.skills) {
+      skillsTokens += estimateTokens(skill.contents ?? skill.description ?? "");
+    }
+    return skillsTokens;
+  } catch {
+    return 0;
+  }
+}
+
 // ── Service implementation ────────────────────────────────────────────
 
 export const ContextBudgetCalculatorLive = Layer.effect(
@@ -94,84 +142,38 @@ export const ContextBudgetCalculatorLive = Layer.effect(
 
         const workspaceCwd = resolveThreadWorkspaceCwd(thread, readModel.projects);
 
-        // ── Measure AGENTS.md ──
-        let agentsMdTokens = 0;
-        if (workspaceCwd) {
-          try {
-            const agentsFile = readProjectAgentsFile({
-              cwd: workspaceCwd,
-              includeContents: true,
-            });
-            if (agentsFile?.status === "available") {
-              agentsMdTokens = estimateTokens(agentsFile.contents);
-            }
-          } catch {
-            // AGENTS.md not found — no tokens
-          }
-        }
+        const agentsMdTokens = measureProjectAgentsFile(workspaceCwd);
 
         // ── Measure project context ──
         let projectContextTokens = 0;
-        try {
-          const briefContents = workspaceCwd ? readProjectBriefFile(workspaceCwd) : null;
-          projectContextTokens += estimateTokens(briefContents);
+        const briefContents = readProjectBriefFileSafely(workspaceCwd);
+        projectContextTokens += estimateTokens(briefContents);
 
-          const goalsResult = yield* goalsService
-            .listGoalsByProject({ projectId: thread.projectId as ProjectId })
-            .pipe(Effect.catch(() => Effect.succeed({ goals: [] as any[] })));
-          for (const goal of goalsResult.goals) {
-            projectContextTokens += estimateTokens((goal as any).text);
-          }
-
-          const featuresResult = yield* featureService
-            .listFeaturesByProject({ projectId: thread.projectId as ProjectId })
-            .pipe(Effect.catch(() => Effect.succeed({ features: [] as any[] })));
-          for (const feature of featuresResult.features) {
-            const f = feature as any;
-            projectContextTokens += estimateTokens(f.name) + estimateTokens(f.description);
-          }
-
-          const threadGoal = (thread as any).goal;
-          if (threadGoal && typeof threadGoal === "string") {
-            projectContextTokens += estimateTokens(threadGoal);
-          }
-
-          // XML tag overhead (~50 tokens for all the wrapping tags)
-          projectContextTokens += 50;
-        } catch {
-          // Project context assembly failed — 0 tokens
+        const goalsResult = yield* goalsService
+          .listGoalsByProject({ projectId: thread.projectId as ProjectId })
+          .pipe(Effect.catch(() => Effect.succeed({ goals: [] as any[] })));
+        for (const goal of goalsResult.goals) {
+          projectContextTokens += estimateTokens((goal as any).text);
         }
 
-        // ── Measure resume summary ──
-        let resumeSummaryTokens = 0;
-        try {
-          const resumeContext = parseLatestResumeContext(thread.activities);
-          if (resumeContext?.summary) {
-            resumeSummaryTokens = estimateTokens(resumeContext.summary);
-          }
-        } catch {
-          // No resume context
+        const featuresResult = yield* featureService
+          .listFeaturesByProject({ projectId: thread.projectId as ProjectId })
+          .pipe(Effect.catch(() => Effect.succeed({ features: [] as any[] })));
+        for (const feature of featuresResult.features) {
+          const f = feature as any;
+          projectContextTokens += estimateTokens(f.name) + estimateTokens(f.description);
         }
 
-        // ── Measure selected skills ──
-        let skillsTokens = 0;
-        // Skills are per-turn, not per-thread. We estimate based on last turn's skills
-        // or what's available in the project
-        try {
-          const skillsActivity = thread.activities
-            .filter((a: any) => a.kind === THREAD_SKILLS_ACTIVITY_KIND)
-            .pop();
-          if (skillsActivity) {
-            const payload = (skillsActivity as any).payload;
-            if (payload?.skills) {
-              for (const skill of payload.skills) {
-                skillsTokens += estimateTokens(skill.contents ?? skill.description ?? "");
-              }
-            }
-          }
-        } catch {
-          // No skills data
+        const threadGoal = (thread as any).goal;
+        if (threadGoal && typeof threadGoal === "string") {
+          projectContextTokens += estimateTokens(threadGoal);
         }
+
+        // XML tag overhead (~50 tokens for all the wrapping tags)
+        projectContextTokens += 50;
+
+        const resumeSummaryTokens = measureResumeSummary(thread.activities);
+        const skillsTokens = measureSelectedSkills(thread.activities);
 
         // Last reported token usage comes from the client-side contextWindow module,
         // not from the server. The calculator only measures Rowl-controlled sections.
@@ -197,21 +199,7 @@ export const ContextBudgetCalculatorLive = Layer.effect(
           contextWindowLimit,
           usagePercent,
         } satisfies ContextBudgetBreakdown;
-      }).pipe(
-        Effect.catch(() =>
-          Effect.succeed({
-            agentsMd: 0,
-            projectContext: 0,
-            resumeSummary: 0,
-            skills: 0,
-            userMessage: 0,
-            totalRowlContext: 0,
-            lastReportedTotal: null,
-            contextWindowLimit: null,
-            usagePercent: null,
-          } satisfies ContextBudgetBreakdown),
-        ),
-      );
+      });
 
     return { estimateForThread } satisfies ContextBudgetCalculatorShape;
   }),

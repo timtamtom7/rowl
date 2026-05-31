@@ -197,12 +197,10 @@ export const GoalsServiceLive = Layer.effect(
       Effect.gen(function* () {
         const row = yield* requireGoal(input.id, "updateGoal");
         if (input.parentId === input.id) {
-          return yield* Effect.fail(
-            new GoalServiceError({
-              operation: "updateGoal",
-              detail: "A goal cannot be its own parent.",
-            }),
-          );
+          return yield* new GoalServiceError({
+            operation: "updateGoal",
+            detail: "A goal cannot be its own parent.",
+          });
         }
 
         if (input.isMain === true) {
@@ -297,12 +295,10 @@ export const GoalsServiceLive = Layer.effect(
 
         while (current.parentId) {
           if (visited.has(current.parentId)) {
-            return yield* Effect.fail(
-              new GoalServiceError({
-                operation: "getGoalAncestors",
-                detail: `Cycle detected while walking ancestors for '${input.id}'.`,
-              }),
-            );
+            return yield* new GoalServiceError({
+              operation: "getGoalAncestors",
+              detail: `Cycle detected while walking ancestors for '${input.id}'.`,
+            });
           }
           visited.add(current.parentId);
           current = (yield* getGoal({ id: current.parentId })).goal;

@@ -213,6 +213,44 @@
       filter: blur(0);
     }
   }
+
+  @keyframes composer-working-sheen {
+    0% {
+      transform: translate3d(-120%, 0, 0);
+      opacity: 0;
+    }
+
+    12% {
+      opacity: 1;
+    }
+
+    88% {
+      opacity: 1;
+    }
+
+    100% {
+      transform: translate3d(120%, 0, 0);
+      opacity: 0;
+    }
+  }
+
+  @keyframes right-sidebar-tab-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+      filter: blur(3px);
+    }
+
+    65% {
+      filter: blur(0);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
 }
 
 @layer base {
@@ -340,6 +378,14 @@
   .app-assistant-response-motion {
     animation: assistant-response-reveal 380ms var(--motion-ease-emphasized) both;
   }
+
+  .app-composer-working-bar {
+    animation: composer-working-sheen 2400ms var(--motion-ease-standard) infinite;
+  }
+
+  .app-right-sidebar-tab-motion {
+    animation: right-sidebar-tab-reveal 220ms var(--motion-ease-emphasized) both;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -357,7 +403,9 @@
   .app-tool-active-glow,
   .app-tool-badge-pop,
   .app-tool-group-progress,
-  .app-assistant-response-motion {
+  .app-assistant-response-motion,
+  .app-composer-working-bar,
+  .app-right-sidebar-tab-motion {
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;
     will-change: auto;

@@ -183,7 +183,17 @@ export const makeWorktreeService = Effect.gen(function* () {
     Effect.acquireRelease(
       Effect.gen(function* () {
         const locksDir = lockRoot(root);
-        yield* fs.makeDirectory(locksDir, { recursive: true });
+        yield* fs
+          .makeDirectory(locksDir, { recursive: true })
+          .pipe(
+            Effect.mapError((cause) =>
+              toWorktreeError(
+                "WorktreeService.acquireLock",
+                `Failed to create lock directory for worktree '${branch}'.`,
+                cause,
+              ),
+            ),
+          );
         const lockPath = lockPathForBranch(root, branch);
         yield* removeStaleLock(lockPath, Date.now());
         const payload = JSON.stringify(
@@ -197,34 +207,28 @@ export const makeWorktreeService = Effect.gen(function* () {
         );
         const handle = yield* Effect.tryPromise({
           try: () => openFile(lockPath, "wx"),
-          catch: (cause) => cause,
-        }).pipe(
-          Effect.mapError((cause) =>
+          catch: (cause) =>
             toWorktreeError(
               "WorktreeService.acquireLock",
               `Worktree '${branch}' is locked.`,
               cause,
             ),
-          ),
-        );
+        });
         yield* Effect.tryPromise({
           try: () => handle.writeFile(payload, "utf8"),
-          catch: (cause) => cause,
-        }).pipe(
-          Effect.mapError((cause) =>
+          catch: (cause) =>
             toWorktreeError(
               "WorktreeService.acquireLock",
               `Failed to write lock for worktree '${branch}'.`,
               cause,
             ),
-          ),
-        );
+        });
         return { lockPath, handle };
       }),
       ({ lockPath, handle }: { lockPath: string; handle: FileHandle }) =>
         Effect.all(
           [
-            Effect.promise(() => handle.close()).pipe(Effect.catch(() => Effect.void)),
+            Effect.promise(() => handle.close()),
             fs.remove(lockPath, { force: true }).pipe(Effect.catch(() => Effect.void)),
           ],
           { discard: true },
@@ -299,11 +303,9 @@ export const makeWorktreeService = Effect.gen(function* () {
       const { worktrees } = yield* listWorktrees({ cwd: input.cwd });
       const found = worktrees.find((worktree) => worktree.branch === input.branch);
       if (!found) {
-        return yield* Effect.fail(
-          toWorktreeError(
-            "WorktreeService.getWorktreeInfo",
-            `No worktree found for branch '${input.branch}'.`,
-          ),
+        return yield* toWorktreeError(
+          "WorktreeService.getWorktreeInfo",
+          `No worktree found for branch '${input.branch}'.`,
         );
       }
       return found;
@@ -317,15 +319,23 @@ export const makeWorktreeService = Effect.gen(function* () {
         Effect.gen(function* () {
           yield* acquireLock(root, input.branch);
           if (yield* branchExists(root, input.branch)) {
-            return yield* Effect.fail(
-              toWorktreeError(
-                "WorktreeService.createWorktree",
-                `Branch '${input.branch}' already exists.`,
-              ),
+            return yield* toWorktreeError(
+              "WorktreeService.createWorktree",
+              `Branch '${input.branch}' already exists.`,
             );
           }
           const targetPath = worktreePathForBranch(root, input.branch);
-          yield* fs.makeDirectory(path.dirname(targetPath), { recursive: true });
+          yield* fs
+            .makeDirectory(path.dirname(targetPath), { recursive: true })
+            .pipe(
+              Effect.mapError((cause) =>
+                toWorktreeError(
+                  "WorktreeService.createWorktree",
+                  `Failed to create managed worktree directory for branch '${input.branch}'.`,
+                  cause,
+                ),
+              ),
+            );
           yield* executeGit(
             "WorktreeService.createWorktree",
             root,
@@ -344,20 +354,16 @@ export const makeWorktreeService = Effect.gen(function* () {
       const info = yield* getWorktreeInfo({ cwd: root, branch: input.branch });
       const expectedPrefix = `${managedRoot(root)}${path.sep}`;
       if (!info.path.startsWith(expectedPrefix)) {
-        return yield* Effect.fail(
-          toWorktreeError(
-            "WorktreeService.removeWorktree",
-            `Refusing to remove unmanaged worktree '${info.path}'.`,
-          ),
+        return yield* toWorktreeError(
+          "WorktreeService.removeWorktree",
+          `Refusing to remove unmanaged worktree '${info.path}'.`,
         );
       }
       const lock = yield* readLock(lockPathForBranch(root, input.branch));
       if (lock) {
-        return yield* Effect.fail(
-          toWorktreeError(
-            "WorktreeService.removeWorktree",
-            `Worktree '${input.branch}' is locked by ${lock.lockedBy}.`,
-          ),
+        return yield* toWorktreeError(
+          "WorktreeService.removeWorktree",
+          `Worktree '${input.branch}' is locked by ${lock.lockedBy}.`,
         );
       }
       yield* Effect.scoped(

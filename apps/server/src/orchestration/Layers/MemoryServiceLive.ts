@@ -142,7 +142,7 @@ export const MemoryServiceLive = Layer.effect(
 
         parts.push("</relevant_memories>");
         return parts.join("\n");
-      }).pipe(Effect.catch(() => Effect.succeed(null as string | null)));
+      });
 
     return {
       createMemory,

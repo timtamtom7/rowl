@@ -32,6 +32,7 @@ import {
   type OrchestrationEngineShape,
 } from "../Services/OrchestrationEngine.ts";
 import { ProviderRuntimeIngestionService } from "../Services/ProviderRuntimeIngestion.ts";
+import { ThreadApprovalServiceLive } from "../Services/ThreadApprovalService.ts";
 import { ServerConfig } from "../../config.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { makeContextMeterLive } from "../../context-meter/ContextMeterLive.ts";
@@ -150,8 +151,12 @@ describe("ProviderRuntimeIngestion", () => {
       Layer.provide(OrchestrationCommandReceiptRepositoryLive),
       Layer.provide(SqlitePersistenceMemory),
     );
+    const threadApprovalServiceLayer = ThreadApprovalServiceLive.pipe(
+      Layer.provide(orchestrationLayer),
+    );
     const layer = ProviderRuntimeIngestionLive.pipe(
       Layer.provideMerge(orchestrationLayer),
+      Layer.provideMerge(threadApprovalServiceLayer),
       Layer.provideMerge(Layer.succeed(ProviderService, provider.service)),
       Layer.provideMerge(makeContextMeterLive({ stateDir })),
       Layer.provideMerge(ServerConfig.layerTest(process.cwd(), stateDir)),

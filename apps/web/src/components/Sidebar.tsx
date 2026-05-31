@@ -454,7 +454,7 @@ function SortableProjectItem({
         transform: CSS.Translate.toString(transform),
         transition,
       }}
-      className={`group/menu-item relative rounded-md ${
+      className={`group/menu-item relative rounded-md transition-[opacity,box-shadow,transform] duration-200 ease-out ${
         isDragging ? "z-20 opacity-80" : ""
       } ${isOver && !isDragging ? "ring-1 ring-primary/40" : ""}`}
       data-sidebar="menu-item"
@@ -1707,7 +1707,7 @@ export default function Sidebar() {
                             <SidebarMenuButton
                               size="sm"
                               className={cn(
-                                "gap-2 px-2 py-1.5 text-left text-sidebar-foreground/90 hover:bg-sidebar-accent group-hover/project-header:bg-sidebar-accent group-hover/project-header:text-sidebar-accent-foreground",
+                                "app-interactive-motion gap-2 px-2 py-1.5 text-left text-sidebar-foreground/90 transition-[background-color,color,transform,box-shadow] hover:bg-sidebar-accent hover:shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_5%,transparent)] group-hover/project-header:bg-sidebar-accent group-hover/project-header:text-sidebar-accent-foreground motion-safe:hover:translate-x-0.5",
                                 canReorderProjects
                                   ? "cursor-grab active:cursor-grabbing"
                                   : "cursor-default",
@@ -1731,7 +1731,7 @@ export default function Sidebar() {
                               }}
                             >
                               <ChevronRightIcon
-                                className={`-ml-0.5 size-3.5 shrink-0 text-sidebar-foreground/80 transition-transform duration-150 ${
+                                className={`-ml-0.5 size-3.5 shrink-0 text-sidebar-foreground/80 transition-transform duration-200 ease-out ${
                                   project.expanded ? "rotate-90" : ""
                                 }`}
                               />
@@ -1786,7 +1786,10 @@ export default function Sidebar() {
                             </Tooltip>
                           </div>
 
-                          <CollapsibleContent keepMounted>
+                          <CollapsibleContent
+                            keepMounted
+                            className="transition-[height,opacity] duration-[240ms] ease-[var(--motion-ease-panel)] data-open:opacity-100 data-closed:opacity-0"
+                          >
                             <SidebarMenuSub className="mx-1 my-1 w-full translate-x-0 gap-0.5 px-1.5 py-0.5">
                               {visibleThreads.map((threadEntry) => {
                                 const thread = threadEntry.thread;
@@ -1997,7 +2000,7 @@ export default function Sidebar() {
                                     render={<button type="button" />}
                                     data-thread-selection-safe
                                     size="sm"
-                                    className="h-6 w-full translate-x-0 justify-start px-2 text-left text-[10px] text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                    className="app-interactive-motion h-6 w-full translate-x-0 justify-start px-2 text-left text-[10px] text-sidebar-foreground/80 transition-[background-color,color,transform] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground motion-safe:hover:translate-x-0.5"
                                     onClick={() => {
                                       expandThreadListForProject(project.id);
                                     }}
@@ -2012,7 +2015,7 @@ export default function Sidebar() {
                                     render={<button type="button" />}
                                     data-thread-selection-safe
                                     size="sm"
-                                    className="h-6 w-full translate-x-0 justify-start px-2 text-left text-[10px] text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                    className="app-interactive-motion h-6 w-full translate-x-0 justify-start px-2 text-left text-[10px] text-sidebar-foreground/80 transition-[background-color,color,transform] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground motion-safe:hover:translate-x-0.5"
                                     onClick={() => {
                                       collapseThreadListForProject(project.id);
                                     }}

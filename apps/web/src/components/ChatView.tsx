@@ -86,6 +86,8 @@ import {
 import {
   describeContextWindowState,
   getDocumentedContextWindowOverride,
+  getContextWindowUsageLevel,
+  type ContextWindowUsageLevel,
   shouldHideContextWindowForModel,
 } from "~/lib/contextWindow";
 import {
@@ -2238,6 +2240,21 @@ export default function ChatView({ threadId }: ChatViewProps) {
     }
     return chatCopy.authenticatedModels(visibleAuthenticatedPiModelCount);
   }, [chatCopy, selectedModel, selectedProvider, visibleAuthenticatedPiModelCount]);
+  const contextUsageViewState = useMemo(
+    () =>
+      buildContextUsageViewState({
+        provider: selectedProvider,
+        model: selectedModelForPickerWithCustomFallback,
+        tokenUsage: activeThread?.session?.tokenUsage,
+        opencodeContextLengthsBySlug: openCodeContextLengthsBySlug,
+      }),
+    [
+      activeThread?.session?.tokenUsage,
+      openCodeContextLengthsBySlug,
+      selectedModelForPickerWithCustomFallback,
+      selectedProvider,
+    ],
+  );
   const searchableModelOptions = useMemo(
     () =>
       AVAILABLE_PROVIDER_OPTIONS.filter(
@@ -2301,6 +2318,16 @@ export default function ChatView({ threadId }: ChatViewProps) {
   });
   const lastNotifiedTurnIdRef = useRef<TurnId | null>(null);
   const followUpMode = followUpModeByThreadId[threadId] ?? "queue";
+  const composerShortcutHint = useMemo(() => {
+    if (phase === "running") {
+      const modKey =
+        typeof navigator !== "undefined" && isMacPlatform(navigator.platform) ? "⌘" : "Ctrl";
+      return `${modKey}↵ ${
+        followUpMode === "queue" ? chatCopy.steerMode : chatCopy.queueMode
+      } · ↵ ${followUpMode === "queue" ? chatCopy.queueMode : chatCopy.sendNow}`;
+    }
+    return "↵ send · ⇧↵ newline";
+  }, [chatCopy.queueMode, chatCopy.sendNow, chatCopy.steerMode, followUpMode, phase]);
   const hasQueuedTurns = queuedTurnsForThread.length > 0;
   const hasFailedQueuedTurn = queuedTurnsForThread.some((turn) => turn.status === "failed");
   const nowIso = new Date(nowTick).toISOString();
@@ -6959,6 +6986,9 @@ export default function ChatView({ threadId }: ChatViewProps) {
           isRedoingThread={redoThreadMutation.isPending}
           canForkThread={isServerThread && !isForkingThread}
           canExportThread={isServerThread}
+          contextUsagePercent={contextUsageViewState?.percentUsed ?? null}
+          contextUsageLevel={contextUsageViewState?.level ?? "normal"}
+          contextUsageLabel={contextUsageViewState?.primaryLabel ?? null}
         />
       </header>
 
@@ -7461,8 +7491,32 @@ export default function ChatView({ threadId }: ChatViewProps) {
                     }
                     disabled={isConnecting || isComposerApprovalState}
                   />
+                  <div className="mt-1 flex min-h-5 items-center justify-between gap-3 px-2.5 text-[11px] text-muted-foreground/58 sm:px-3">
+                    <div
+                      className={cn(
+                        "flex min-w-0 items-center gap-2 transition-[opacity,transform] duration-200 ease-out",
+                        phase === "running"
+                          ? "opacity-100"
+                          : "pointer-events-none opacity-0 motion-safe:-translate-y-0.5",
+                      )}
+                      aria-live="polite"
+                    >
+                      <span className="relative h-1.5 w-16 overflow-hidden rounded-full bg-muted/65">
+                        <span className="app-composer-working-bar absolute inset-y-0 left-0 w-1/2 rounded-full bg-primary/45" />
+                      </span>
+                      <span className="inline-flex items-center gap-[4px]" aria-hidden="true">
+                        <span className="app-tool-live-dot size-1 rounded-full bg-primary/80" />
+                        <span className="app-tool-live-dot size-1 rounded-full bg-primary/55 [animation-delay:140ms]" />
+                        <span className="app-tool-live-dot size-1 rounded-full bg-primary/35 [animation-delay:280ms]" />
+                      </span>
+                      <span className="truncate">{chatCopy.working}</span>
+                    </div>
+                    <span className="ml-auto shrink-0 font-medium text-muted-foreground/45">
+                      {composerShortcutHint}
+                    </span>
+                  </div>
                   {activeWorkspaceCwd ? (
-                    <div className="px-2.5 pb-2 pt-1 text-[11px] text-muted-foreground/70 sm:px-3">
+                    <div className="px-2.5 pb-2 pt-0.5 text-[11px] text-muted-foreground/70 sm:px-3">
                       {agentsFileQuery.data?.status === "available"
                         ? `Using workspace instructions from ${agentsFileQuery.data.relativePath}`
                         : "No workspace AGENTS.md found."}
@@ -8446,6 +8500,9 @@ interface ChatHeaderProps {
   isRedoingThread: boolean;
   canForkThread: boolean;
   canExportThread: boolean;
+  contextUsagePercent: number | null;
+  contextUsageLevel: ContextWindowUsageLevel;
+  contextUsageLabel: string | null;
 }
 
 const ThreadHeaderActionsMenu = memo(function ThreadHeaderActionsMenu(props: {
@@ -8518,7 +8575,12 @@ const ChatHeader = memo(function ChatHeader({
   isRedoingThread,
   canForkThread,
   canExportThread,
+  contextUsagePercent,
+  contextUsageLevel,
+  contextUsageLabel,
 }: ChatHeaderProps) {
+  const contextUsageWidth = contextUsagePercent === null ? 0 : Math.max(4, contextUsagePercent);
+
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3">
@@ -8540,6 +8602,31 @@ const ChatHeader = memo(function ChatHeader({
             No Git
           </Badge>
         )}
+        {contextUsageLabel ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <span
+                  className="group/context-meter hidden h-2 w-20 shrink-0 overflow-hidden rounded-full border border-border/55 bg-muted/45 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_4%,transparent)] sm:inline-flex"
+                  aria-label={`Context window: ${contextUsageLabel}`}
+                >
+                  <span
+                    className={cn(
+                      "h-full rounded-full transition-[width,background-color] duration-300 ease-out",
+                      contextUsageLevel === "critical"
+                        ? "bg-red-500"
+                        : contextUsageLevel === "warning"
+                          ? "bg-amber-500"
+                          : "bg-emerald-500/80",
+                    )}
+                    style={{ width: `${contextUsageWidth}%` }}
+                  />
+                </span>
+              }
+            />
+            <TooltipPopup side="bottom">{contextUsageLabel}</TooltipPopup>
+          </Tooltip>
+        ) : null}
       </div>
       <div className="@container/header-actions flex min-w-0 flex-1 items-center justify-end gap-2 @sm/header-actions:gap-3">
         {activeProjectScripts && (
@@ -9390,24 +9477,32 @@ function getContextIndicatorLabel(input: {
   return input.usedLabel ?? input.totalLabel ?? "?";
 }
 
-const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(props: {
-  language: AppLanguage;
+type ContextUsageViewState = {
+  percentUsed: number | null;
+  level: ContextWindowUsageLevel;
+  primaryLabel: string;
+  secondaryLabel: string;
+  statusLabel: string;
+  indicatorLabel: string;
+  note: string | null;
+  hasUsedAndTotal: boolean;
+};
+
+function buildContextUsageViewState(input: {
   provider: ProviderKind;
   model: string | null | undefined;
   tokenUsage?: unknown;
   opencodeContextLengthsBySlug?: ReadonlyMap<string, number | null>;
-  compact?: boolean;
-  onOpenUsageDashboard: () => void;
-}) {
-  if (shouldHideContextWindowForModel(props.provider, props.model)) {
+}): ContextUsageViewState | null {
+  if (shouldHideContextWindowForModel(input.provider, input.model)) {
     return null;
   }
 
   const state = describeContextWindowState({
-    provider: props.provider,
-    model: props.model,
-    tokenUsage: props.tokenUsage,
-    ...getDocumentedContextWindowOverride(props),
+    provider: input.provider,
+    model: input.model,
+    tokenUsage: input.tokenUsage,
+    ...getDocumentedContextWindowOverride(input),
   });
 
   const hasUsedAndTotal =
@@ -9430,6 +9525,10 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
       : state.usedLabel
         ? `${state.usedLabel} used`
         : null;
+  if (!primaryLabel) {
+    return null;
+  }
+
   const statusLabel = hasUsedAndTotal
     ? state.usageScope === "thread"
       ? "Latest thread snapshot"
@@ -9437,21 +9536,41 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
     : state.totalLabel
       ? "Usage appears once the provider reports it."
       : (state.note ?? "Context window unavailable.");
-  const secondaryLabel = hasUsedAndTotal ? `${state.remainingLabel} left` : statusLabel;
-  const indicatorLabel = getContextIndicatorLabel({
+
+  return {
     percentUsed,
-    usedLabel: state.usedLabel,
-    totalLabel: state.totalLabel,
-  });
+    level: getContextWindowUsageLevel(percentUsed),
+    primaryLabel,
+    secondaryLabel: hasUsedAndTotal ? `${state.remainingLabel} left` : statusLabel,
+    statusLabel,
+    indicatorLabel: getContextIndicatorLabel({
+      percentUsed,
+      usedLabel: state.usedLabel,
+      totalLabel: state.totalLabel,
+    }),
+    note: state.note,
+    hasUsedAndTotal,
+  };
+}
+
+const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(props: {
+  language: AppLanguage;
+  provider: ProviderKind;
+  model: string | null | undefined;
+  tokenUsage?: unknown;
+  opencodeContextLengthsBySlug?: ReadonlyMap<string, number | null>;
+  compact?: boolean;
+  onOpenUsageDashboard: () => void;
+}) {
+  const viewState = buildContextUsageViewState(props);
+  if (!viewState) return null;
+
   const ringCircumference = 2 * Math.PI * 15;
   const ringOffset =
-    percentUsed !== null
-      ? ringCircumference - (ringCircumference * Math.max(0, Math.min(100, percentUsed))) / 100
+    viewState.percentUsed !== null
+      ? ringCircumference -
+        (ringCircumference * Math.max(0, Math.min(100, viewState.percentUsed))) / 100
       : ringCircumference;
-
-  if (!primaryLabel) {
-    return null;
-  }
 
   return (
     <Tooltip>
@@ -9482,7 +9601,7 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
                 strokeWidth="2.5"
                 className="text-muted-foreground/15"
               />
-              {percentUsed !== null ? (
+              {viewState.percentUsed !== null ? (
                 <circle
                   cx="18"
                   cy="18"
@@ -9495,11 +9614,11 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
                   strokeDashoffset={ringOffset}
                   className={cn(
                     "transition-[stroke-dashoffset,stroke-opacity] duration-300 ease-out",
-                    percentUsed >= 95
+                    viewState.level === "critical"
                       ? "text-red-500"
-                      : percentUsed >= 80
+                      : viewState.level === "warning"
                         ? "text-amber-500"
-                        : "text-foreground/55",
+                        : "text-emerald-500/75",
                   )}
                 />
               ) : null}
@@ -9510,7 +9629,7 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
                 props.compact ? "text-[9px]" : "text-[10px]",
               )}
             >
-              {indicatorLabel}
+              {viewState.indicatorLabel}
             </span>
           </button>
         }
@@ -9518,11 +9637,11 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
       <TooltipPopup side="top" className="max-w-72 whitespace-normal leading-relaxed">
         <div className="space-y-1">
           <div className="font-medium">Context window</div>
-          <div>{primaryLabel}</div>
-          {hasUsedAndTotal ? <div>{secondaryLabel}</div> : null}
-          <div className="text-muted-foreground/80 text-[11px]">{statusLabel}</div>
-          {state.note ? (
-            <div className="text-muted-foreground/80 text-[11px]">{state.note}</div>
+          <div>{viewState.primaryLabel}</div>
+          {viewState.hasUsedAndTotal ? <div>{viewState.secondaryLabel}</div> : null}
+          <div className="text-muted-foreground/80 text-[11px]">{viewState.statusLabel}</div>
+          {viewState.note ? (
+            <div className="text-muted-foreground/80 text-[11px]">{viewState.note}</div>
           ) : null}
           <div className="pt-1 text-muted-foreground/80 text-[11px]">
             {props.language === "fa"

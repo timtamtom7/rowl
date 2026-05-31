@@ -666,9 +666,12 @@ const make = Effect.gen(function* () {
     }
 
     // Build project context: brief + goals + features + thread goal
-    let projectContextBlock: string | undefined;
-    try {
-      const briefContents = workspaceCwd ? readProjectBriefFile(workspaceCwd) : null;
+    const projectContextBlock = yield* Effect.gen(function* () {
+      const briefContents = workspaceCwd
+        ? yield* Effect.sync(() => readProjectBriefFile(workspaceCwd)).pipe(
+            Effect.catch(() => Effect.succeed(null)),
+          )
+        : null;
       const goalsResult = yield* goalsService
         .listGoalsByProject({ projectId: thread.projectId })
         .pipe(Effect.catch(() => Effect.succeed({ goals: [] as any[] })));
@@ -751,12 +754,10 @@ If you're unsure, say so clearly instead of claiming success.
       );
 
       // Inject project prompts + active harness from database
-      const promptsContext = yield* projectPromptsService
-        .getContextForThread({
-          projectId: thread.projectId as any,
-          threadId: thread.id as any,
-        })
-        .pipe(Effect.catch(() => Effect.succeed({ prompts: [] as any[], harnessContent: null })));
+      const promptsContext = yield* projectPromptsService.getContextForThread({
+        projectId: thread.projectId as any,
+        threadId: thread.id as any,
+      });
 
       if (promptsContext.prompts.length > 0) {
         contextParts.push("<project_rules>");
@@ -775,64 +776,56 @@ If you're unsure, say so clearly instead of claiming success.
       }
 
       // Inject relevant memories from deep memory system
-      const memoriesBlock = yield* memoryService
-        .buildRelevantMemoriesBlock({
-          query: input.messageText,
-          projectId: thread.projectId as any,
-          maxTokens: 500,
-        })
-        .pipe(Effect.catch(() => Effect.succeed(null as string | null)));
+      const memoriesBlock = yield* memoryService.buildRelevantMemoriesBlock({
+        query: input.messageText,
+        projectId: thread.projectId as any,
+        maxTokens: 500,
+      });
       if (memoriesBlock) {
         contextParts.push(memoriesBlock);
       }
 
-      if (contextParts.length > 0) {
-        projectContextBlock = contextParts.join("\n");
-      }
-    } catch {
-      // Don't let project context failures block the turn
-    }
+      return contextParts.length > 0 ? contextParts.join("\n") : undefined;
+    });
 
     // Assemble agent memory preamble (persistent global + project blocks).
     // Failures never block the turn — memory is additive context.
-    let agentMemoryBlock: string | null = null;
-    let activeAgentIdForTurn: string | null = null;
-    try {
-      const activeAgent = yield* Effect.promise(() =>
+    const agentMemoryResult = yield* Effect.gen(function* () {
+      const activeAgent = yield* Effect.tryPromise(() =>
         resolveActiveAgentForTurn({
           service: coreAgentService,
           ...(workspaceCwd ? { projectRoot: workspaceCwd } : {}),
         }),
       );
-      activeAgentIdForTurn = activeAgent.activeAgentId;
       const coreMemoryContext = activeAgent.memoryContext;
-      yield* coreMemoryService
-        .ensureGlobalSeeded(coreMemoryContext)
-        .pipe(Effect.catch(() => Effect.void));
+      yield* coreMemoryService.ensureGlobalSeeded(coreMemoryContext);
       if (workspaceCwd) {
-        yield* coreMemoryService
-          .ensureProjectSeeded({ projectRoot: workspaceCwd, agentId: activeAgent.activeAgentId })
-          .pipe(Effect.catch(() => Effect.void));
+        yield* coreMemoryService.ensureProjectSeeded({
+          projectRoot: workspaceCwd,
+          agentId: activeAgent.activeAgentId,
+        });
       }
-      const globalBlocks = yield* coreMemoryService
-        .listGlobal(coreMemoryContext)
-        .pipe(Effect.catch(() => Effect.succeed([] as const)));
+      const globalBlocks = yield* coreMemoryService.listGlobal(coreMemoryContext);
       const projectBlocks = workspaceCwd
-        ? yield* coreMemoryService
-            .listProject({ projectRoot: workspaceCwd })
-            .pipe(Effect.catch(() => Effect.succeed([] as const)))
+        ? yield* coreMemoryService.listProject({ projectRoot: workspaceCwd })
         : [];
-      agentMemoryBlock = assembleMemoryPreamble({
+      const memoryPreamble = assembleMemoryPreamble({
         global: globalBlocks,
         project: projectBlocks,
       });
-      agentMemoryBlock = assembleAgentTurnMemoryPreamble({
-        agent: activeAgent.agent,
-        memoryPreamble: agentMemoryBlock,
-      });
-    } catch {
-      // Don't let memory failures block the turn
-    }
+      return {
+        activeAgentIdForTurn: activeAgent.activeAgentId,
+        agentMemoryBlock: assembleAgentTurnMemoryPreamble({
+          agent: activeAgent.agent,
+          memoryPreamble,
+        }),
+      };
+    }).pipe(
+      Effect.catch(() =>
+        Effect.succeed({ activeAgentIdForTurn: null, agentMemoryBlock: null as string | null }),
+      ),
+    );
+    const { activeAgentIdForTurn, agentMemoryBlock } = agentMemoryResult;
 
     const normalizedInput = toNonEmptyProviderInput(
       applyThreadTurnContext({
@@ -1044,24 +1037,26 @@ If you're unsure, say so clearly instead of claiming success.
       projects: readModel.projects,
     });
     const project = readModel.projects.find((entry) => entry.id === thread.projectId);
-    const slashResult = yield* Effect.promise(() =>
-      executeCoreAgentSlashCommand({
-        service: coreAgentService,
-        memory: memoryPalaceService,
-        scope: workspaceCwd ? { type: "project", projectRoot: workspaceCwd } : { type: "global" },
-        stateDir: serverConfig.stateDir,
-        organizing: {
-          ...(project ? { projectId: project.id } : {}),
-          actorId: "rowl",
-          goals: goalsService,
-          documents: documentService,
-          approvals: approvalService,
-        },
-        conversationMessages: thread.messages,
-        summarizer: contextTrimmer,
-        text: message.text,
-      }),
-    ).pipe(Effect.catch(() => Effect.succeed(null)));
+    const slashResult = yield* Effect.tryPromise({
+      try: () =>
+        executeCoreAgentSlashCommand({
+          service: coreAgentService,
+          memory: memoryPalaceService,
+          scope: workspaceCwd ? { type: "project", projectRoot: workspaceCwd } : { type: "global" },
+          stateDir: serverConfig.stateDir,
+          organizing: {
+            ...(project ? { projectId: project.id } : {}),
+            actorId: "rowl",
+            goals: goalsService,
+            documents: documentService,
+            approvals: approvalService,
+          },
+          conversationMessages: thread.messages,
+          summarizer: contextTrimmer,
+          text: message.text,
+        }),
+      catch: () => null,
+    }).pipe(Effect.catch(() => Effect.succeed(null)));
     if (slashResult) {
       yield* appendAssistantMessage({
         threadId: event.payload.threadId,

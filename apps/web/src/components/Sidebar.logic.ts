@@ -61,26 +61,26 @@ export function resolveThreadRowClassName(input: {
   isSelected: boolean;
 }): string {
   const baseClassName =
-    "h-7 w-full translate-x-0 cursor-default justify-start px-2 text-left select-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring";
+    "app-interactive-motion h-7 w-full translate-x-0 cursor-default justify-start px-2 text-left select-none transition-[background-color,color,transform,box-shadow] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring motion-safe:hover:translate-x-0.5";
 
   if (input.isSelected && input.isActive) {
     return cn(
       baseClassName,
-      "bg-primary/22 text-foreground font-medium hover:bg-primary/26 hover:text-foreground dark:bg-primary/30 dark:hover:bg-primary/36",
+      "bg-primary/22 text-foreground font-medium shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_5%,transparent)] hover:bg-primary/26 hover:text-foreground dark:bg-primary/30 dark:hover:bg-primary/36",
     );
   }
 
   if (input.isSelected) {
     return cn(
       baseClassName,
-      "bg-primary/15 text-foreground hover:bg-primary/19 hover:text-foreground dark:bg-primary/22 dark:hover:bg-primary/28",
+      "bg-primary/15 text-foreground shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_4%,transparent)] hover:bg-primary/19 hover:text-foreground dark:bg-primary/22 dark:hover:bg-primary/28",
     );
   }
 
   if (input.isActive) {
     return cn(
       baseClassName,
-      "bg-accent/85 text-foreground font-medium hover:bg-accent hover:text-foreground dark:bg-accent/55 dark:hover:bg-accent/70",
+      "bg-accent/85 text-foreground font-medium shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_5%,transparent)] hover:bg-accent hover:text-foreground dark:bg-accent/55 dark:hover:bg-accent/70",
     );
   }
 

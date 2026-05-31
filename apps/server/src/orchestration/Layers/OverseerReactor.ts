@@ -289,12 +289,10 @@ export const OverseerReactorLive = Layer.effect(
                 for (const file of files) {
                   const filePath = (file as any).path ?? (file as any).relativePath;
                   if (filePath) {
-                    yield* codebaseIntelligence
-                      .recordFileChange({
-                        projectId: (thread as any).projectId,
-                        filePath,
-                      })
-                      .pipe(Effect.catch(() => Effect.void));
+                    yield* codebaseIntelligence.recordFileChange({
+                      projectId: (thread as any).projectId,
+                      filePath,
+                    });
                   }
                 }
               }
@@ -464,16 +462,14 @@ export const OverseerReactorLive = Layer.effect(
                   if (memoriesCreated >= 2) break; // Max 2 memories per turn
                   const match = completedText.match(pattern);
                   if (match?.[1]) {
-                    yield* memoryService
-                      .createMemory({
-                        projectId: (turnThread as any).projectId,
-                        threadId: event.threadId as any,
-                        type,
-                        content: match[0]!.slice(0, 500),
-                        summary: match[1]!.slice(0, 150),
-                        importance,
-                      })
-                      .pipe(Effect.catch(() => Effect.void));
+                    yield* memoryService.createMemory({
+                      projectId: (turnThread as any).projectId,
+                      threadId: event.threadId as any,
+                      type,
+                      content: match[0]!.slice(0, 500),
+                      summary: match[1]!.slice(0, 150),
+                      importance,
+                    });
                     memoriesCreated++;
                   }
                 }
@@ -507,12 +503,10 @@ export const OverseerReactorLive = Layer.effect(
                   // Get older messages that haven't been summarized yet
                   const olderMessages = (compressThread as any).messages?.slice(0, -5) ?? [];
                   if (olderMessages.length > 10) {
-                    const summary = yield* contextTrimmer
-                      .summarizeConversation({
-                        messages: olderMessages as Array<{ role: string; content: string }>,
-                        maxSummaryTokens: 500,
-                      })
-                      .pipe(Effect.catch(() => Effect.succeed({ summary: "", tokensSaved: 0 })));
+                    const summary = yield* contextTrimmer.summarizeConversation({
+                      messages: olderMessages as Array<{ role: string; content: string }>,
+                      maxSummaryTokens: 500,
+                    });
                     if (summary.tokensSaved > 100) {
                       yield* appendActivity(
                         event.threadId,
@@ -531,12 +525,10 @@ export const OverseerReactorLive = Layer.effect(
                 const readModel2 = yield* orchestrationEngine.getReadModel();
                 const handoffThread = readModel2.threads.find((t: any) => t.id === event.threadId);
                 if (handoffThread) {
-                  const briefing = yield* handoffService
-                    .generateBriefing({
-                      threadId: event.threadId as any,
-                      projectId: (handoffThread as any).projectId,
-                    })
-                    .pipe(Effect.catch(() => Effect.succeed(null)));
+                  const briefing = yield* handoffService.generateBriefing({
+                    threadId: event.threadId as any,
+                    projectId: (handoffThread as any).projectId,
+                  });
                   if (briefing) {
                     yield* appendActivity(
                       event.threadId,
@@ -563,13 +555,11 @@ export const OverseerReactorLive = Layer.effect(
               const evalReadModel = yield* orchestrationEngine.getReadModel();
               const evalThread = evalReadModel.threads.find((t: any) => t.id === event.threadId);
               if (evalThread) {
-                const evalResult = yield* evaluatorService
-                  .evaluateThread({
-                    threadId: event.threadId as any,
-                    projectId: (evalThread as any).projectId,
-                    claimedWork: "",
-                  })
-                  .pipe(Effect.catch(() => Effect.succeed(null)));
+                const evalResult = yield* evaluatorService.evaluateThread({
+                  threadId: event.threadId as any,
+                  projectId: (evalThread as any).projectId,
+                  claimedWork: "",
+                });
                 if (evalResult && evalResult.status !== "pass") {
                   yield* appendActivity(
                     event.threadId,
@@ -584,34 +574,28 @@ export const OverseerReactorLive = Layer.effect(
 
             // Auto-create context node for completed turns
             if (event.payload.state === "completed") {
-              try {
-                const readModel = yield* orchestrationEngine.getReadModel();
-                const thread = readModel.threads.find((t: any) => t.id === event.threadId);
-                if (thread) {
-                  const usage = event.payload.usage as any;
-                  const tokenCount =
-                    typeof usage?.totalTokens === "number"
-                      ? usage.totalTokens
-                      : typeof usage?.input_tokens === "number" &&
-                          typeof usage?.output_tokens === "number"
-                        ? usage.input_tokens + usage.output_tokens
-                        : 0;
+              const readModel = yield* orchestrationEngine.getReadModel();
+              const thread = readModel.threads.find((t: any) => t.id === event.threadId);
+              if (thread) {
+                const usage = event.payload.usage as any;
+                const tokenCount =
+                  typeof usage?.totalTokens === "number"
+                    ? usage.totalTokens
+                    : typeof usage?.input_tokens === "number" &&
+                        typeof usage?.output_tokens === "number"
+                      ? usage.input_tokens + usage.output_tokens
+                      : 0;
 
-                  const turnLabel = event.turnId ? `Turn ${event.turnId.slice(0, 8)}` : "Turn";
-                  const summary = `${turnLabel}: ${event.payload.stopReason ?? "completed"}${tokenCount > 0 ? ` (${tokenCount} tokens)` : ""}`;
+                const turnLabel = event.turnId ? `Turn ${event.turnId.slice(0, 8)}` : "Turn";
+                const summary = `${turnLabel}: ${event.payload.stopReason ?? "completed"}${tokenCount > 0 ? ` (${tokenCount} tokens)` : ""}`;
 
-                  yield* contextService
-                    .createContextNode({
-                      projectId: (thread as any).projectId,
-                      threadId: event.threadId as any,
-                      type: "messages",
-                      summary,
-                      size: tokenCount,
-                    } as any)
-                    .pipe(Effect.catch(() => Effect.void));
-                }
-              } catch {
-                // Don't let context node creation block the overseer
+                yield* contextService.createContextNode({
+                  projectId: (thread as any).projectId,
+                  threadId: event.threadId as any,
+                  type: "messages",
+                  summary,
+                  size: tokenCount,
+                } as any);
               }
             }
             break;
@@ -630,14 +614,7 @@ export const OverseerReactorLive = Layer.effect(
             break;
           }
         }
-      }).pipe(
-        Effect.catch((cause) =>
-          Effect.logWarning("overseer reactor failed to process input", {
-            source: input.source,
-            cause: String(cause),
-          }),
-        ),
-      );
+      });
 
     const worker = yield* makeDrainableWorker(processInput);
 

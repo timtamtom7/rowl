@@ -161,14 +161,10 @@ export const ProjectPromptsServiceLive = Layer.effect(
       }).pipe(Effect.catch(() => Effect.succeed(null as HarnessPreset | null)));
 
     const activateHarness: ProjectPromptsServiceShape["activateHarness"] = (input) =>
-      Effect.succeed(activeHarnessByThread.set(input.threadId, input.presetId)).pipe(
-        Effect.map(() => undefined),
-      );
+      Effect.succeed(activeHarnessByThread.set(input.threadId, input.presetId)).pipe(Effect.asVoid);
 
     const deactivateHarness: ProjectPromptsServiceShape["deactivateHarness"] = (input) =>
-      Effect.succeed(activeHarnessByThread.delete(input.threadId)).pipe(
-        Effect.map(() => undefined),
-      );
+      Effect.succeed(activeHarnessByThread.delete(input.threadId)).pipe(Effect.asVoid);
 
     // ── Context Assembly ──
 

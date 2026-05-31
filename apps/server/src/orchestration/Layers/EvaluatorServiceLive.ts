@@ -156,17 +156,7 @@ export const EvaluatorServiceLive = Layer.effect(
           summary,
           timestamp: new Date().toISOString(),
         };
-      }).pipe(
-        Effect.catch(() =>
-          Effect.succeed({
-            threadId: input.threadId,
-            status: "fail" as const,
-            checks: [{ name: "Evaluation", status: "fail" as const, detail: "Evaluation failed" }],
-            summary: "Could not evaluate — internal error.",
-            timestamp: new Date().toISOString(),
-          }),
-        ),
-      );
+      });
 
     const quickCheck: EvaluatorServiceShape["quickCheck"] = (_input) =>
       Effect.succeed({ compiles: true, errors: [] as ReadonlyArray<string> });

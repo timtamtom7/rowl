@@ -26,6 +26,18 @@ export type ContextWindowState = {
   usageScope: "thread" | "turn" | null;
 };
 
+export type ContextWindowUsageLevel = "normal" | "warning" | "critical";
+
+export function getContextWindowUsageLevel(percentUsed: number | null): ContextWindowUsageLevel {
+  if (percentUsed !== null && percentUsed >= 90) {
+    return "critical";
+  }
+  if (percentUsed !== null && percentUsed >= 70) {
+    return "warning";
+  }
+  return "normal";
+}
+
 export const OPENCODE_MODELS_DEV_CONTEXT_NOTE =
   "OpenCode uses provider/model metadata from models.dev and reads limit.context when the selected model publishes it.";
 

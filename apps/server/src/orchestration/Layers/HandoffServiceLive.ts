@@ -114,16 +114,7 @@ export const HandoffServiceLive = Layer.effect(
           suggestedNewThreadTitle: `${thread.title} (continued)`,
           memoriesExtracted,
         } satisfies HandoffBriefing;
-      }).pipe(
-        Effect.catch(() =>
-          Effect.succeed({
-            threadTitle: "Unknown",
-            briefingText: "Failed to generate briefing.",
-            suggestedNewThreadTitle: "Continuation",
-            memoriesExtracted: 0,
-          } satisfies HandoffBriefing),
-        ),
-      );
+      });
 
     return { generateBriefing } satisfies HandoffServiceShape;
   }),

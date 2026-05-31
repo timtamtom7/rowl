@@ -13,14 +13,20 @@
  *
  * @module EmbeddingServiceLive
  */
-import { Effect, Layer } from "effect";
+import { Data, Effect, Layer } from "effect";
 import { ServiceMap } from "effect";
+
+class EmbeddingServiceError extends Data.TaggedError("EmbeddingServiceError")<{
+  readonly operation: string;
+  readonly detail: string;
+  readonly cause?: unknown;
+}> {}
 
 // ── Service interface ─────────────────────────────────────────────
 
 export interface EmbeddingServiceShape {
   /** Generate an embedding vector for a text string */
-  readonly embed: (text: string) => Effect.Effect<Float32Array, Error>;
+  readonly embed: (text: string) => Effect.Effect<Float32Array, EmbeddingServiceError>;
 
   /** Calculate cosine similarity between two vectors (0 to 1) */
   readonly similarity: (a: Float32Array, b: Float32Array) => number;
@@ -30,11 +36,11 @@ export interface EmbeddingServiceShape {
     query: string,
     candidates: ReadonlyArray<{ id: string; text: string; embedding?: Float32Array }>,
     topK?: number,
-  ) => Effect.Effect<ReadonlyArray<{ id: string; score: number }>, Error>;
+  ) => Effect.Effect<ReadonlyArray<{ id: string; score: number }>, EmbeddingServiceError>;
 }
 
 export class EmbeddingService extends ServiceMap.Service<EmbeddingService, EmbeddingServiceShape>()(
-  "rowl/orchestration/Services/EmbeddingService",
+  "rowl/orchestration/Layers/EmbeddingServiceLive/EmbeddingService",
 ) {}
 
 // ── Implementation ────────────────────────────────────────────────
@@ -87,7 +93,12 @@ export const EmbeddingServiceLive = Layer.succeed(EmbeddingService, {
         // output.data is a Float32Array of the embedding
         return new Float32Array(output.data);
       },
-      catch: (err) => new Error(`Embedding failed: ${err}`),
+      catch: (cause) =>
+        new EmbeddingServiceError({
+          operation: "embed",
+          detail: "Embedding failed.",
+          cause,
+        }),
     }),
 
   similarity: cosineSimilarity,
@@ -96,7 +107,12 @@ export const EmbeddingServiceLive = Layer.succeed(EmbeddingService, {
     Effect.gen(function* () {
       const pipe = yield* Effect.tryPromise({
         try: () => getEmbeddingPipeline(),
-        catch: (err) => new Error(`Embedding pipeline failed: ${err}`),
+        catch: (cause) =>
+          new EmbeddingServiceError({
+            operation: "findSimilar",
+            detail: "Embedding pipeline failed.",
+            cause,
+          }),
       });
 
       // Embed the query
@@ -106,7 +122,12 @@ export const EmbeddingServiceLive = Layer.succeed(EmbeddingService, {
           const out = await pipe(queryTruncated, { pooling: "mean", normalize: true });
           return new Float32Array(out.data);
         },
-        catch: (err) => new Error(`Query embedding failed: ${err}`),
+        catch: (cause) =>
+          new EmbeddingServiceError({
+            operation: "findSimilar",
+            detail: "Query embedding failed.",
+            cause,
+          }),
       });
 
       // Embed candidates that don't have pre-computed embeddings
@@ -122,7 +143,12 @@ export const EmbeddingServiceLive = Layer.succeed(EmbeddingService, {
               const out = await pipe(candTruncated, { pooling: "mean", normalize: true });
               return new Float32Array(out.data);
             },
-            catch: (err) => new Error(`Candidate embedding failed: ${err}`),
+            catch: (cause) =>
+              new EmbeddingServiceError({
+                operation: "findSimilar",
+                detail: "Candidate embedding failed.",
+                cause,
+              }),
           });
         }
 

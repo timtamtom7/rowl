@@ -101,17 +101,7 @@ export const MultiAgentCoordinatorLive = Layer.effect(
           agents,
           conflicts,
         } satisfies MultiAgentOverview;
-      }).pipe(
-        Effect.catch(() =>
-          Effect.succeed({
-            projectId: input.projectId,
-            totalAgents: 0,
-            runningAgents: 0,
-            agents: [],
-            conflicts: [],
-          } satisfies MultiAgentOverview),
-        ),
-      );
+      });
 
     const spawnAgentForFeature: MultiAgentCoordinatorShape["spawnAgentForFeature"] = (input) =>
       Effect.gen(function* () {
@@ -185,8 +175,8 @@ export const MultiAgentCoordinatorLive = Layer.effect(
 
         return { threadId };
       }).pipe(
-        Effect.catch((cause) =>
-          Effect.fail(new Error(`Failed to spawn agent for feature: ${String(cause)}`)),
+        Effect.mapError(
+          (cause) => new Error(`Failed to spawn agent for feature: ${String(cause)}`),
         ),
       ) as any;
 

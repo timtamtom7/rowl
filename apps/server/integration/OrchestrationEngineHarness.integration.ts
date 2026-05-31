@@ -72,6 +72,7 @@ import {
   RuntimeReceiptBus,
   type OrchestrationRuntimeReceipt,
 } from "../src/orchestration/Services/RuntimeReceiptBus.ts";
+import { ThreadApprovalServiceLive } from "../src/orchestration/Services/ThreadApprovalService.ts";
 
 import {
   makeTestProviderAdapterHarness,
@@ -256,6 +257,9 @@ export const makeOrchestrationIntegrationHarness = (
       Layer.provide(OrchestrationEventStoreLive),
       Layer.provide(OrchestrationCommandReceiptRepositoryLive),
     );
+    const threadApprovalServiceLayer = ThreadApprovalServiceLive.pipe(
+      Layer.provide(orchestrationLayer),
+    );
     const providerSessionDirectoryLayer = ProviderSessionDirectoryLive.pipe(
       Layer.provide(ProviderSessionRuntimeRepositoryLive),
     );
@@ -298,6 +302,7 @@ export const makeOrchestrationIntegrationHarness = (
       providerLayer,
       RuntimeReceiptBusLive,
       ContextMeterLive,
+      threadApprovalServiceLayer,
     );
     const runtimeIngestionLayer = ProviderRuntimeIngestionLive.pipe(
       Layer.provideMerge(runtimeServicesLayer),
@@ -331,8 +336,8 @@ export const makeOrchestrationIntegrationHarness = (
         Layer.succeed(CoreMemoryService, {
           listGlobal: () => Effect.succeed([]),
           listProject: () => Effect.succeed([]),
-          ensureGlobalSeeded: () => Effect.succeed(void 0),
-          ensureProjectSeeded: () => Effect.succeed(void 0),
+          ensureGlobalSeeded: () => Effect.void,
+          ensureProjectSeeded: () => Effect.void,
         } as any),
       ),
       Layer.provideMerge(

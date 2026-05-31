@@ -474,12 +474,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                   </pre>
                 )}
                 <div className="mt-1.5 flex items-center justify-end gap-2">
-                  <div className="flex items-center gap-1.5 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100">
+                  <div className="flex translate-y-1 items-center gap-1.5 opacity-0 transition-[opacity,transform] duration-200 ease-out focus-within:translate-y-0 focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100">
                     {row.message.text && <MessageCopyButton text={row.message.text} />}
                     <Button
                       type="button"
                       size="xs"
                       variant="outline"
+                      className="app-interactive-motion border-border/55 bg-background/70 text-muted-foreground/72 shadow-sm hover:bg-background hover:text-foreground"
                       disabled={isForkingThread || isWorking || row.message.streaming}
                       onClick={() => onForkMessage(row.message.id)}
                       title="Fork thread here"
@@ -491,6 +492,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                         type="button"
                         size="xs"
                         variant="outline"
+                        className="app-interactive-motion border-border/55 bg-background/70 text-muted-foreground/72 shadow-sm hover:bg-background hover:text-foreground"
                         disabled={isRevertingCheckpoint || isWorking}
                         onClick={() => onRevertUserMessage(row.message.id)}
                         title={
@@ -532,7 +534,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
               <div
                 data-assistant-response-reveal={row.animateAfterTool || undefined}
                 className={cn(
-                  "min-w-0 px-1 py-0.5",
+                  "group/assistant-message min-w-0 px-1 py-0.5",
                   row.animateAfterTool && "app-assistant-response-motion",
                 )}
               >
@@ -611,12 +613,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                   );
                 })()}
                 <div className="mt-1.5 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 opacity-0 transition-opacity duration-200 focus-within:opacity-100 hover:opacity-100 group-hover:opacity-100">
+                  <div className="flex translate-y-1 items-center gap-1.5 opacity-0 transition-[opacity,transform] duration-200 ease-out focus-within:translate-y-0 focus-within:opacity-100 hover:translate-y-0 hover:opacity-100 group-hover/assistant-message:translate-y-0 group-hover/assistant-message:opacity-100">
                     {row.message.text && <MessageCopyButton text={row.message.text} />}
                     <Button
                       type="button"
                       size="xs"
                       variant="outline"
+                      className="app-interactive-motion border-border/55 bg-background/70 text-muted-foreground/72 shadow-sm hover:bg-background hover:text-foreground"
                       disabled={isForkingThread || isWorking || row.message.streaming}
                       onClick={() => onForkMessage(row.message.id)}
                       title="Fork thread here"
