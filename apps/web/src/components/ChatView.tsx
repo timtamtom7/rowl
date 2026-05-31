@@ -6884,7 +6884,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-muted-foreground/40">
         {!isElectron && (
-          <header className="border-b border-border px-3 py-2">
+          <header className="border-b border-border/55 bg-background/72 px-3 py-2 backdrop-blur-xl">
             <div className="flex items-center gap-2">
               <ThreadSidebarToggle />
               <ThreadNewButton />
@@ -6893,7 +6893,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
           </header>
         )}
         {isElectron && (
-          <div className="drag-region flex h-[52px] shrink-0 items-center gap-2 border-b border-border px-5">
+          <div className="drag-region flex h-[52px] shrink-0 items-center gap-2 border-b border-border/55 bg-background/72 px-5 backdrop-blur-xl">
             <ThreadSidebarToggle />
             <ThreadNewButton />
             <span className="text-xs text-muted-foreground/50">No active thread</span>
@@ -6911,7 +6911,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
       {/* Top bar */}
       <header
         className={cn(
-          "border-b border-border px-3 sm:px-5",
+          "border-b border-border/55 bg-background/72 px-3 backdrop-blur-xl sm:px-5",
           isElectron ? "drag-region flex h-[52px] items-center" : "py-2 sm:py-3",
         )}
       >
@@ -7048,7 +7048,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
               {/* Messages */}
               <div
                 ref={setMessagesScrollContainerRef}
-                className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-3 py-3 sm:px-5 sm:py-4"
+                className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-3 py-4 sm:px-5 sm:py-5"
                 onScroll={onMessagesScroll}
                 onClickCapture={onMessagesClickCapture}
                 onWheel={onMessagesWheel}
@@ -7140,8 +7140,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
             >
               <div
                 data-chat-composer-surface="true"
-                className={`group app-interactive-motion rounded-[20px] border bg-card focus-within:border-ring/45 ${
-                  isDragOverComposer ? "border-primary/70 bg-accent/30" : "border-border"
+                className={`group app-interactive-motion rounded-2xl border bg-card/72 shadow-[var(--rowl-shadow-panel)] backdrop-blur-xl focus-within:border-ring/45 ${
+                  isDragOverComposer ? "border-primary/70 bg-accent/30" : "border-border/70"
                 }`}
                 onDragEnter={onComposerDragEnter}
                 onDragOver={onComposerDragOver}

@@ -42,6 +42,7 @@
   --motion-duration-slow: 240ms;
   --motion-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-panel: cubic-bezier(0.16, 1, 0.3, 1);
   --color-warning-foreground: var(--warning-foreground);
   --color-warning: var(--warning);
   --color-success-foreground: var(--success-foreground);
@@ -278,8 +279,10 @@
   }
 
   .app-sidebar-motion {
+    transition-property:
+      width, left, right, transform, background-color, border-color, box-shadow, backdrop-filter;
     transition-duration: var(--motion-duration-slow);
-    transition-timing-function: var(--motion-ease-emphasized);
+    transition-timing-function: var(--motion-ease-panel);
     will-change: width, left, right, transform;
   }
 
@@ -374,8 +377,8 @@
   color-scheme: light;
   --app-ui-font-size: 16px;
   --font-ui:
-    "DM Sans", "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+    "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
   --font-user-message:
     "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Inter, "Segoe UI",
     Roboto, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -383,24 +386,24 @@
     "Geist Mono", ui-monospace, "SFMono-Regular", "Roboto Mono", Menlo, Monaco, "Liberation Mono",
     "DejaVu Sans Mono", "Courier New", monospace;
   --radius: 0.625rem;
-  --background: var(--color-white);
-  --foreground: var(--color-neutral-800);
-  --card: var(--color-white);
-  --card-foreground: var(--color-neutral-800);
-  --popover: var(--color-white);
-  --popover-foreground: var(--color-neutral-800);
-  --primary: oklch(0.488 0.217 264);
-  --primary-foreground: var(--color-white);
-  --secondary: --alpha(var(--color-black) / 4%);
+  --background: oklch(0.985 0.003 265);
+  --foreground: oklch(0.19 0.012 270);
+  --card: color-mix(in oklab, var(--background) 92%, white);
+  --card-foreground: var(--foreground);
+  --popover: color-mix(in oklab, var(--background) 88%, white);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.54 0.19 258);
+  --primary-foreground: oklch(0.985 0.003 265);
+  --secondary: oklch(from var(--foreground) l c h / 0.045);
   --secondary-foreground: var(--color-neutral-800);
-  --muted: --alpha(var(--color-black) / 4%);
-  --muted-foreground: color-mix(in srgb, var(--color-neutral-500) 90%, var(--color-black));
-  --accent: --alpha(var(--color-black) / 4%);
+  --muted: oklch(from var(--foreground) l c h / 0.045);
+  --muted-foreground: color-mix(in oklab, var(--foreground) 54%, var(--background));
+  --accent: oklch(from var(--foreground) l c h / 0.055);
   --accent-foreground: var(--color-neutral-800);
   --destructive: var(--color-red-500);
-  --border: --alpha(var(--color-black) / 8%);
-  --input: --alpha(var(--color-black) / 10%);
-  --ring: oklch(0.488 0.217 264);
+  --border: oklch(from var(--foreground) l c h / 0.085);
+  --input: oklch(from var(--foreground) l c h / 0.11);
+  --ring: color-mix(in oklab, var(--primary) 72%, var(--foreground));
   --destructive-foreground: var(--color-red-700);
   --info: var(--color-blue-500);
   --info-foreground: var(--color-blue-700);
@@ -417,27 +420,35 @@
   --rowl-sidebar-backdrop-filter: none;
   --rowl-sidebar-surface: var(--sidebar);
   --rowl-sidebar-surface-solid: var(--sidebar);
+  --rowl-surface-glass: color-mix(in oklab, var(--card) 78%, transparent);
+  --rowl-surface-raised: color-mix(in oklab, var(--card) 90%, var(--foreground) 2%);
+  --rowl-surface-hover: oklch(from var(--foreground) l c h / 0.055);
+  --rowl-shadow-ring: oklch(from var(--foreground) l c h / 0.075);
+  --rowl-shadow-minimal:
+    0 0 0 1px var(--rowl-shadow-ring), 0 1px 1px rgb(0 0 0 / 3%), 0 8px 22px -18px rgb(0 0 0 / 24%);
+  --rowl-shadow-panel:
+    0 0 0 1px oklch(from var(--foreground) l c h / 0.08), 0 18px 52px -40px rgb(0 0 0 / 28%);
 
   @variant dark {
     color-scheme: dark;
-    --background: color-mix(in srgb, var(--color-neutral-950) 95%, var(--color-white));
-    --foreground: var(--color-neutral-100);
-    --card: color-mix(in srgb, var(--background) 98%, var(--color-white));
-    --card-foreground: var(--color-neutral-100);
-    --popover: color-mix(in srgb, var(--background) 98%, var(--color-white));
-    --popover-foreground: var(--color-neutral-100);
-    --primary: oklch(0.588 0.217 264);
-    --primary-foreground: var(--color-white);
-    --secondary: --alpha(var(--color-white) / 4%);
-    --secondary-foreground: var(--color-neutral-100);
-    --muted: --alpha(var(--color-white) / 4%);
-    --muted-foreground: color-mix(in srgb, var(--color-neutral-500) 90%, var(--color-white));
-    --accent: --alpha(var(--color-white) / 4%);
-    --accent-foreground: var(--color-neutral-100);
+    --background: oklch(0.155 0.014 270);
+    --foreground: oklch(0.945 0.009 270);
+    --card: color-mix(in oklab, var(--background) 92%, white 4%);
+    --card-foreground: var(--foreground);
+    --popover: color-mix(in oklab, var(--background) 88%, white 5%);
+    --popover-foreground: var(--foreground);
+    --primary: oklch(0.66 0.18 258);
+    --primary-foreground: oklch(0.985 0.004 265);
+    --secondary: oklch(from var(--foreground) l c h / 0.045);
+    --secondary-foreground: var(--foreground);
+    --muted: oklch(from var(--foreground) l c h / 0.045);
+    --muted-foreground: color-mix(in oklab, var(--foreground) 52%, var(--background));
+    --accent: oklch(from var(--foreground) l c h / 0.055);
+    --accent-foreground: var(--foreground);
     --destructive: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
-    --border: --alpha(var(--color-white) / 6%);
-    --input: --alpha(var(--color-white) / 8%);
-    --ring: oklch(0.588 0.217 264);
+    --border: oklch(from var(--foreground) l c h / 0.075);
+    --input: oklch(from var(--foreground) l c h / 0.095);
+    --ring: color-mix(in oklab, var(--primary) 76%, var(--foreground));
     --destructive-foreground: var(--color-red-400);
     --info: var(--color-blue-500);
     --info-foreground: var(--color-blue-400);
@@ -451,9 +462,18 @@
     --sidebar-accent: var(--accent);
     --sidebar-accent-foreground: var(--accent-foreground);
     --sidebar-ring: var(--ring);
-    --rowl-sidebar-backdrop-filter: none;
-    --rowl-sidebar-surface: var(--sidebar);
+    --rowl-sidebar-backdrop-filter: blur(28px) saturate(1.16);
+    --rowl-sidebar-surface: color-mix(in oklab, var(--sidebar) 78%, transparent);
     --rowl-sidebar-surface-solid: var(--sidebar);
+    --rowl-surface-glass: color-mix(in oklab, var(--card) 72%, transparent);
+    --rowl-surface-raised: color-mix(in oklab, var(--card) 88%, white 2%);
+    --rowl-surface-hover: oklch(from var(--foreground) l c h / 0.06);
+    --rowl-shadow-ring: oklch(from var(--foreground) l c h / 0.085);
+    --rowl-shadow-minimal:
+      0 0 0 1px var(--rowl-shadow-ring), 0 1px 1px rgb(0 0 0 / 18%),
+      0 12px 32px -24px rgb(0 0 0 / 48%);
+    --rowl-shadow-panel:
+      0 0 0 1px oklch(from var(--foreground) l c h / 0.085), 0 22px 64px -42px rgb(0 0 0 / 62%);
   }
 }
 
@@ -809,6 +829,13 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--background) 92%, var(--primary) 4%),
+      transparent 38%
+    ),
+    var(--background);
 }
 
 html,
@@ -857,11 +884,54 @@ button {
 [data-slot="sidebar-inner"],
 [data-slot="sidebar"][data-mobile="true"] {
   backdrop-filter: var(--rowl-sidebar-backdrop-filter);
+  background: var(--rowl-sidebar-surface);
+  border-color: color-mix(in oklab, var(--sidebar-border) 86%, transparent);
+  box-shadow: var(--rowl-shadow-minimal);
 }
 
 html[data-sidebar-translucent="on"] [data-slot="sidebar-inner"],
 html[data-sidebar-translucent="on"] [data-slot="sidebar"][data-mobile="true"] {
   background: var(--rowl-sidebar-surface) !important;
+}
+
+[data-slot="sidebar-header"],
+[data-slot="sidebar-footer"] {
+  border-color: color-mix(in oklab, var(--sidebar-border) 72%, transparent);
+}
+
+[data-slot="sidebar-menu-button"],
+[data-slot="sidebar-menu-sub-button"],
+[data-slot="sidebar-trigger"] {
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard),
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+[data-slot="sidebar-menu-button"]:hover,
+[data-slot="sidebar-menu-sub-button"]:hover,
+[data-slot="sidebar-trigger"]:hover {
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 7%, transparent);
+}
+
+[data-slot="sidebar-menu-button"][data-active="true"],
+[data-slot="sidebar-menu-sub-button"][data-active="true"] {
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 8%, transparent),
+    0 1px 6px -4px rgb(0 0 0 / 34%);
+}
+
+[data-slot="collapsible-panel"] {
+  transition-timing-function: var(--motion-ease-panel);
+}
+
+.rowl-glass-panel {
+  background: var(--rowl-surface-glass);
+  border-color: color-mix(in oklab, var(--border) 82%, transparent);
+  box-shadow: var(--rowl-shadow-panel);
+  backdrop-filter: blur(22px) saturate(1.14);
 }
 
 @media (min-width: 48rem) {
@@ -991,6 +1061,8 @@ label:has(> select#reasoning-effort) select {
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
+  color: color-mix(in oklab, var(--foreground) 86%, var(--background));
+  letter-spacing: 0;
 }
 
 .chat-markdown > :first-child {
@@ -1007,7 +1079,7 @@ label:has(> select#reasoning-effort) select {
 .chat-markdown blockquote,
 .chat-markdown pre,
 .chat-markdown table {
-  margin: 0.65rem 0;
+  margin: 0.7rem 0;
 }
 
 .chat-markdown ul {
@@ -1037,7 +1109,7 @@ label:has(> select#reasoning-effort) select {
 }
 
 .chat-markdown li + li {
-  margin-top: 0.3rem;
+  margin-top: 0.34rem;
 }
 
 .chat-markdown li::marker {
@@ -1066,31 +1138,35 @@ label:has(> select#reasoning-effort) select {
 }
 
 .chat-markdown blockquote {
-  border-left: 3px solid color-mix(in srgb, var(--primary) 35%, var(--border));
-  padding-left: 0.85rem;
-  color: var(--muted-foreground);
+  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--muted) 42%, transparent);
+  padding: 0.65rem 0.85rem;
+  color: color-mix(in oklab, var(--foreground) 68%, var(--background));
   margin-left: 0;
 }
 
 .chat-markdown :not(pre) > code {
-  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  border-radius: 0.375rem;
-  background: color-mix(in srgb, var(--muted) 65%, var(--background));
-  padding: 0.125rem 0.4rem;
+  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+  border-radius: 0.35rem;
+  background: color-mix(in oklab, var(--muted) 72%, var(--background));
+  padding: 0.1rem 0.36rem;
   color: var(--foreground);
-  font-size: 0.8125rem;
+  font-size: 0.8rem;
   font-family: var(--font-code-snippet);
 }
 
 .chat-markdown pre {
   max-width: 100%;
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--muted) 80%, var(--background));
-  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+  border-radius: 0.625rem;
+  background: color-mix(in oklab, var(--background) 82%, var(--foreground) 4%);
+  padding: 0.9rem 1rem;
   font-family: var(--font-code-snippet);
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.04);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent),
+    0 10px 30px -26px rgb(0 0 0 / 36%);
 }
 
 .chat-markdown pre code {
@@ -1104,6 +1180,7 @@ label:has(> select#reasoning-effort) select {
 
 .chat-markdown .chat-markdown-codeblock {
   position: relative;
+  isolation: isolate;
   margin: 0.65rem 0;
 }
 
@@ -1122,15 +1199,18 @@ label:has(> select#reasoning-effort) select {
   height: 1.5rem;
   width: 1.5rem;
   border-radius: 0.375rem;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--background) 82%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 86%, transparent);
+  background: color-mix(in oklab, var(--background) 72%, transparent);
   color: var(--muted-foreground);
   opacity: 0;
   pointer-events: none;
+  backdrop-filter: blur(12px) saturate(1.08);
   transition:
     opacity 120ms ease,
     color 120ms ease,
-    border-color 120ms ease;
+    border-color 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
 }
 
 .chat-markdown .chat-markdown-codeblock:hover .chat-markdown-copy-button,
@@ -1141,12 +1221,14 @@ label:has(> select#reasoning-effort) select {
 
 .chat-markdown .chat-markdown-copy-button:hover {
   color: var(--foreground);
-  border-color: color-mix(in srgb, var(--border) 70%, var(--foreground));
-  background: color-mix(in srgb, var(--background) 92%, transparent);
+  border-color: color-mix(in oklab, var(--border) 64%, var(--foreground));
+  background: color-mix(in oklab, var(--background) 86%, transparent);
+  transform: translateY(-1px);
 }
 
 .chat-markdown .chat-markdown-shiki .shiki {
   font-family: var(--font-code-snippet) !important;
+  background: transparent !important;
 }
 
 :root[data-theme="t3-chat-theme"] .chat-markdown .chat-markdown-shiki .shiki {
@@ -1180,28 +1262,55 @@ label:has(> select#reasoning-effort) select {
 
 .chat-markdown table {
   width: 100%;
-  border-collapse: collapse;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 0.625rem;
 }
 
 .chat-markdown th {
-  border: 1px solid var(--border);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
   padding: 0.4rem 0.6rem;
   text-align: left;
   font-weight: 600;
   font-size: 0.8125rem;
-  background: color-mix(in srgb, var(--muted) 45%, transparent);
-  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--muted) 58%, transparent);
+  color: color-mix(in oklab, var(--foreground) 70%, var(--background));
 }
 
 .chat-markdown td {
-  border: 1px solid var(--border);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 58%, transparent);
   padding: 0.4rem 0.6rem;
   text-align: left;
   font-size: 0.875rem;
 }
 
+.chat-markdown tr:last-child td {
+  border-bottom: 0;
+}
+
 .chat-markdown tr:hover td {
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in oklab, var(--accent) 52%, transparent);
+}
+
+[data-message-role="user"] .user-message-font.group {
+  background: color-mix(in oklab, var(--card) 74%, var(--primary) 8%);
+  border-color: color-mix(in oklab, var(--border) 78%, var(--primary) 12%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent),
+    0 10px 26px -24px rgb(0 0 0 / 42%);
+  backdrop-filter: blur(12px) saturate(1.08);
+}
+
+[data-message-role="assistant"] .chat-markdown {
+  font-size: 0.925rem;
+  line-height: 1.72;
+}
+
+[data-message-role="assistant"] [data-slot="button"],
+[data-message-role="user"] [data-slot="button"] {
+  backdrop-filter: blur(12px) saturate(1.08);
 }
 
 /* Resize handle affordance */

@@ -355,10 +355,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
             <div
               data-work-group-live={isLiveGroup || undefined}
               className={cn(
-                "relative overflow-hidden rounded-[24px] border px-2.5 py-2 transition-[border-color,background-color,box-shadow] duration-500 ease-out",
+                "relative overflow-hidden rounded-xl border px-2.5 py-2 transition-[border-color,background-color,box-shadow] duration-500 ease-out",
                 isLiveGroup
-                  ? "border-border/65 bg-[linear-gradient(180deg,--alpha(var(--color-white)/5%),--alpha(var(--color-white)/2%)_48%,--alpha(var(--color-black)/0%)_100%)] shadow-[0_18px_50px_-36px_--alpha(var(--color-black)/24%)]"
-                  : "border-border/40 bg-card/20 shadow-[0_8px_24px_-20px_--alpha(var(--color-black)/12%)]",
+                  ? "border-border/65 bg-card/45 shadow-[var(--rowl-shadow-panel)] backdrop-blur-xl"
+                  : "border-border/40 bg-card/24 shadow-[0_8px_24px_-20px_--alpha(var(--color-black)/12%)] backdrop-blur-sm",
               )}
             >
               {/* Live progress bar */}
@@ -430,7 +430,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           const canRevertAgentWork = revertTurnCountByUserMessageId.has(row.message.id);
           return (
             <div className="flex justify-end">
-              <div className="user-message-font group relative max-w-[80%] rounded-2xl rounded-br-sm border border-border/80 bg-secondary px-4 py-3 shadow-[0_2px_8px_-4px_--alpha(var(--color-black)/8%)]">
+              <div className="user-message-font group relative max-w-[80%] rounded-xl rounded-br-sm border border-border/80 bg-secondary px-4 py-3 shadow-[0_2px_8px_-4px_--alpha(var(--color-black)/8%)]">
                 {userImages.length > 0 && (
                   <div className="mb-2 grid max-w-[420px] grid-cols-2 gap-2">
                     {userImages.map(
@@ -551,7 +551,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                   const allDirectoriesExpanded =
                     allDirectoriesExpandedByTurnId[turnSummary.turnId] ?? true;
                   return (
-                    <div className="mt-3 rounded-xl border border-border/60 bg-card/40 p-3 shadow-[0_2px_8px_-4px_--alpha(var(--color-black)/6%)]">
+                    <div className="mt-3 rounded-xl border border-border/60 bg-card/42 p-3 shadow-[var(--rowl-shadow-minimal)] backdrop-blur-sm">
                       <div className="mb-1.5 flex items-center justify-between gap-2">
                         <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/65">
                           <span>Changed files ({changedFileCountLabel})</span>
@@ -651,7 +651,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
 
       {row.kind === "working" && (
         <div className="py-0.5 pl-1.5">
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-card/50 px-4 py-2.5 text-[11px] text-muted-foreground/72 shadow-[0_14px_38px_-30px_--alpha(var(--color-black)/18%)] backdrop-blur-xs">
+          <div className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-card/58 px-4 py-2.5 text-[11px] text-muted-foreground/72 shadow-[0_14px_38px_-30px_--alpha(var(--color-black)/18%)] backdrop-blur-xl">
             <span className="inline-flex items-center gap-[5px]">
               <span className="app-tool-live-dot h-[5px] w-[5px] rounded-full bg-primary/80" />
               <span className="app-tool-live-dot h-[5px] w-[5px] rounded-full bg-primary/55 [animation-delay:160ms]" />
