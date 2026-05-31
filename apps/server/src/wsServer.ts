@@ -101,6 +101,7 @@ import { ContextMeter } from "./context-meter/ContextMeter.ts";
 import { clamp } from "effect/Number";
 import { Open, resolveAvailableEditors } from "./open";
 import { ServerConfig } from "./config";
+import { DiffTreeService } from "./git/DiffTreeService.ts";
 import { GitCore } from "./git/Services/GitCore.ts";
 import { WorktreeService } from "./git/Services/WorktreeService.ts";
 import { tryHandleProjectFaviconRequest } from "./projectFaviconRoute";
@@ -381,6 +382,7 @@ export type ServerCoreRuntimeServices =
   | CheckpointDiffQuery
   | CheckpointStore
   | WorktreeCheckpointService
+  | DiffTreeService
   | ContextMeter
   | OrchestrationReactor
   | ProviderService
@@ -451,6 +453,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const worktreeService = yield* WorktreeService;
   const checkpointStore = yield* CheckpointStore;
   const worktreeCheckpointService = yield* WorktreeCheckpointService;
+  const diffTreeService = yield* DiffTreeService;
   const contextMeter = yield* ContextMeter;
   const terminalManager = yield* TerminalManager;
   const keybindingsManager = yield* Keybindings;
@@ -1821,6 +1824,17 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           cwd: yield* authorizePath({
             requestedPath: body.cwd,
             operation: "Git pull request thread preparation",
+          }),
+        });
+      }
+
+      case WS_METHODS.gitGetDiffTree: {
+        const body = stripRequestTag(request.body);
+        return yield* diffTreeService.getDiffTree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git diff tree",
           }),
         });
       }

@@ -136,6 +136,17 @@ it.effect("accepts managed worktree and git integration requests", () =>
       },
     });
     assert.strictEqual(stackBranch.body._tag, WS_METHODS.gitStackBranch);
+
+    const diffTree = yield* decodeWebSocketRequest({
+      id: "req-git-diff-tree",
+      body: {
+        _tag: WS_METHODS.gitGetDiffTree,
+        cwd: "/repo",
+        fromRef: "main",
+        toRef: "HEAD",
+      },
+    });
+    assert.strictEqual(diffTree.body._tag, WS_METHODS.gitGetDiffTree);
   }),
 );
 

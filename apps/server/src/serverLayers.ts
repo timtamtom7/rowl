@@ -62,6 +62,7 @@ import { KeybindingsLive } from "./keybindings";
 import { GitManagerLive } from "./git/Layers/GitManager";
 import { GitCoreLive } from "./git/Layers/GitCore";
 import { WorktreeServiceLive } from "./git/Layers/WorktreeService";
+import { DiffTreeServiceLive } from "./git/DiffTreeServiceLive";
 import { GitHubCliLive } from "./git/Layers/GitHubCli";
 import { CodexTextGenerationLive } from "./git/Layers/CodexTextGeneration";
 import { GitServiceLive } from "./git/Layers/GitService";
@@ -245,6 +246,7 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(CheckpointStoreLive),
     Layer.provideMerge(GitServiceLive),
   );
+  const diffTreeServiceLayer = DiffTreeServiceLive.pipe(Layer.provideMerge(GitServiceLive));
 
   return Layer.mergeAll(
     orchestrationReactorLayer,
@@ -267,6 +269,7 @@ export function makeServerRuntimeServicesLayer() {
     pmChatContextServiceLayer,
     worktreeServiceLayer,
     worktreeCheckpointServiceLayer,
+    diffTreeServiceLayer,
   ).pipe(
     // Provide shared ambient services *after* the mergeAll so peer layers that
     // transitively require them can resolve them. Putting them inside the

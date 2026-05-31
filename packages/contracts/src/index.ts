@@ -8,6 +8,7 @@ export * from "./ws";
 export * from "./keybindings";
 export * from "./server";
 export * from "./git";
+export * from "./diffTree";
 export * from "./checkpointing";
 export * from "./orchestration";
 export * from "./editor";

@@ -61,6 +61,7 @@ import {
   ListWorktreeCheckpointsResult,
   WorktreeCheckpointResult,
 } from "./checkpointing";
+import { DiffTree, GitGetDiffTreeInput } from "./diffTree";
 import {
   TerminalClearInput,
   TerminalCloseInput,
@@ -331,6 +332,7 @@ export const WS_METHODS = {
   gitInit: "git.init",
   gitResolvePullRequest: "git.resolvePullRequest",
   gitPreparePullRequestThread: "git.preparePullRequestThread",
+  gitGetDiffTree: "git.getDiffTree",
 
   // Checkpoint methods
   checkpointsCreateInWorktree: "checkpoints.createInWorktree",
@@ -550,6 +552,7 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.gitInit, GitInitInput),
   tagRequestBody(WS_METHODS.gitResolvePullRequest, GitPullRequestRefInput),
   tagRequestBody(WS_METHODS.gitPreparePullRequestThread, GitPreparePullRequestThreadInput),
+  tagRequestBody(WS_METHODS.gitGetDiffTree, GitGetDiffTreeInput),
 
   // Checkpoint methods
   tagRequestBody(WS_METHODS.checkpointsCreateInWorktree, CreateWorktreeCheckpointInput),
@@ -816,6 +819,7 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.gitInit]: Schema.Void,
   [WS_METHODS.gitResolvePullRequest]: GitResolvePullRequestResult,
   [WS_METHODS.gitPreparePullRequestThread]: GitPreparePullRequestThreadResult,
+  [WS_METHODS.gitGetDiffTree]: DiffTree,
   [WS_METHODS.checkpointsCreateInWorktree]: WorktreeCheckpointResult,
   [WS_METHODS.checkpointsListByWorktree]: ListWorktreeCheckpointsResult,
   [WS_METHODS.worktreesCreate]: CreateWorktreeResult,

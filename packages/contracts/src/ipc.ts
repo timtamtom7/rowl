@@ -172,6 +172,7 @@ import type {
   ListWorktreeCheckpointsResult,
   WorktreeCheckpointResult,
 } from "./checkpointing";
+import type { DiffTree, GitGetDiffTreeInput } from "./diffTree";
 import type {
   ProjectAgentsFileInput,
   ProjectAgentsFileResult,
@@ -493,6 +494,7 @@ export interface NativeApi {
     pull: (input: GitPullInput) => Promise<GitPullResult>;
     status: (input: GitStatusInput) => Promise<GitStatusResult>;
     runStackedAction: (input: GitRunStackedActionInput) => Promise<GitRunStackedActionResult>;
+    getDiffTree: (input: GitGetDiffTreeInput) => Promise<DiffTree>;
   };
   checkpoints: {
     createInWorktree: (input: CreateWorktreeCheckpointInput) => Promise<WorktreeCheckpointResult>;

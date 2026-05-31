@@ -11,6 +11,8 @@ import { useState } from "react";
 import type { WorktreeCheckpoint } from "@t3tools/contracts";
 
 import { cn } from "~/lib/utils";
+import { DiffTreeView } from "./DiffTreeView";
+import { useDiffTree } from "./useDiffTree";
 import {
   useWorktreeCheckpoints,
   type WorktreeCheckpointsController,
@@ -34,6 +36,35 @@ function formatCreatedAt(value: string): string {
 function checkpointLabel(checkpoint: WorktreeCheckpoint): string {
   const parts = checkpoint.checkpointRef.split("/");
   return parts.at(-1) || checkpoint.checkpointRef;
+}
+
+function CheckpointDiffTree({
+  cwd,
+  checkpoint,
+}: {
+  readonly cwd: string | null | undefined;
+  readonly checkpoint: WorktreeCheckpoint;
+}) {
+  const diffTree = useDiffTree(
+    cwd
+      ? {
+          cwd,
+          checkpointRef: checkpoint.checkpointRef,
+        }
+      : null,
+    { enabled: Boolean(cwd) },
+  );
+
+  return (
+    <div className="mt-2">
+      <DiffTreeView
+        diffTree={diffTree.diffTree}
+        isLoading={diffTree.isLoading}
+        error={diffTree.error}
+        compact
+      />
+    </div>
+  );
 }
 
 export function WorktreeCheckpointPanel({
@@ -215,6 +246,7 @@ export function WorktreeCheckpointPanel({
                   To main
                 </button>
               </div>
+              <CheckpointDiffTree cwd={cwd} checkpoint={checkpoint} />
             </div>
           ))}
         </div>

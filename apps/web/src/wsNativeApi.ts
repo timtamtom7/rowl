@@ -26,6 +26,7 @@ import {
   GetAgentOverviewResult,
   SpawnAgentForFeatureResult,
   DetectConflictsResult,
+  DiffTree,
   ListPromptsResult,
   CreatePromptResult,
   UpdatePromptResult,
@@ -475,6 +476,7 @@ export function createWsNativeApi(): NativeApi {
       status: (input) => requestWithSchema(WS_METHODS.gitStatus, GitStatusResult, input),
       runStackedAction: (input) =>
         requestWithSchema(WS_METHODS.gitRunStackedAction, GitRunStackedActionResult, input),
+      getDiffTree: (input) => requestWithSchema(WS_METHODS.gitGetDiffTree, DiffTree, input),
       listBranches: (input) =>
         requestWithSchema(WS_METHODS.gitListBranches, GitListBranchesResult, input),
       createWorktree: (input) =>
