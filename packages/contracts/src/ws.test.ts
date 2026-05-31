@@ -150,6 +150,43 @@ it.effect("accepts managed worktree and git integration requests", () =>
   }),
 );
 
+it.effect("accepts thread approval gate websocket requests", () =>
+  Effect.gen(function* () {
+    const create = yield* decodeWebSocketRequest({
+      id: "req-approval-gate-create",
+      body: {
+        _tag: WS_METHODS.approvalGatesCreate,
+        threadId: "thread-1",
+        turnId: "turn-1",
+        type: "file-change",
+        description: "Approve file edit",
+        proposedChange: {
+          files: [{ path: "README.md", status: "modified", diff: "@@ changed" }],
+        },
+      },
+    });
+    assert.strictEqual(create.body._tag, WS_METHODS.approvalGatesCreate);
+
+    const list = yield* decodeWebSocketRequest({
+      id: "req-approval-gate-list",
+      body: {
+        _tag: WS_METHODS.approvalGatesList,
+        threadId: "thread-1",
+      },
+    });
+    assert.strictEqual(list.body._tag, WS_METHODS.approvalGatesList);
+
+    const approve = yield* decodeWebSocketRequest({
+      id: "req-approval-gate-approve",
+      body: {
+        _tag: WS_METHODS.approvalGatesApprove,
+        id: "gate-1",
+      },
+    });
+    assert.strictEqual(approve.body._tag, WS_METHODS.approvalGatesApprove);
+  }),
+);
+
 it.effect("accepts core-agent websocket requests", () =>
   Effect.gen(function* () {
     const list = yield* decodeWebSocketRequest({

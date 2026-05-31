@@ -18,6 +18,7 @@ export * from "./features";
 export * from "./goals";
 export * from "./documents";
 export * from "./approvals";
+export * from "./approvalGates";
 export * from "./context";
 export * from "./contextMeter";
 export * from "./memory";

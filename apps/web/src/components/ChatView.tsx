@@ -24,6 +24,7 @@ import {
   type ProviderReasoningLevel,
   type ThreadForkSource,
   type ThreadId,
+  type ThreadApprovalGateId,
   type ThreadShareSummary,
   type TurnId,
   OrchestrationThreadActivity,
@@ -106,6 +107,8 @@ import {
 import { summarizeTurnDiffInPlainLanguage } from "~/lib/turnDiffTree";
 import { buildComposerMcpServerItems, providerSupportsMcp } from "../mcpServers";
 import { buildModelOptionsForSend } from "../chatDispatchOptions";
+import { ApprovalGateCard } from "../approval-gates/ApprovalGateCard";
+import { useApprovalGates } from "../approval-gates/useApprovalGates";
 
 import { isElectron } from "../env";
 import { parseDiffRouteSearch, stripDiffSearchParams } from "../diffRouteSearch";
@@ -1376,6 +1379,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const activeLatestTurn = activeThread?.latestTurn ?? null;
   const latestTurnSettled = isLatestTurnSettled(activeLatestTurn, activeThread?.session ?? null);
   const activeProject = projects.find((p) => p.id === activeThread?.projectId);
+  const approvalGates = useApprovalGates({ threadId: activeThreadId });
+  const [busyApprovalGateIds, setBusyApprovalGateIds] = useState<ThreadApprovalGateId[]>([]);
 
   const openPullRequestDialog = useCallback(
     (reference?: string) => {
@@ -5798,6 +5803,46 @@ export default function ChatView({ threadId }: ChatViewProps) {
     [setStoreThreadError, threadId],
   );
 
+  const onApproveApprovalGate = useCallback(
+    async (gateId: ThreadApprovalGateId) => {
+      setBusyApprovalGateIds((existing) =>
+        existing.includes(gateId) ? existing : [...existing, gateId],
+      );
+      try {
+        await approvalGates.approve(gateId);
+      } catch (caught) {
+        toastManager.add({
+          type: "error",
+          title: "Failed to approve change",
+          description: caught instanceof Error ? caught.message : "Approval gate failed.",
+        });
+      } finally {
+        setBusyApprovalGateIds((existing) => existing.filter((id) => id !== gateId));
+      }
+    },
+    [approvalGates],
+  );
+
+  const onRejectApprovalGate = useCallback(
+    async (gateId: ThreadApprovalGateId) => {
+      setBusyApprovalGateIds((existing) =>
+        existing.includes(gateId) ? existing : [...existing, gateId],
+      );
+      try {
+        await approvalGates.reject(gateId);
+      } catch (caught) {
+        toastManager.add({
+          type: "error",
+          title: "Failed to reject change",
+          description: caught instanceof Error ? caught.message : "Approval gate failed.",
+        });
+      } finally {
+        setBusyApprovalGateIds((existing) => existing.filter((id) => id !== gateId));
+      }
+    },
+    [approvalGates],
+  );
+
   const autoHandledApprovalRuleRequestIdsRef = useRef<Set<ApprovalRequestId>>(new Set());
   useEffect(() => {
     const openRequestIds = new Set(pendingApprovals.map((approval) => approval.requestId));
@@ -6946,6 +6991,27 @@ export default function ChatView({ threadId }: ChatViewProps) {
                     void redoThread();
                   }}
                 />
+              </div>
+            ) : null}
+            {approvalGates.gates.length > 0 ? (
+              <div className="shrink-0 border-b border-border/50 px-3 py-2 sm:px-5">
+                <div className="mx-auto flex max-w-3xl flex-col gap-2">
+                  {approvalGates.gates.map((gate) => (
+                    <ApprovalGateCard
+                      key={gate.id}
+                      gate={gate}
+                      isBusy={busyApprovalGateIds.includes(gate.id)}
+                      onApprove={(nextGate) => void onApproveApprovalGate(nextGate.id)}
+                      onReject={(nextGate) => void onRejectApprovalGate(nextGate.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : approvalGates.error ? (
+              <div className="shrink-0 border-b border-border/50 px-3 py-2 sm:px-5">
+                <div className="mx-auto max-w-3xl rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {approvalGates.error}
+                </div>
               </div>
             ) : null}
             <ThreadTasksPanel

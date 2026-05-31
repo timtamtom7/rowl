@@ -43,6 +43,8 @@ import {
   GetGoalAncestorsResult,
   GetGoalChildrenResult,
   ApprovalGateResult,
+  ListThreadApprovalGatesResult,
+  ThreadApprovalGateResult,
   ListContextNodesByProjectResult,
   ListContextNodesByThreadResult,
   ListFeaturesByProjectResult,
@@ -453,6 +455,16 @@ export function createWsNativeApi(): NativeApi {
         requestWithSchema(WS_METHODS.approvalsIsGoalApproved, IsGoalApprovedResult, input),
       onChanged: (callback) =>
         transport.subscribe(WS_CHANNELS.organizingChanged, (message) => callback(message.data)),
+    },
+    approvalGates: {
+      create: (input) =>
+        requestWithSchema(WS_METHODS.approvalGatesCreate, ThreadApprovalGateResult, input),
+      approve: (input) =>
+        requestWithSchema(WS_METHODS.approvalGatesApprove, ThreadApprovalGateResult, input),
+      reject: (input) =>
+        requestWithSchema(WS_METHODS.approvalGatesReject, ThreadApprovalGateResult, input),
+      list: (input) =>
+        requestWithSchema(WS_METHODS.approvalGatesList, ListThreadApprovalGatesResult, input),
     },
     shell: {
       openInEditor: (cwd, editor) =>

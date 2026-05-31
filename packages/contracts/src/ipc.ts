@@ -133,6 +133,13 @@ import type {
   ListApprovalsByGoalResult,
   RejectInput,
 } from "./approvals";
+import type {
+  CreateThreadApprovalGateInput,
+  ListThreadApprovalGatesInput,
+  ListThreadApprovalGatesResult,
+  ThreadApprovalGateIdInput,
+  ThreadApprovalGateResult,
+} from "./approvalGates";
 import type { OrganizingChangedEvent } from "./ws";
 import type {
   CreateWorktreeInput,
@@ -464,6 +471,12 @@ export interface NativeApi {
     reject: (input: RejectInput) => Promise<ApprovalGateResult>;
     isGoalApproved: (input: IsGoalApprovedInput) => Promise<IsGoalApprovedResult>;
     onChanged: (callback: (event: OrganizingChangedEvent) => void) => () => void;
+  };
+  approvalGates: {
+    create: (input: CreateThreadApprovalGateInput) => Promise<ThreadApprovalGateResult>;
+    approve: (input: ThreadApprovalGateIdInput) => Promise<ThreadApprovalGateResult>;
+    reject: (input: ThreadApprovalGateIdInput) => Promise<ThreadApprovalGateResult>;
+    list: (input: ListThreadApprovalGatesInput) => Promise<ListThreadApprovalGatesResult>;
   };
   shell: {
     openInEditor: (cwd: string, editor: EditorId) => Promise<void>;

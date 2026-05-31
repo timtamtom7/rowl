@@ -281,6 +281,13 @@ import {
   ListApprovalsByGoalResult,
   RejectInput,
 } from "./approvals";
+import {
+  CreateThreadApprovalGateInput,
+  ListThreadApprovalGatesInput,
+  ListThreadApprovalGatesResult,
+  ThreadApprovalGateIdInput,
+  ThreadApprovalGateResult,
+} from "./approvalGates";
 
 // ── WebSocket RPC Method Names ───────────────────────────────────────
 
@@ -397,6 +404,12 @@ export const WS_METHODS = {
   approvalsApprove: "approvals.approve",
   approvalsReject: "approvals.reject",
   approvalsIsGoalApproved: "approvals.isGoalApproved",
+
+  // Thread approval gate methods
+  approvalGatesCreate: "approvalGates.create",
+  approvalGatesApprove: "approvalGates.approve",
+  approvalGatesReject: "approvalGates.reject",
+  approvalGatesList: "approvalGates.list",
 
   // Context methods
   contextCreateNode: "context.createNode",
@@ -617,6 +630,12 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.approvalsApprove, ApproveInput),
   tagRequestBody(WS_METHODS.approvalsReject, RejectInput),
   tagRequestBody(WS_METHODS.approvalsIsGoalApproved, IsGoalApprovedInput),
+
+  // Thread approval gate methods
+  tagRequestBody(WS_METHODS.approvalGatesCreate, CreateThreadApprovalGateInput),
+  tagRequestBody(WS_METHODS.approvalGatesApprove, ThreadApprovalGateIdInput),
+  tagRequestBody(WS_METHODS.approvalGatesReject, ThreadApprovalGateIdInput),
+  tagRequestBody(WS_METHODS.approvalGatesList, ListThreadApprovalGatesInput),
 
   // Context methods
   tagRequestBody(WS_METHODS.contextCreateNode, CreateContextNodeInput),
@@ -876,6 +895,12 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.approvalsApprove]: ApprovalGateResult,
   [WS_METHODS.approvalsReject]: ApprovalGateResult,
   [WS_METHODS.approvalsIsGoalApproved]: IsGoalApprovedResult,
+
+  // Thread approval gate methods
+  [WS_METHODS.approvalGatesCreate]: ThreadApprovalGateResult,
+  [WS_METHODS.approvalGatesApprove]: ThreadApprovalGateResult,
+  [WS_METHODS.approvalGatesReject]: ThreadApprovalGateResult,
+  [WS_METHODS.approvalGatesList]: ListThreadApprovalGatesResult,
 
   // Context methods
   [WS_METHODS.contextCreateNode]: CreateContextNodeResult,

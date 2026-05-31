@@ -53,6 +53,7 @@ import { FeatureServiceLive } from "./orchestration/Layers/FeatureServiceLive";
 import { GoalsServiceLive } from "./orchestration/Layers/GoalsServiceLive";
 import { DocumentServiceLive } from "./orchestration/Layers/DocumentServiceLive";
 import { ApprovalServiceLive } from "./orchestration/Layers/ApprovalServiceLive";
+import { ThreadApprovalServiceLive } from "./orchestration/Services/ThreadApprovalService";
 import { PMChatContextServiceLive } from "./orchestration/Layers/PMChatContextServiceLive";
 import { ProjectionContextNodeRepositoryLive } from "./persistence/Layers/ProjectionContextNodes";
 import { ProjectionFeatureRepositoryLive } from "./persistence/Layers/ProjectionFeatures";
@@ -146,6 +147,10 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(CheckpointStoreLive),
   );
 
+  const threadApprovalServiceLayer = ThreadApprovalServiceLive.pipe(
+    Layer.provide(orchestrationLayer),
+  );
+
   const runtimeServicesLayer = Layer.mergeAll(
     orchestrationLayer,
     OrchestrationProjectionSnapshotQueryLive,
@@ -153,6 +158,7 @@ export function makeServerRuntimeServicesLayer() {
     checkpointDiffQueryLayer,
     RuntimeReceiptBusLive,
     ContextMeterLive,
+    threadApprovalServiceLayer,
   );
   const runtimeIngestionLayer = ProviderRuntimeIngestionLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
@@ -261,6 +267,7 @@ export function makeServerRuntimeServicesLayer() {
     goalsServiceLayer,
     documentServiceLayer,
     approvalServiceLayer,
+    threadApprovalServiceLayer,
     FeatureThreadLinkServiceLive,
     handoffServiceLayer,
     memoryServiceLayer,

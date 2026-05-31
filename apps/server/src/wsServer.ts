@@ -92,6 +92,7 @@ import { FeatureService } from "./orchestration/Services/FeatureService";
 import { GoalsService } from "./orchestration/Services/GoalsService";
 import { DocumentService } from "./orchestration/Services/DocumentService";
 import { ApprovalService } from "./orchestration/Services/ApprovalService";
+import { ThreadApprovalService } from "./orchestration/Services/ThreadApprovalService";
 import { ProviderHealth } from "./provider/Services/ProviderHealth";
 import { OpenCodeState } from "./provider/Services/OpenCodeState";
 import { CheckpointDiffQuery } from "./checkpointing/Services/CheckpointDiffQuery";
@@ -405,6 +406,7 @@ export type ServerRuntimeServices =
   | GoalsService
   | DocumentService
   | ApprovalService
+  | ThreadApprovalService
   | MemoryService
   | MultiAgentCoordinator
   | FeatureThreadLinkService
@@ -470,6 +472,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const goalsService = yield* GoalsService;
   const documentService = yield* DocumentService;
   const approvalService = yield* ApprovalService;
+  const threadApprovalService = yield* ThreadApprovalService;
   const git = yield* GitCore;
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -2288,6 +2291,14 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
       }
       case WS_METHODS.approvalsIsGoalApproved:
         return yield* approvalService.isGoalApproved(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalGatesList:
+        return yield* threadApprovalService.listGates(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalGatesCreate:
+        return yield* threadApprovalService.createGate(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalGatesApprove:
+        return yield* threadApprovalService.approveGate(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalGatesReject:
+        return yield* threadApprovalService.rejectGate(stripRequestTag(request.body) as any);
       case WS_METHODS.reviewApprove: {
         const reviewBody = stripRequestTag(request.body) as any;
         yield* orchestrationEngine.dispatch({
