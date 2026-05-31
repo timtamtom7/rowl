@@ -1,5 +1,12 @@
 import { Schema, Struct } from "effect";
-import { NonNegativeInt, ProjectId, ThreadId, TrimmedNonEmptyString, TurnId } from "./baseSchemas";
+import {
+  IsoDateTime,
+  NonNegativeInt,
+  ProjectId,
+  ThreadId,
+  TrimmedNonEmptyString,
+  TurnId,
+} from "./baseSchemas";
 
 import {
   ClientOrchestrationCommand,
@@ -17,9 +24,15 @@ import {
   OrchestrationReplayEventsInput,
 } from "./orchestration";
 import {
+  CreateWorktreeInput,
+  CreateWorktreeResult,
+  GetWorktreeInfoInput,
   GitCreateWorktreeResult,
   GitCheckoutInput,
+  GitCherryPickInput,
   GitCreateBranchInput,
+  GitIntegrationResult,
+  GitMergeBranchInput,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
   GitCreateWorktreeInput,
@@ -35,7 +48,20 @@ import {
   GitRunStackedActionResult,
   GitStatusInput,
   GitStatusResult,
+  ListWorktreesInput,
+  ListWorktreesResult,
+  RemoveWorktreeInput,
+  StackBranchInput,
+  StackBranchResult,
+  WorktreeInfo,
 } from "./git";
+import {
+  CreateWorktreeCheckpointInput,
+  ListWorktreeCheckpointsInput,
+  ListWorktreeCheckpointsResult,
+  WorktreeCheckpointResult,
+} from "./checkpointing";
+import { DiffTree, GitGetDiffTreeInput } from "./diffTree";
 import {
   TerminalClearInput,
   TerminalCloseInput,
@@ -135,6 +161,7 @@ import {
   GetContextBudgetInput,
   GetContextBudgetResult,
 } from "./context";
+import { ContextMeterGetInput, ContextMeterGetResult } from "./contextMeter";
 import {
   CreateMemoryInput,
   CreateMemoryResult,
@@ -145,6 +172,26 @@ import {
   SearchMemoryInput,
   SearchMemoryResult,
 } from "./memory";
+import {
+  CoreAgentActiveChangedEvent,
+  CoreAgentCreateRequest,
+  CoreAgentDeleteRequest,
+  CoreAgentDeleteResponse,
+  CoreAgentListRequest,
+  CoreAgentListResponse,
+  CoreAgentMutationResponse,
+  CoreAgentSetActiveRequest,
+  CoreAgentSetActiveResponse,
+  CoreAgentUpdateRequest,
+  MemoryChangedEvent,
+  MemoryNoteDeleteRequest,
+  MemoryNoteDeleteResponse,
+  MemoryNoteListRequest,
+  MemoryNoteListResponse,
+  MemoryNoteReadRequest,
+  MemoryNoteResponse,
+  MemoryNoteWriteRequest,
+} from "./core-agent";
 import {
   GetCodebaseHealthInput,
   GetCodebaseHealthResult,
@@ -194,6 +241,10 @@ import {
   CreateGoalResult,
   DeleteGoalInput,
   DeleteGoalResult,
+  GetGoalAncestorsInput,
+  GetGoalAncestorsResult,
+  GetGoalChildrenInput,
+  GetGoalChildrenResult,
   GetGoalInput,
   GetGoalResult,
   LinkThreadToGoalInput,
@@ -204,9 +255,39 @@ import {
   SetMainGoalResult,
   UnlinkThreadFromGoalInput,
   UnlinkThreadFromGoalResult,
+  UpdateGoalInput,
+  UpdateGoalResult,
   UpdateGoalTextInput,
   UpdateGoalTextResult,
 } from "./goals";
+import {
+  CreateGoalDocumentInput,
+  DeleteGoalDocumentInput,
+  DeleteGoalDocumentResult,
+  GoalDocumentResult,
+  ListDocumentsByGoalInput,
+  ListDocumentsByGoalResult,
+  ReadGoalDocumentInput,
+  UpdateGoalDocumentInput,
+  WriteGoalDocumentInput,
+} from "./documents";
+import {
+  ApprovalGateResult,
+  ApproveInput,
+  CreateApprovalInput,
+  IsGoalApprovedInput,
+  IsGoalApprovedResult,
+  ListApprovalsByGoalInput,
+  ListApprovalsByGoalResult,
+  RejectInput,
+} from "./approvals";
+import {
+  CreateThreadApprovalGateInput,
+  ListThreadApprovalGatesInput,
+  ListThreadApprovalGatesResult,
+  ThreadApprovalGateIdInput,
+  ThreadApprovalGateResult,
+} from "./approvalGates";
 
 // ── WebSocket RPC Method Names ───────────────────────────────────────
 
@@ -250,11 +331,25 @@ export const WS_METHODS = {
   gitListBranches: "git.listBranches",
   gitCreateWorktree: "git.createWorktree",
   gitRemoveWorktree: "git.removeWorktree",
+  gitCherryPick: "git.cherryPick",
+  gitMergeBranch: "git.mergeBranch",
   gitCreateBranch: "git.createBranch",
+  gitStackBranch: "git.stackBranch",
   gitCheckout: "git.checkout",
   gitInit: "git.init",
   gitResolvePullRequest: "git.resolvePullRequest",
   gitPreparePullRequestThread: "git.preparePullRequestThread",
+  gitGetDiffTree: "git.getDiffTree",
+
+  // Checkpoint methods
+  checkpointsCreateInWorktree: "checkpoints.createInWorktree",
+  checkpointsListByWorktree: "checkpoints.listByWorktree",
+
+  // Managed worktree methods
+  worktreesCreate: "worktrees.create",
+  worktreesList: "worktrees.list",
+  worktreesRemove: "worktrees.remove",
+  worktreesInfo: "worktrees.info",
 
   // Terminal methods
   terminalOpen: "terminal.open",
@@ -283,13 +378,38 @@ export const WS_METHODS = {
 
   // Goals methods
   goalsCreate: "goals.create",
+  goalsList: "goals.list",
+  goalsUpdate: "goals.update",
   goalsGet: "goals.get",
   goalsListByProject: "goals.listByProject",
   goalsSetMain: "goals.setMain",
   goalsLinkThread: "goals.linkThread",
   goalsUnlinkThread: "goals.unlinkThread",
   goalsUpdateText: "goals.updateText",
+  goalsChildren: "goals.children",
+  goalsAncestors: "goals.ancestors",
   goalsDelete: "goals.delete",
+
+  // Goal document methods
+  documentsList: "documents.list",
+  documentsRead: "documents.read",
+  documentsWrite: "documents.write",
+  documentsCreate: "documents.create",
+  documentsUpdate: "documents.update",
+  documentsDelete: "documents.delete",
+
+  // Goal approval methods
+  approvalsList: "approvals.list",
+  approvalsCreate: "approvals.create",
+  approvalsApprove: "approvals.approve",
+  approvalsReject: "approvals.reject",
+  approvalsIsGoalApproved: "approvals.isGoalApproved",
+
+  // Thread approval gate methods
+  approvalGatesCreate: "approvalGates.create",
+  approvalGatesApprove: "approvalGates.approve",
+  approvalGatesReject: "approvalGates.reject",
+  approvalGatesList: "approvalGates.list",
 
   // Context methods
   contextCreateNode: "context.createNode",
@@ -300,6 +420,7 @@ export const WS_METHODS = {
   contextRestoreNode: "context.restoreNode",
   contextDeleteNode: "context.deleteNode",
   contextGetBudget: "context.getBudget",
+  contextMeterGet: "contextMeter.get",
 
   // Codebase Intelligence
   codebaseHealthSummary: "codebase.healthSummary",
@@ -330,6 +451,19 @@ export const WS_METHODS = {
   memorySearch: "memory.search",
   memoryListByProject: "memory.listByProject",
   memoryDelete: "memory.delete",
+
+  // Core-agent methods
+  coreAgentsList: "coreAgents.list",
+  coreAgentsCreate: "coreAgents.create",
+  coreAgentsUpdate: "coreAgents.update",
+  coreAgentsDelete: "coreAgents.delete",
+  coreAgentsSetActive: "coreAgents.setActive",
+
+  // Memory Palace methods
+  memoryNotesList: "memoryNotes.list",
+  memoryNotesRead: "memoryNotes.read",
+  memoryNotesWrite: "memoryNotes.write",
+  memoryNotesDelete: "memoryNotes.delete",
 } as const;
 
 // ── Push Event Channels ──────────────────────────────────────────────
@@ -339,6 +473,9 @@ export const WS_CHANNELS = {
   serverWelcome: "server.welcome",
   serverConfigUpdated: "server.configUpdated",
   fileActivity: "file.activity",
+  organizingChanged: "organizing.changed",
+  coreAgentActiveChanged: "coreAgent.activeChanged",
+  memoryChanged: "memory-changed",
 } as const;
 
 /** File activity event pushed when Claude reads/writes/creates files during a turn */
@@ -349,6 +486,17 @@ export const FileActivityEvent = Schema.Struct({
   timestamp: Schema.String,
 });
 export type FileActivityEvent = typeof FileActivityEvent.Type;
+
+export const OrganizingChangedEvent = Schema.Struct({
+  domain: Schema.Literals(["goals", "documents", "approvals"]),
+  action: TrimmedNonEmptyString,
+  projectId: Schema.optional(ProjectId),
+  goalId: Schema.optional(TrimmedNonEmptyString),
+  documentId: Schema.optional(TrimmedNonEmptyString),
+  approvalId: Schema.optional(TrimmedNonEmptyString),
+  timestamp: IsoDateTime,
+});
+export type OrganizingChangedEvent = typeof OrganizingChangedEvent.Type;
 
 // -- Tagged Union of all request body schemas ─────────────────────────
 
@@ -409,11 +557,25 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.gitListBranches, GitListBranchesInput),
   tagRequestBody(WS_METHODS.gitCreateWorktree, GitCreateWorktreeInput),
   tagRequestBody(WS_METHODS.gitRemoveWorktree, GitRemoveWorktreeInput),
+  tagRequestBody(WS_METHODS.gitCherryPick, GitCherryPickInput),
+  tagRequestBody(WS_METHODS.gitMergeBranch, GitMergeBranchInput),
   tagRequestBody(WS_METHODS.gitCreateBranch, GitCreateBranchInput),
+  tagRequestBody(WS_METHODS.gitStackBranch, StackBranchInput),
   tagRequestBody(WS_METHODS.gitCheckout, GitCheckoutInput),
   tagRequestBody(WS_METHODS.gitInit, GitInitInput),
   tagRequestBody(WS_METHODS.gitResolvePullRequest, GitPullRequestRefInput),
   tagRequestBody(WS_METHODS.gitPreparePullRequestThread, GitPreparePullRequestThreadInput),
+  tagRequestBody(WS_METHODS.gitGetDiffTree, GitGetDiffTreeInput),
+
+  // Checkpoint methods
+  tagRequestBody(WS_METHODS.checkpointsCreateInWorktree, CreateWorktreeCheckpointInput),
+  tagRequestBody(WS_METHODS.checkpointsListByWorktree, ListWorktreeCheckpointsInput),
+
+  // Managed worktree methods
+  tagRequestBody(WS_METHODS.worktreesCreate, CreateWorktreeInput),
+  tagRequestBody(WS_METHODS.worktreesList, ListWorktreesInput),
+  tagRequestBody(WS_METHODS.worktreesRemove, RemoveWorktreeInput),
+  tagRequestBody(WS_METHODS.worktreesInfo, GetWorktreeInfoInput),
 
   // Terminal methods
   tagRequestBody(WS_METHODS.terminalOpen, TerminalOpenInput),
@@ -442,13 +604,38 @@ const WebSocketRequestBody = Schema.Union([
 
   // Goals methods
   tagRequestBody(WS_METHODS.goalsCreate, CreateGoalInput),
+  tagRequestBody(WS_METHODS.goalsList, ListGoalsByProjectInput),
+  tagRequestBody(WS_METHODS.goalsUpdate, UpdateGoalInput),
   tagRequestBody(WS_METHODS.goalsGet, GetGoalInput),
   tagRequestBody(WS_METHODS.goalsListByProject, ListGoalsByProjectInput),
   tagRequestBody(WS_METHODS.goalsSetMain, SetMainGoalInput),
   tagRequestBody(WS_METHODS.goalsLinkThread, LinkThreadToGoalInput),
   tagRequestBody(WS_METHODS.goalsUnlinkThread, UnlinkThreadFromGoalInput),
   tagRequestBody(WS_METHODS.goalsUpdateText, UpdateGoalTextInput),
+  tagRequestBody(WS_METHODS.goalsChildren, GetGoalChildrenInput),
+  tagRequestBody(WS_METHODS.goalsAncestors, GetGoalAncestorsInput),
   tagRequestBody(WS_METHODS.goalsDelete, DeleteGoalInput),
+
+  // Goal document methods
+  tagRequestBody(WS_METHODS.documentsList, ListDocumentsByGoalInput),
+  tagRequestBody(WS_METHODS.documentsRead, ReadGoalDocumentInput),
+  tagRequestBody(WS_METHODS.documentsWrite, WriteGoalDocumentInput),
+  tagRequestBody(WS_METHODS.documentsCreate, CreateGoalDocumentInput),
+  tagRequestBody(WS_METHODS.documentsUpdate, UpdateGoalDocumentInput),
+  tagRequestBody(WS_METHODS.documentsDelete, DeleteGoalDocumentInput),
+
+  // Goal approval methods
+  tagRequestBody(WS_METHODS.approvalsList, ListApprovalsByGoalInput),
+  tagRequestBody(WS_METHODS.approvalsCreate, CreateApprovalInput),
+  tagRequestBody(WS_METHODS.approvalsApprove, ApproveInput),
+  tagRequestBody(WS_METHODS.approvalsReject, RejectInput),
+  tagRequestBody(WS_METHODS.approvalsIsGoalApproved, IsGoalApprovedInput),
+
+  // Thread approval gate methods
+  tagRequestBody(WS_METHODS.approvalGatesCreate, CreateThreadApprovalGateInput),
+  tagRequestBody(WS_METHODS.approvalGatesApprove, ThreadApprovalGateIdInput),
+  tagRequestBody(WS_METHODS.approvalGatesReject, ThreadApprovalGateIdInput),
+  tagRequestBody(WS_METHODS.approvalGatesList, ListThreadApprovalGatesInput),
 
   // Context methods
   tagRequestBody(WS_METHODS.contextCreateNode, CreateContextNodeInput),
@@ -459,10 +646,20 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.contextRestoreNode, RestoreContextNodeInput),
   tagRequestBody(WS_METHODS.contextDeleteNode, DeleteContextNodeInput),
   tagRequestBody(WS_METHODS.contextGetBudget, GetContextBudgetInput),
+  tagRequestBody(WS_METHODS.contextMeterGet, ContextMeterGetInput),
   tagRequestBody(WS_METHODS.memoryCreate, CreateMemoryInput),
   tagRequestBody(WS_METHODS.memorySearch, SearchMemoryInput),
   tagRequestBody(WS_METHODS.memoryListByProject, ListMemoryByProjectInput),
   tagRequestBody(WS_METHODS.memoryDelete, DeleteMemoryInput),
+  tagRequestBody(WS_METHODS.coreAgentsList, CoreAgentListRequest),
+  tagRequestBody(WS_METHODS.coreAgentsCreate, CoreAgentCreateRequest),
+  tagRequestBody(WS_METHODS.coreAgentsUpdate, CoreAgentUpdateRequest),
+  tagRequestBody(WS_METHODS.coreAgentsDelete, CoreAgentDeleteRequest),
+  tagRequestBody(WS_METHODS.coreAgentsSetActive, CoreAgentSetActiveRequest),
+  tagRequestBody(WS_METHODS.memoryNotesList, MemoryNoteListRequest),
+  tagRequestBody(WS_METHODS.memoryNotesRead, MemoryNoteReadRequest),
+  tagRequestBody(WS_METHODS.memoryNotesWrite, MemoryNoteWriteRequest),
+  tagRequestBody(WS_METHODS.memoryNotesDelete, MemoryNoteDeleteRequest),
   tagRequestBody(WS_METHODS.codebaseHealthSummary, GetCodebaseHealthInput),
   tagRequestBody(WS_METHODS.codebaseUpdateHealth, UpdateCodebaseHealthInput),
   tagRequestBody(WS_METHODS.promptsList, ListPromptsInput),
@@ -473,8 +670,14 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.harnessActivate, ActivateHarnessInput),
   tagRequestBody(WS_METHODS.harnessDeactivate, DeactivateHarnessInput),
   tagRequestBody(WS_METHODS.harnessGetActive, Schema.Struct({ threadId: Schema.String })),
-  tagRequestBody(WS_METHODS.featureThreadLink, Schema.Struct({ featureId: Schema.String, threadId: Schema.String })),
-  tagRequestBody(WS_METHODS.featureThreadUnlink, Schema.Struct({ featureId: Schema.String, threadId: Schema.String })),
+  tagRequestBody(
+    WS_METHODS.featureThreadLink,
+    Schema.Struct({ featureId: Schema.String, threadId: Schema.String }),
+  ),
+  tagRequestBody(
+    WS_METHODS.featureThreadUnlink,
+    Schema.Struct({ featureId: Schema.String, threadId: Schema.String }),
+  ),
   tagRequestBody(WS_METHODS.featureThreadGetLinks, Schema.Struct({ projectId: Schema.String })),
   tagRequestBody(WS_METHODS.agentOverview, GetAgentOverviewInput),
   tagRequestBody(WS_METHODS.agentSpawnForFeature, SpawnAgentForFeatureInput),
@@ -515,6 +718,9 @@ export interface WsPushPayloadByChannel {
   readonly [WS_CHANNELS.terminalEvent]: typeof TerminalEvent.Type;
   readonly [ORCHESTRATION_WS_CHANNELS.domainEvent]: OrchestrationEvent;
   readonly [WS_CHANNELS.fileActivity]: FileActivityEvent;
+  readonly [WS_CHANNELS.organizingChanged]: OrganizingChangedEvent;
+  readonly [WS_CHANNELS.coreAgentActiveChanged]: typeof CoreAgentActiveChangedEvent.Type;
+  readonly [WS_CHANNELS.memoryChanged]: typeof MemoryChangedEvent.Type;
 }
 
 export type WsPushChannel = keyof WsPushPayloadByChannel;
@@ -541,16 +747,25 @@ export const WsPushOrchestrationDomainEvent = makeWsPushSchema(
   ORCHESTRATION_WS_CHANNELS.domainEvent,
   OrchestrationEvent,
 );
-export const WsPushFileActivity = makeWsPushSchema(
-  WS_CHANNELS.fileActivity,
-  FileActivityEvent,
+export const WsPushFileActivity = makeWsPushSchema(WS_CHANNELS.fileActivity, FileActivityEvent);
+export const WsPushOrganizingChanged = makeWsPushSchema(
+  WS_CHANNELS.organizingChanged,
+  OrganizingChangedEvent,
 );
+export const WsPushCoreAgentActiveChanged = makeWsPushSchema(
+  WS_CHANNELS.coreAgentActiveChanged,
+  CoreAgentActiveChangedEvent,
+);
+export const WsPushMemoryChanged = makeWsPushSchema(WS_CHANNELS.memoryChanged, MemoryChangedEvent);
 
 export const WsPushChannelSchema = Schema.Literals([
   WS_CHANNELS.serverWelcome,
   WS_CHANNELS.serverConfigUpdated,
   WS_CHANNELS.terminalEvent,
   WS_CHANNELS.fileActivity,
+  WS_CHANNELS.organizingChanged,
+  WS_CHANNELS.coreAgentActiveChanged,
+  WS_CHANNELS.memoryChanged,
   ORCHESTRATION_WS_CHANNELS.domainEvent,
 ]);
 export type WsPushChannelSchema = typeof WsPushChannelSchema.Type;
@@ -560,6 +775,9 @@ export const WsPush = Schema.Union([
   WsPushServerConfigUpdated,
   WsPushTerminalEvent,
   WsPushFileActivity,
+  WsPushOrganizingChanged,
+  WsPushCoreAgentActiveChanged,
+  WsPushMemoryChanged,
   WsPushOrchestrationDomainEvent,
 ]);
 export type WsPush = typeof WsPush.Type;
@@ -612,11 +830,21 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.gitListBranches]: GitListBranchesResult,
   [WS_METHODS.gitCreateWorktree]: GitCreateWorktreeResult,
   [WS_METHODS.gitRemoveWorktree]: Schema.Void,
+  [WS_METHODS.gitCherryPick]: GitIntegrationResult,
+  [WS_METHODS.gitMergeBranch]: GitIntegrationResult,
   [WS_METHODS.gitCreateBranch]: Schema.Void,
+  [WS_METHODS.gitStackBranch]: StackBranchResult,
   [WS_METHODS.gitCheckout]: Schema.Void,
   [WS_METHODS.gitInit]: Schema.Void,
   [WS_METHODS.gitResolvePullRequest]: GitResolvePullRequestResult,
   [WS_METHODS.gitPreparePullRequestThread]: GitPreparePullRequestThreadResult,
+  [WS_METHODS.gitGetDiffTree]: DiffTree,
+  [WS_METHODS.checkpointsCreateInWorktree]: WorktreeCheckpointResult,
+  [WS_METHODS.checkpointsListByWorktree]: ListWorktreeCheckpointsResult,
+  [WS_METHODS.worktreesCreate]: CreateWorktreeResult,
+  [WS_METHODS.worktreesList]: ListWorktreesResult,
+  [WS_METHODS.worktreesRemove]: Schema.Void,
+  [WS_METHODS.worktreesInfo]: WorktreeInfo,
   [WS_METHODS.terminalOpen]: TerminalSessionSnapshot,
   [WS_METHODS.terminalWrite]: Schema.Void,
   [WS_METHODS.terminalResize]: Schema.Void,
@@ -641,13 +869,38 @@ export const WsRpcResultSchemaByMethod = {
 
   // Goals methods
   [WS_METHODS.goalsCreate]: CreateGoalResult,
+  [WS_METHODS.goalsList]: ListGoalsByProjectResult,
+  [WS_METHODS.goalsUpdate]: UpdateGoalResult,
   [WS_METHODS.goalsGet]: GetGoalResult,
   [WS_METHODS.goalsListByProject]: ListGoalsByProjectResult,
   [WS_METHODS.goalsSetMain]: SetMainGoalResult,
   [WS_METHODS.goalsLinkThread]: LinkThreadToGoalResult,
   [WS_METHODS.goalsUnlinkThread]: UnlinkThreadFromGoalResult,
   [WS_METHODS.goalsUpdateText]: UpdateGoalTextResult,
+  [WS_METHODS.goalsChildren]: GetGoalChildrenResult,
+  [WS_METHODS.goalsAncestors]: GetGoalAncestorsResult,
   [WS_METHODS.goalsDelete]: DeleteGoalResult,
+
+  // Goal document methods
+  [WS_METHODS.documentsList]: ListDocumentsByGoalResult,
+  [WS_METHODS.documentsRead]: GoalDocumentResult,
+  [WS_METHODS.documentsWrite]: GoalDocumentResult,
+  [WS_METHODS.documentsCreate]: GoalDocumentResult,
+  [WS_METHODS.documentsUpdate]: GoalDocumentResult,
+  [WS_METHODS.documentsDelete]: DeleteGoalDocumentResult,
+
+  // Goal approval methods
+  [WS_METHODS.approvalsList]: ListApprovalsByGoalResult,
+  [WS_METHODS.approvalsCreate]: ApprovalGateResult,
+  [WS_METHODS.approvalsApprove]: ApprovalGateResult,
+  [WS_METHODS.approvalsReject]: ApprovalGateResult,
+  [WS_METHODS.approvalsIsGoalApproved]: IsGoalApprovedResult,
+
+  // Thread approval gate methods
+  [WS_METHODS.approvalGatesCreate]: ThreadApprovalGateResult,
+  [WS_METHODS.approvalGatesApprove]: ThreadApprovalGateResult,
+  [WS_METHODS.approvalGatesReject]: ThreadApprovalGateResult,
+  [WS_METHODS.approvalGatesList]: ListThreadApprovalGatesResult,
 
   // Context methods
   [WS_METHODS.contextCreateNode]: CreateContextNodeResult,
@@ -658,10 +911,20 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.contextRestoreNode]: RestoreContextNodeResult,
   [WS_METHODS.contextDeleteNode]: DeleteContextNodeResult,
   [WS_METHODS.contextGetBudget]: GetContextBudgetResult,
+  [WS_METHODS.contextMeterGet]: ContextMeterGetResult,
   [WS_METHODS.memoryCreate]: CreateMemoryResult,
   [WS_METHODS.memorySearch]: SearchMemoryResult,
   [WS_METHODS.memoryListByProject]: ListMemoryByProjectResult,
   [WS_METHODS.memoryDelete]: DeleteMemoryResult,
+  [WS_METHODS.coreAgentsList]: CoreAgentListResponse,
+  [WS_METHODS.coreAgentsCreate]: CoreAgentMutationResponse,
+  [WS_METHODS.coreAgentsUpdate]: CoreAgentMutationResponse,
+  [WS_METHODS.coreAgentsDelete]: CoreAgentDeleteResponse,
+  [WS_METHODS.coreAgentsSetActive]: CoreAgentSetActiveResponse,
+  [WS_METHODS.memoryNotesList]: MemoryNoteListResponse,
+  [WS_METHODS.memoryNotesRead]: MemoryNoteResponse,
+  [WS_METHODS.memoryNotesWrite]: MemoryNoteResponse,
+  [WS_METHODS.memoryNotesDelete]: MemoryNoteDeleteResponse,
   [WS_METHODS.codebaseHealthSummary]: GetCodebaseHealthResult,
   [WS_METHODS.codebaseUpdateHealth]: UpdateCodebaseHealthResult,
   [WS_METHODS.promptsList]: ListPromptsResult,
@@ -674,7 +937,15 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.harnessGetActive]: Schema.Struct({ preset: Schema.NullOr(HarnessPreset) }),
   [WS_METHODS.featureThreadLink]: Schema.Struct({}),
   [WS_METHODS.featureThreadUnlink]: Schema.Struct({}),
-  [WS_METHODS.featureThreadGetLinks]: Schema.Struct({ links: Schema.Array(Schema.Struct({ featureId: Schema.String, threadId: Schema.String, createdAt: Schema.String })) }),
+  [WS_METHODS.featureThreadGetLinks]: Schema.Struct({
+    links: Schema.Array(
+      Schema.Struct({
+        featureId: Schema.String,
+        threadId: Schema.String,
+        createdAt: Schema.String,
+      }),
+    ),
+  }),
   [WS_METHODS.agentOverview]: GetAgentOverviewResult,
   [WS_METHODS.agentSpawnForFeature]: SpawnAgentForFeatureResult,
   [WS_METHODS.agentDetectConflicts]: DetectConflictsResult,

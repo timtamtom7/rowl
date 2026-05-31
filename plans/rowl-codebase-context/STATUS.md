@@ -1,9 +1,11 @@
 # Rowl Codebase Context — Status
 
 ## Last Updated
+
 2026-04-13
 
 ## Overall Status
+
 **Phase: ✅ ANALYSIS COMPLETE. Master synthesis written. Ready to plan.**
 
 ---
@@ -21,21 +23,24 @@
 ## Key Findings from Audit
 
 ### Architecture: Sound
+
 - Event-sourced orchestration (command→event→projection) over SQLite
 - Effect framework throughout, typed contracts package
 - 7 AI provider adapters (CLI/stdio, REST, embedded SDK)
 - Frontend: Next.js + Zustand + React Query + Lexical composer
 
 ### Critical Stubs Found
-| Stub | Impact |
-|------|--------|
+
+| Stub                                        | Impact                               |
+| ------------------------------------------- | ------------------------------------ |
 | Checkpoints projector (`() => Effect.void`) | Checkpoint diffs not persisted to DB |
-| `EvaluatorService.quickCheck()` | Always `compiles: true` |
-| `respondToUserInput()` | Stubbed in ALL 7 adapters |
-| Right sidebar: Context/Memory/LiveMap tabs | May be hollow shells |
-| Skill creation UI | Stub — hint message only |
+| `EvaluatorService.quickCheck()`             | Always `compiles: true`              |
+| `respondToUserInput()`                      | Stubbed in ALL 7 adapters            |
+| Right sidebar: Context/Memory/LiveMap tabs  | May be hollow shells                 |
+| Skill creation UI                           | Stub — hint message only             |
 
 ### Roadmap Self-Reported State is WRONG
+
 ROWL_ROADMAP_V2.md over-reports Tier 2 progress by ~50%. The approval loop has a known bug. Session status can get stuck. The `rowl-outstanding` plan needs to be updated against actual code.
 
 ---
@@ -43,9 +48,11 @@ ROWL_ROADMAP_V2.md over-reports Tier 2 progress by ~50%. The approval loop has a
 ## What Needs to Happen Next
 
 ### Immediate: Update rowl-outstanding Plan
+
 The outstanding plan's "done/not started" claims need verification against the actual codebase. Several items marked "done" in the roadmap have stubs or known bugs.
 
 ### Then: Decide Implementation Order
+
 With full codebase understanding, the right sidebar vision (PM Chat + Features tabs as the "control room") can be planned against actual code reality.
 
 ---

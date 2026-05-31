@@ -47,6 +47,10 @@
     "./schemaJson": {
       "types": "./src/schemaJson.ts",
       "import": "./src/schemaJson.ts"
+    },
+    "./frontmatter": {
+      "types": "./src/frontmatter.ts",
+      "import": "./src/frontmatter.ts"
     }
   },
   "scripts": {

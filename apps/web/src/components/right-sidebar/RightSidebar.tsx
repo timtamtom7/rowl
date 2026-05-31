@@ -7,16 +7,17 @@ import {
   TargetIcon,
   DatabaseIcon,
   FolderIcon,
+  GitBranchIcon,
   NetworkIcon,
+  BrainIcon,
 } from "lucide-react";
-import type { ProjectId } from "@t3tools/contracts";
+import type { GoalId, ProjectId } from "@t3tools/contracts";
 import { cn } from "~/lib/utils";
 import { useStore } from "~/store";
 import { useRightSidebar } from "./RightSidebarContext";
 import { resolveServerHttpUrl } from "~/lib/serverUrl";
 import { ThreadsTabContent } from "./ThreadsTabContent";
 import { FeaturesTabContent } from "./FeaturesTabContent";
-import { GoalsTabContent } from "./GoalsTabContent";
 import { ContextTabContent } from "./ContextTabContent";
 import { PMChatTabContent } from "./PMChatTabContent";
 import { ProjectBrief } from "./ProjectBrief";
@@ -24,10 +25,23 @@ import { SkillsSection } from "./SkillsSection";
 import { MemoryTabContent } from "./MemoryTabContent";
 import { LiveMapTabContent } from "./LiveMapTabContent";
 import { ProjectPromptsSection } from "./ProjectPromptsSection";
+import { AgentPanel } from "~/core-agent/AgentPanel";
+import { ApprovalPanel } from "~/organizing/ApprovalPanel";
+import { DocumentPanel } from "~/organizing/DocumentPanel";
+import { GoalsPanel } from "~/organizing/GoalsPanel";
+import { WorktreePanel } from "~/git/WorktreePanel";
 
 export { RightSidebarProvider } from "./RightSidebarContext";
 
-export type RightSidebarTab = "pm-chat" | "threads" | "features" | "goals" | "context" | "map";
+export type RightSidebarTab =
+  | "pm-chat"
+  | "threads"
+  | "features"
+  | "goals"
+  | "worktrees"
+  | "context"
+  | "memory"
+  | "map";
 
 interface TabConfig {
   id: RightSidebarTab;
@@ -40,7 +54,9 @@ const TABS: TabConfig[] = [
   { id: "threads", label: "Threads", icon: <ListIcon className="size-4" /> },
   { id: "features", label: "Features", icon: <LayoutGridIcon className="size-4" /> },
   { id: "goals", label: "Goals", icon: <TargetIcon className="size-4" /> },
+  { id: "worktrees", label: "Worktrees", icon: <GitBranchIcon className="size-4" /> },
   { id: "context", label: "Context", icon: <DatabaseIcon className="size-4" /> },
+  { id: "memory", label: "Memory", icon: <BrainIcon className="size-4" /> },
   { id: "map", label: "Map", icon: <NetworkIcon className="size-4" /> },
 ];
 
@@ -63,20 +79,29 @@ function renderTabContent(
     return <FeaturesTabContent projectId={projectId} />;
   }
   if (activeTab === "goals" && projectId) {
+    return <OrganizingTabContent projectId={projectId} projectCwd={projectCwd} />;
+  }
+  if (activeTab === "worktrees" && projectId) {
     return (
-      <div className="flex flex-col h-full overflow-y-auto">
-        {projectCwd && <ProjectBrief projectCwd={projectCwd} />}
-        <GoalsTabContent projectId={projectId} />
-        <ProjectPromptsSection projectId={projectId} />
+      <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+        <WorktreePanel cwd={projectCwd} />
       </div>
     );
   }
   if (activeTab === "context" && projectId) {
     return (
       <div className="flex flex-col h-full overflow-y-auto">
+        <AgentPanel projectRoot={projectCwd} />
         <ContextTabContent projectId={projectId} />
         <MemoryTabContent projectId={projectId} />
         {projectCwd && <SkillsSection projectId={projectId} projectCwd={projectCwd} />}
+      </div>
+    );
+  }
+  if (activeTab === "memory" && projectId) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+        <AgentPanel projectRoot={projectCwd} defaultTab="memory" />
       </div>
     );
   }
@@ -90,6 +115,30 @@ function renderTabContent(
       <p className="text-xs text-muted-foreground/50 mt-1">
         Add a project folder from the sidebar to access PM, features, goals, and more.
       </p>
+    </div>
+  );
+}
+
+function OrganizingTabContent({
+  projectId,
+  projectCwd,
+}: {
+  readonly projectId: ProjectId;
+  readonly projectCwd?: string | undefined;
+}) {
+  const [selectedGoalId, setSelectedGoalId] = useState<GoalId | null>(null);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+      {projectCwd && <ProjectBrief projectCwd={projectCwd} />}
+      <GoalsPanel
+        projectId={projectId}
+        selectedGoalId={selectedGoalId}
+        onSelectedGoalIdChange={(goalId) => setSelectedGoalId(goalId)}
+      />
+      <DocumentPanel goalId={selectedGoalId} />
+      <ApprovalPanel goalId={selectedGoalId} />
+      <ProjectPromptsSection projectId={projectId} />
     </div>
   );
 }
@@ -150,7 +199,7 @@ function ExpandedSidebarContent({
 
   return (
     <>
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border/60 px-3">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border/55 bg-card/25 px-3 backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <ProjectIcon cwd={projectCwd} className="size-4" />
           {TABS.map(
@@ -173,23 +222,23 @@ function ExpandedSidebarContent({
           type="button"
           onClick={closeSidebar}
           aria-label="Collapse right sidebar"
-          className="flex size-7 items-center justify-center rounded-md text-muted-foreground/50 hover:text-foreground/70 hover:bg-accent/50 transition-colors"
+          className="flex size-7 items-center justify-center rounded-md text-muted-foreground/55 transition-colors hover:bg-accent/55 hover:text-foreground/78"
         >
           <PanelRightCloseIcon className="size-4" />
         </button>
       </div>
 
-      <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border/60 px-2">
+      <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border/45 bg-card/18 px-2 backdrop-blur-xl">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             aria-selected={activeTab === tab.id}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+              "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-[background-color,color,box-shadow]",
               activeTab === tab.id
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground/60 hover:text-foreground/80 hover:bg-accent/50",
+                ? "bg-accent/90 text-accent-foreground shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_6%,transparent)]"
+                : "text-muted-foreground/60 hover:bg-accent/50 hover:text-foreground/80",
             )}
           >
             {tab.icon}
@@ -235,7 +284,7 @@ const RightSidebar = memo(function RightSidebar({
     return (
       <div
         className={cn(
-          "relative hidden h-full w-12 shrink-0 flex-col items-center border-l border-border/60 bg-card/40 backdrop-blur-xs py-2 gap-1 min-[1024px]:flex",
+          "app-sidebar-motion relative hidden h-full w-12 shrink-0 flex-col items-center gap-1 border-l border-border/55 bg-card/38 py-2 shadow-[inset_1px_0_0_color-mix(in_oklab,var(--foreground)_3%,transparent)] backdrop-blur-xl min-[1024px]:flex",
           className,
         )}
         data-state="collapsed"
@@ -255,10 +304,10 @@ const RightSidebar = memo(function RightSidebar({
               aria-label={tab.label}
               aria-selected={activeTab === tab.id}
               className={cn(
-                "flex size-8 items-center justify-center rounded-md transition-colors",
+                "flex size-8 items-center justify-center rounded-md transition-[background-color,color,box-shadow]",
                 activeTab === tab.id
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground/50 hover:text-foreground/70 hover:bg-accent/50",
+                  ? "bg-accent/90 text-accent-foreground shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_6%,transparent)]"
+                  : "text-muted-foreground/50 hover:bg-accent/50 hover:text-foreground/70",
               )}
             >
               {tab.icon}
@@ -274,12 +323,12 @@ const RightSidebar = memo(function RightSidebar({
     return (
       <>
         <div
-          className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]"
+          className="fixed inset-0 z-40 bg-black/12 backdrop-blur-[3px]"
           onClick={closeSidebar}
           aria-hidden="true"
         />
         <div
-          className="fixed right-0 top-0 z-50 flex h-svh w-[300px] flex-col border-l border-border/60 bg-card shadow-lg"
+          className="rowl-glass-panel fixed top-0 right-0 z-50 flex h-svh w-[300px] flex-col border-l"
           data-state="expanded-overlay"
         >
           <ExpandedSidebarContent
@@ -298,7 +347,7 @@ const RightSidebar = memo(function RightSidebar({
   return (
     <div
       className={cn(
-        "relative flex h-full w-[300px] shrink-0 flex-col border-l border-border/60 bg-card/40 backdrop-blur-xs",
+        "app-sidebar-motion relative flex h-full w-[300px] shrink-0 flex-col border-l border-border/55 bg-card/38 shadow-[inset_1px_0_0_color-mix(in_oklab,var(--foreground)_3%,transparent)] backdrop-blur-xl",
         className,
       )}
       data-state="expanded"

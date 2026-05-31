@@ -438,11 +438,7 @@ export class MiniMaxApiManager extends EventEmitter<MiniMaxApiManagerEvents> {
       let content = msg.content;
 
       // For older messages, trim very long content (likely tool call results)
-      if (
-        !isRecent &&
-        typeof content === "string" &&
-        content.length > MAX_CONTENT_LENGTH
-      ) {
+      if (!isRecent && typeof content === "string" && content.length > MAX_CONTENT_LENGTH) {
         // Keep first 200 chars as summary + tombstone
         const preview = content.slice(0, 200).replace(/\n/g, " ");
         content = `[Trimmed: ${preview}... (${Math.round(content.length / 4)} tokens freed)]`;

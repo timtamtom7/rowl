@@ -5,6 +5,7 @@ import {
   collapseExpandedComposerCursor,
   detectComposerTrigger,
   expandCollapsedComposerCursor,
+  expandRememberInvocation,
   isCollapsedCursorAdjacentToMention,
   parseStandaloneComposerSlashCommand,
   parseStandaloneComposerSlashInvocation,
@@ -247,13 +248,14 @@ describe("parseStandaloneComposerSlashCommand", () => {
     expect(parseStandaloneComposerSlashCommand("/default")).toBe("default");
   });
 
-  it("parses standalone /init command", () => {
-    expect(parseStandaloneComposerSlashCommand("/init")).toBe("init");
+  it("does not intercept server-handled memory commands", () => {
+    expect(parseStandaloneComposerSlashCommand("/init")).toBeNull();
+    expect(parseStandaloneComposerSlashCommand("/compact")).toBeNull();
+    expect(parseStandaloneComposerSlashCommand("/reflect")).toBeNull();
   });
 
   it("parses OpenCode-inspired session actions", () => {
     expect(parseStandaloneComposerSlashCommand("/new")).toBe("new");
-    expect(parseStandaloneComposerSlashCommand("/compact")).toBe("compact");
     expect(parseStandaloneComposerSlashCommand("/share")).toBe("share");
     expect(parseStandaloneComposerSlashCommand("/unshare")).toBe("unshare");
     expect(parseStandaloneComposerSlashCommand("/undo")).toBe("undo");
@@ -285,5 +287,30 @@ describe("parseStandaloneComposerSlashInvocation", () => {
     expect(parseStandaloneComposerSlashInvocation("/mcp filesystem")).toBeNull();
     expect(parseStandaloneComposerSlashInvocation("/share")).toBeNull();
     expect(parseStandaloneComposerSlashInvocation("/clear")).toBeNull();
+  });
+});
+
+describe("expandRememberInvocation", () => {
+  it("expands /remember TEXT into a memory-guidance message", () => {
+    const out = expandRememberInvocation("/remember I prefer tabs");
+    expect(out).not.toBeNull();
+    expect(out).toContain("I prefer tabs");
+    expect(out).toMatch(/remember|\.rowl\/memory/i);
+  });
+
+  it("handles leading/trailing whitespace around the argument", () => {
+    const out = expandRememberInvocation("  /remember    use semicolons   ");
+    expect(out).toContain("use semicolons");
+  });
+
+  it("returns null when the argument is empty", () => {
+    expect(expandRememberInvocation("/remember")).toBeNull();
+    expect(expandRememberInvocation("/remember   ")).toBeNull();
+  });
+
+  it("returns null when the text is not a /remember invocation", () => {
+    expect(expandRememberInvocation("hello")).toBeNull();
+    expect(expandRememberInvocation("/plan")).toBeNull();
+    expect(expandRememberInvocation("/init foo")).toBeNull();
   });
 });

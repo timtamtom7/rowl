@@ -6,11 +6,7 @@
  * are found.
  */
 import { randomUUID } from "node:crypto";
-import {
-  EventId,
-  type OrchestrationEvent,
-  type ProviderRuntimeEvent,
-} from "@t3tools/contracts";
+import { EventId, type OrchestrationEvent, type ProviderRuntimeEvent } from "@t3tools/contracts";
 import { Cause, Effect, Layer, Stream } from "effect";
 import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 
@@ -53,11 +49,13 @@ const TECHNICAL_DELEGATION_PATTERNS = [
 // Detect uncertainty/hedging in AI output
 const UNCERTAINTY_PATTERNS = [
   {
-    pattern: /(?:I(?:'m| am) (?:not (?:sure|certain|confident)|unsure)|(?:this )?(?:might|may|could) (?:not )?(?:work|be correct|be right|be the best|be wrong))/i,
+    pattern:
+      /(?:I(?:'m| am) (?:not (?:sure|certain|confident)|unsure)|(?:this )?(?:might|may|could) (?:not )?(?:work|be correct|be right|be the best|be wrong))/i,
     label: "uncertainty",
   },
   {
-    pattern: /(?:I think (?:this )?(?:should|might|could)|probably|I believe|if I(?:'m| am) not mistaken)/i,
+    pattern:
+      /(?:I think (?:this )?(?:should|might|could)|probably|I believe|if I(?:'m| am) not mistaken)/i,
     label: "hedging",
   },
   {
@@ -82,7 +80,8 @@ function checkUncertainty(text: string): string | null {
 // Detect when the AI claims to have completed work without verification
 const PREMATURE_COMPLETION_PATTERNS = [
   {
-    pattern: /(?:I(?:'ve| have) (?:finished|completed|done|built|created|implemented|set up) (?:the |your |a )?(?:feature|page|component|system|module|app|application|site|website))/i,
+    pattern:
+      /(?:I(?:'ve| have) (?:finished|completed|done|built|created|implemented|set up) (?:the |your |a )?(?:feature|page|component|system|module|app|application|site|website))/i,
     label: "completion-claim",
   },
   {
@@ -90,11 +89,13 @@ const PREMATURE_COMPLETION_PATTERNS = [
     label: "broad-completion-claim",
   },
   {
-    pattern: /(?:you can now (?:use|see|access|open|try|test|view) (?:the |your |a )?(?:feature|page|app|site|login|dashboard|form))/i,
+    pattern:
+      /(?:you can now (?:use|see|access|open|try|test|view) (?:the |your |a )?(?:feature|page|app|site|login|dashboard|form))/i,
     label: "usability-claim",
   },
   {
-    pattern: /(?:Done[!.]?\s+\S+(?:\s+\S+){0,5}\s+(?:is|are|should be|will be)\s+(?:ready|done|working|complete)(?:\s+to\s+\S+)?)/i,
+    pattern:
+      /(?:Done[!.]?\s+\S+(?:\s+\S+){0,5}\s+(?:is|are|should be|will be)\s+(?:ready|done|working|complete)(?:\s+to\s+\S+)?)/i,
     label: "done-announcement",
   },
 ];
@@ -247,7 +248,7 @@ export const OverseerReactorLive = Layer.effect(
           threadId: threadId as any,
           activity: {
             id: EventId.makeUnsafe(randomUUID()),
-            tone: severity === "CRITICAL" ? "error" as const : "info" as const,
+            tone: severity === "CRITICAL" ? ("error" as const) : ("info" as const),
             kind: `overseer.${kind}`,
             summary: `Overseer: ${summary}`,
             payload: {
@@ -415,16 +416,44 @@ export const OverseerReactorLive = Layer.effect(
                 importance: number;
               }> = [
                 // Architectural decisions
-                { pattern: /(?:I (?:chose|decided|went with|picked|selected|used)|(?:Let's|We should|We'll) (?:use|go with|implement))\s+(.{20,150})/i, type: "decision", importance: 4 },
-                { pattern: /(?:because|since|the reason is|this is better because)\s+(.{20,150})/i, type: "decision", importance: 3 },
+                {
+                  pattern:
+                    /(?:I (?:chose|decided|went with|picked|selected|used)|(?:Let's|We should|We'll) (?:use|go with|implement))\s+(.{20,150})/i,
+                  type: "decision",
+                  importance: 4,
+                },
+                {
+                  pattern: /(?:because|since|the reason is|this is better because)\s+(.{20,150})/i,
+                  type: "decision",
+                  importance: 3,
+                },
                 // Architecture patterns
-                { pattern: /(?:created|added|set up|configured|installed)\s+(?:a |the )?(?:new )?(database|schema|table|migration|API|endpoint|route|service|component|hook|store|context|provider)\s+(.{10,100})/i, type: "architecture", importance: 3 },
+                {
+                  pattern:
+                    /(?:created|added|set up|configured|installed)\s+(?:a |the )?(?:new )?(database|schema|table|migration|API|endpoint|route|service|component|hook|store|context|provider)\s+(.{10,100})/i,
+                  type: "architecture",
+                  importance: 3,
+                },
                 // File structure decisions
-                { pattern: /(?:moved|renamed|split|merged|refactored|extracted)\s+(.{20,150})/i, type: "architecture", importance: 3 },
+                {
+                  pattern: /(?:moved|renamed|split|merged|refactored|extracted)\s+(.{20,150})/i,
+                  type: "architecture",
+                  importance: 3,
+                },
                 // Configuration/preference
-                { pattern: /(?:configured|set|enabled|disabled|updated)\s+(.{10,100})\s+(?:to|for|in|as)\s+(.{10,100})/i, type: "preference", importance: 2 },
+                {
+                  pattern:
+                    /(?:configured|set|enabled|disabled|updated)\s+(.{10,100})\s+(?:to|for|in|as)\s+(.{10,100})/i,
+                  type: "preference",
+                  importance: 2,
+                },
                 // Key facts about the project
-                { pattern: /(?:the project|this app|this project|the codebase)\s+(?:uses|is built with|runs on|depends on)\s+(.{10,100})/i, type: "fact", importance: 3 },
+                {
+                  pattern:
+                    /(?:the project|this app|this project|the codebase)\s+(?:uses|is built with|runs on|depends on)\s+(.{10,100})/i,
+                  type: "fact",
+                  importance: 3,
+                },
               ];
 
               const readModel = yield* orchestrationEngine.getReadModel();
@@ -473,9 +502,7 @@ export const OverseerReactorLive = Layer.effect(
               // Trigger at 140K — gives headroom before 160K warning and 180K critical
               if (totalTokens > 140_000) {
                 const readModel3 = yield* orchestrationEngine.getReadModel();
-                const compressThread = readModel3.threads.find(
-                  (t: any) => t.id === event.threadId,
-                );
+                const compressThread = readModel3.threads.find((t: any) => t.id === event.threadId);
                 if (compressThread) {
                   // Get older messages that haven't been summarized yet
                   const olderMessages = (compressThread as any).messages?.slice(0, -5) ?? [];
@@ -502,9 +529,7 @@ export const OverseerReactorLive = Layer.effect(
               // Critical: auto-generate handoff briefing at 90%
               if (totalTokens > 180_000) {
                 const readModel2 = yield* orchestrationEngine.getReadModel();
-                const handoffThread = readModel2.threads.find(
-                  (t: any) => t.id === event.threadId,
-                );
+                const handoffThread = readModel2.threads.find((t: any) => t.id === event.threadId);
                 if (handoffThread) {
                   const briefing = yield* handoffService
                     .generateBriefing({
@@ -536,9 +561,7 @@ export const OverseerReactorLive = Layer.effect(
             // Run evaluator on completed turns (after read model is settled)
             if (event.payload.state === "completed") {
               const evalReadModel = yield* orchestrationEngine.getReadModel();
-              const evalThread = evalReadModel.threads.find(
-                (t: any) => t.id === event.threadId,
-              );
+              const evalThread = evalReadModel.threads.find((t: any) => t.id === event.threadId);
               if (evalThread) {
                 const evalResult = yield* evaluatorService
                   .evaluateThread({

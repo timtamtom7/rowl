@@ -3,6 +3,7 @@ import {
   CommandId,
   EventId,
   type OrchestrationEvent,
+  MessageId,
   type ProjectSkillName,
   type ProviderModelOptions,
   type ProviderKind,
@@ -31,6 +32,17 @@ import {
 import * as Semaphore from "effect/Semaphore";
 
 import { resolveThreadWorkspaceCwd } from "../../checkpointing/Utils.ts";
+import {
+  assembleAgentTurnMemoryPreamble,
+  memoryUpdateCommitMessage,
+  resolveActiveAgentForTurn,
+} from "../../core-agent/agentIdentityRouting.ts";
+import { executeCoreAgentSlashCommand } from "../../core-agent/coreAgentSlashCommands.ts";
+import {
+  createCoreAgentService,
+  createFileCoreAgentStore,
+} from "../../core-agent/CoreAgentService.ts";
+import { createMemoryPalaceService } from "../../core-agent/MemoryPalaceService.ts";
 import { GitCore } from "../../git/Services/GitCore.ts";
 import { ProviderAdapterRequestError, ProviderServiceError } from "../../provider/Errors.ts";
 import { takeTransientTurnStartProviderOptions } from "../../provider/transientProviderOptions.ts";
@@ -45,8 +57,15 @@ import { parseLatestResumeContext, THREAD_SKILLS_ACTIVITY_KIND } from "../../thr
 import { ContextTrimmer } from "../Services/ContextTrimmer.ts";
 import { FeatureService } from "../Services/FeatureService.ts";
 import { MemoryService } from "../Services/MemoryService.ts";
+import { CoreMemoryService } from "../../memory/Services/CoreMemoryService.ts";
+import { commitMemoryChanges } from "../../memory/memoryGit.ts";
+import { globalAgentMemoryDir, projectMemoryDir } from "../../memory/paths.ts";
+import { assembleMemoryPreamble } from "../../memory/preamble.ts";
+import { ServerConfig } from "../../config.ts";
 import { ProjectPromptsService } from "../Services/ProjectPromptsService.ts";
 import { GoalsService } from "../Services/GoalsService.ts";
+import { createDocumentService } from "./DocumentServiceLive.ts";
+import { createApprovalService } from "./ApprovalServiceLive.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import {
   ProviderCommandReactor,
@@ -90,7 +109,7 @@ function applyWorkspaceAgentsInstructions(input: {
   ].join("\n");
 }
 
-function applyThreadTurnContext(input: {
+export function applyThreadTurnContext(input: {
   readonly agentsContents: string | undefined;
   readonly messageText: string;
   readonly resumeSummary?: string | undefined;
@@ -100,16 +119,19 @@ function applyThreadTurnContext(input: {
     readonly contents: string;
   }>;
   readonly projectContext?: string | undefined;
+  readonly agentMemory?: string | null | undefined;
 }): string {
   const normalizedResumeSummary = input.resumeSummary?.trim();
   const normalizedSkills = (input.selectedSkills ?? []).filter(
     (skill) => skill.contents.trim().length > 0,
   );
   const normalizedProjectContext = input.projectContext?.trim();
+  const normalizedAgentMemory = input.agentMemory?.trim();
   if (
     (!normalizedResumeSummary || normalizedResumeSummary.length === 0) &&
     normalizedSkills.length === 0 &&
-    (!normalizedProjectContext || normalizedProjectContext.length === 0)
+    (!normalizedProjectContext || normalizedProjectContext.length === 0) &&
+    (!normalizedAgentMemory || normalizedAgentMemory.length === 0)
   ) {
     return applyWorkspaceAgentsInstructions({
       agentsContents: input.agentsContents,
@@ -129,6 +151,9 @@ function applyThreadTurnContext(input: {
       agentsContents,
       "</workspace_instructions>",
     );
+  }
+  if (normalizedAgentMemory && normalizedAgentMemory.length > 0) {
+    sections.push("<agent_memory>", normalizedAgentMemory, "</agent_memory>");
   }
   if (normalizedProjectContext && normalizedProjectContext.length > 0) {
     sections.push("<project_context>", normalizedProjectContext, "</project_context>");
@@ -253,6 +278,19 @@ const make = Effect.gen(function* () {
   const goalsService = yield* GoalsService;
   const featureService = yield* FeatureService;
   const memoryService = yield* MemoryService;
+  const coreMemoryService = yield* CoreMemoryService;
+  const serverConfig = yield* ServerConfig;
+  const coreAgentService = createCoreAgentService({
+    store: createFileCoreAgentStore({ stateDir: serverConfig.stateDir }),
+    now: () => new Date().toISOString(),
+    generateId: () => crypto.randomUUID(),
+  });
+  const memoryPalaceService = createMemoryPalaceService({
+    stateDir: serverConfig.stateDir,
+    now: () => new Date().toISOString(),
+  });
+  const documentService = createDocumentService({ stateDir: serverConfig.stateDir });
+  const approvalService = createApprovalService({ stateDir: serverConfig.stateDir });
   const projectPromptsService = yield* ProjectPromptsService;
   const git = yield* GitCore;
   const textGeneration = yield* TextGeneration;
@@ -334,6 +372,30 @@ const make = Effect.gen(function* () {
         createdAt: input.createdAt,
       },
       createdAt: input.createdAt,
+    });
+
+  const appendAssistantMessage = (input: {
+    readonly threadId: ThreadId;
+    readonly text: string;
+    readonly createdAt: string;
+  }) =>
+    Effect.gen(function* () {
+      const messageId = MessageId.makeUnsafe(`server-message-${crypto.randomUUID()}`);
+      yield* orchestrationEngine.dispatch({
+        type: "thread.message.assistant.delta",
+        commandId: serverCommandId("assistant-message-delta"),
+        threadId: input.threadId,
+        messageId,
+        delta: input.text,
+        createdAt: input.createdAt,
+      });
+      yield* orchestrationEngine.dispatch({
+        type: "thread.message.assistant.complete",
+        commandId: serverCommandId("assistant-message-complete"),
+        threadId: input.threadId,
+        messageId,
+        createdAt: input.createdAt,
+      });
     });
 
   const setThreadSession = Effect.fnUntraced(function* (input: {
@@ -671,9 +733,7 @@ const make = Effect.gen(function* () {
           const s = sibling as any;
           const status = s.session?.status ?? "idle";
           const goalText = s.goal ? ` goal="${s.goal}"` : "";
-          contextParts.push(
-            `  <thread title="${s.title}" status="${status}"${goalText} />`,
-          );
+          contextParts.push(`  <thread title="${s.title}" status="${status}"${goalText} />`);
         }
         contextParts.push("</sibling_threads>");
       }
@@ -733,6 +793,47 @@ If you're unsure, say so clearly instead of claiming success.
       // Don't let project context failures block the turn
     }
 
+    // Assemble agent memory preamble (persistent global + project blocks).
+    // Failures never block the turn — memory is additive context.
+    let agentMemoryBlock: string | null = null;
+    let activeAgentIdForTurn: string | null = null;
+    try {
+      const activeAgent = yield* Effect.promise(() =>
+        resolveActiveAgentForTurn({
+          service: coreAgentService,
+          ...(workspaceCwd ? { projectRoot: workspaceCwd } : {}),
+        }),
+      );
+      activeAgentIdForTurn = activeAgent.activeAgentId;
+      const coreMemoryContext = activeAgent.memoryContext;
+      yield* coreMemoryService
+        .ensureGlobalSeeded(coreMemoryContext)
+        .pipe(Effect.catch(() => Effect.void));
+      if (workspaceCwd) {
+        yield* coreMemoryService
+          .ensureProjectSeeded({ projectRoot: workspaceCwd, agentId: activeAgent.activeAgentId })
+          .pipe(Effect.catch(() => Effect.void));
+      }
+      const globalBlocks = yield* coreMemoryService
+        .listGlobal(coreMemoryContext)
+        .pipe(Effect.catch(() => Effect.succeed([] as const)));
+      const projectBlocks = workspaceCwd
+        ? yield* coreMemoryService
+            .listProject({ projectRoot: workspaceCwd })
+            .pipe(Effect.catch(() => Effect.succeed([] as const)))
+        : [];
+      agentMemoryBlock = assembleMemoryPreamble({
+        global: globalBlocks,
+        project: projectBlocks,
+      });
+      agentMemoryBlock = assembleAgentTurnMemoryPreamble({
+        agent: activeAgent.agent,
+        memoryPreamble: agentMemoryBlock,
+      });
+    } catch {
+      // Don't let memory failures block the turn
+    }
+
     const normalizedInput = toNonEmptyProviderInput(
       applyThreadTurnContext({
         agentsContents:
@@ -749,6 +850,7 @@ If you're unsure, say so clearly instead of claiming success.
             }
           : {}),
         ...(projectContextBlock ? { projectContext: projectContextBlock } : {}),
+        ...(agentMemoryBlock ? { agentMemory: agentMemoryBlock } : {}),
       }),
     );
     const normalizedAttachments = input.attachments ?? [];
@@ -777,6 +879,23 @@ If you're unsure, say so clearly instead of claiming success.
       ...(input.modelOptions !== undefined ? { modelOptions: input.modelOptions } : {}),
       ...(input.interactionMode !== undefined ? { interactionMode: input.interactionMode } : {}),
     });
+
+    // Commit any agent edits to memory files. Safe to run even if no changes
+    // were made (commitMemoryChanges is a no-op then). Never blocks the turn.
+    yield* Effect.promise(() =>
+      commitMemoryChanges(
+        globalAgentMemoryDir(serverConfig.stateDir, activeAgentIdForTurn ?? undefined),
+        memoryUpdateCommitMessage(activeAgentIdForTurn ?? "default"),
+      ).catch(() => {}),
+    );
+    if (workspaceCwd) {
+      yield* Effect.promise(() =>
+        commitMemoryChanges(
+          projectMemoryDir(workspaceCwd),
+          memoryUpdateCommitMessage(activeAgentIdForTurn ?? "default"),
+        ).catch(() => {}),
+      );
+    }
 
     const updatedThread = yield* resolveThread(input.threadId);
     const sessionProvider =
@@ -916,6 +1035,39 @@ If you're unsure, say so clearly instead of claiming success.
         turnId: null,
         createdAt: event.payload.createdAt,
       });
+      return;
+    }
+
+    const readModel = yield* orchestrationEngine.getReadModel();
+    const workspaceCwd = resolveThreadWorkspaceCwd({
+      thread,
+      projects: readModel.projects,
+    });
+    const project = readModel.projects.find((entry) => entry.id === thread.projectId);
+    const slashResult = yield* Effect.promise(() =>
+      executeCoreAgentSlashCommand({
+        service: coreAgentService,
+        memory: memoryPalaceService,
+        scope: workspaceCwd ? { type: "project", projectRoot: workspaceCwd } : { type: "global" },
+        stateDir: serverConfig.stateDir,
+        organizing: {
+          ...(project ? { projectId: project.id } : {}),
+          actorId: "rowl",
+          goals: goalsService,
+          documents: documentService,
+          approvals: approvalService,
+        },
+        conversationMessages: thread.messages,
+        summarizer: contextTrimmer,
+        text: message.text,
+      }),
+    ).pipe(Effect.catch(() => Effect.succeed(null)));
+    if (slashResult) {
+      yield* appendAssistantMessage({
+        threadId: event.payload.threadId,
+        text: slashResult.response,
+        createdAt: event.payload.createdAt,
+      }).pipe(Effect.catch(() => Effect.void));
       return;
     }
 

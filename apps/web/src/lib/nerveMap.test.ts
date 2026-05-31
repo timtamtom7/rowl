@@ -61,7 +61,9 @@ function main() { return helper(); }`,
     ];
 
     const graph = buildNerveGraph(files);
-    expect(graph.calls.some((c) => c.source.includes("main") && c.target.includes("helper"))).toBe(true);
+    expect(graph.calls.some((c) => c.source.includes("main") && c.target.includes("helper"))).toBe(
+      true,
+    );
   });
 
   it("calculates stats", () => {

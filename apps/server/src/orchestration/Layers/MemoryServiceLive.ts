@@ -56,30 +56,26 @@ export const MemoryServiceLive = Layer.effect(
       }).pipe(Effect.catch(() => Effect.die(new Error("Failed to create memory"))));
 
     const searchMemories: MemoryServiceShape["searchMemories"] = (input) =>
-      memoryRepo.search({
-        query: input.query,
-        projectId: input.projectId,
-        limit: input.limit,
-      } as any).pipe(
-        Effect.catch(() => Effect.succeed([] as ReadonlyArray<MemoryEntry>)),
-      );
+      memoryRepo
+        .search({
+          query: input.query,
+          projectId: input.projectId,
+          limit: input.limit,
+        } as any)
+        .pipe(Effect.catch(() => Effect.succeed([] as ReadonlyArray<MemoryEntry>)));
 
     const listByProject: MemoryServiceShape["listByProject"] = (input) =>
-      memoryRepo.listByProject({
-        projectId: input.projectId,
-        limit: input.limit,
-      } as any).pipe(
-        Effect.catch(() => Effect.succeed([] as ReadonlyArray<MemoryEntry>)),
-      );
+      memoryRepo
+        .listByProject({
+          projectId: input.projectId,
+          limit: input.limit,
+        } as any)
+        .pipe(Effect.catch(() => Effect.succeed([] as ReadonlyArray<MemoryEntry>)));
 
     const deleteMemory: MemoryServiceShape["deleteMemory"] = (input) =>
-      memoryRepo.deleteById({ id: input.id } as any).pipe(
-        Effect.catch(() => Effect.void),
-      );
+      memoryRepo.deleteById({ id: input.id } as any).pipe(Effect.catch(() => Effect.void));
 
-    const buildRelevantMemoriesBlock: MemoryServiceShape["buildRelevantMemoriesBlock"] = (
-      input,
-    ) =>
+    const buildRelevantMemoriesBlock: MemoryServiceShape["buildRelevantMemoriesBlock"] = (input) =>
       Effect.gen(function* () {
         const maxTokens = input.maxTokens ?? 500;
 
@@ -106,7 +102,11 @@ export const MemoryServiceLive = Layer.effect(
                 })),
                 5,
               )
-              .pipe(Effect.catch(() => Effect.succeed([] as ReadonlyArray<{ id: string; score: number }>)));
+              .pipe(
+                Effect.catch(() =>
+                  Effect.succeed([] as ReadonlyArray<{ id: string; score: number }>),
+                ),
+              );
 
             // Merge FTS5 and semantic results, deduplicate by ID
             const existingIds = new Set(memories.map((m) => (m as any).id as string));
@@ -135,18 +135,14 @@ export const MemoryServiceLive = Layer.effect(
           tokenCount += memoryTokens;
 
           // Touch the memory's last_accessed_at
-          yield* memoryRepo.touchAccessed(memory.id).pipe(
-            Effect.catch(() => Effect.void),
-          );
+          yield* memoryRepo.touchAccessed(memory.id).pipe(Effect.catch(() => Effect.void));
         }
 
         if (parts.length === 1) return null; // Only the opening tag, no memories fit
 
         parts.push("</relevant_memories>");
         return parts.join("\n");
-      }).pipe(
-        Effect.catch(() => Effect.succeed(null as string | null)),
-      );
+      }).pipe(Effect.catch(() => Effect.succeed(null as string | null)));
 
     return {
       createMemory,

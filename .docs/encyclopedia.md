@@ -178,6 +178,10 @@ The starting checkpoint for diffing a thread timeline. This flow is surfaced thr
 
 The patch difference between two checkpoints. Query logic lives in [CheckpointDiffQuery.ts][20], diff parsing lives in [Diffs.ts][23], and finalization is coordinated by [CheckpointReactor.ts][6].
 
+#### Worktree checkpoint
+
+A checkpoint recorded from a managed Git worktree. Worktree checkpoints are hidden refs that point at actual branch commits, include the source worktree branch/path in their contracts, and are coordinated by `WorktreeCheckpointService`.
+
 #### Turn diff
 
 The file patch and changed-file summary for one turn. It is usually computed in [CheckpointDiffQuery.ts][20], represented in [the contracts][1], and recorded into thread state by [projector.ts][4].

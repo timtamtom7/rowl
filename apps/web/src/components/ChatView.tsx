@@ -24,6 +24,7 @@ import {
   type ProviderReasoningLevel,
   type ThreadForkSource,
   type ThreadId,
+  type ThreadApprovalGateId,
   type ThreadShareSummary,
   type TurnId,
   OrchestrationThreadActivity,
@@ -106,6 +107,8 @@ import {
 import { summarizeTurnDiffInPlainLanguage } from "~/lib/turnDiffTree";
 import { buildComposerMcpServerItems, providerSupportsMcp } from "../mcpServers";
 import { buildModelOptionsForSend } from "../chatDispatchOptions";
+import { ApprovalGateCard } from "../approval-gates/ApprovalGateCard";
+import { useApprovalGates } from "../approval-gates/useApprovalGates";
 
 import { isElectron } from "../env";
 import { parseDiffRouteSearch, stripDiffSearchParams } from "../diffRouteSearch";
@@ -117,6 +120,7 @@ import {
   collapseExpandedComposerCursor,
   detectComposerTrigger,
   expandCollapsedComposerCursor,
+  expandRememberInvocation,
   getComposerSlashCommandAliases,
   parseStandaloneComposerSlashInvocation,
   parseStandaloneComposerSlashCommand,
@@ -303,6 +307,7 @@ import {
 import { type AppLanguage } from "../appLanguage";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import { buildNewThreadDraftContextPatch } from "../lib/newThreadDraftContext";
+import { createInheritedAgentForNewThread } from "../core-agent/newAgentThread";
 import {
   type ComposerImageAttachment,
   type DraftThreadEnvMode,
@@ -311,6 +316,7 @@ import {
   useComposerDraftStore,
   useComposerThreadDraft,
 } from "../composerDraftStore";
+import { useDraftPersistence } from "../composer/useDraftPersistence";
 import { shouldUseCompactComposerFooter } from "./composerFooterLayout";
 import { selectThreadTerminalState, useTerminalStateStore } from "../terminalStateStore";
 import { type QueuedThreadTurn, useThreadSendQueueStore } from "../threadSendQueue";
@@ -1305,6 +1311,21 @@ export default function ChatView({ threadId }: ChatViewProps) {
     },
     [setComposerDraftPrompt, threadId],
   );
+  const restoreComposerDraftText = useCallback(
+    (restoredPrompt: string) => {
+      promptRef.current = restoredPrompt;
+      setPrompt(restoredPrompt);
+      const restoredCursor = collapseExpandedComposerCursor(restoredPrompt, restoredPrompt.length);
+      setComposerCursor(restoredCursor);
+      setComposerTrigger(detectComposerTrigger(restoredPrompt, restoredPrompt.length));
+    },
+    [setPrompt],
+  );
+  const { clearDraft: clearPersistedComposerTextDraft } = useDraftPersistence({
+    threadId,
+    text: prompt,
+    onRestoreDraft: restoreComposerDraftText,
+  });
   const setSelectedSkills = useCallback(
     (skills: ReadonlyArray<ProjectSkillName>) => {
       setComposerDraftSelectedSkills(threadId, skills);
@@ -1374,6 +1395,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const activeLatestTurn = activeThread?.latestTurn ?? null;
   const latestTurnSettled = isLatestTurnSettled(activeLatestTurn, activeThread?.session ?? null);
   const activeProject = projects.find((p) => p.id === activeThread?.projectId);
+  const approvalGates = useApprovalGates({ threadId: activeThreadId });
+  const [busyApprovalGateIds, setBusyApprovalGateIds] = useState<ThreadApprovalGateId[]>([]);
 
   const openPullRequestDialog = useCallback(
     (reference?: string) => {
@@ -3102,10 +3125,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
           type: "slash-command",
           command: "init",
           label: "/init",
-          description:
-            agentsFileQuery.data?.status === "available"
-              ? "Update the workspace AGENTS.md file"
-              : "Create the workspace AGENTS.md file",
+          description: "Seed project memory notes from this workspace",
           aliases: getComposerSlashCommandAliases("init"),
         },
         {
@@ -3121,8 +3141,16 @@ export default function ChatView({ threadId }: ChatViewProps) {
           type: "slash-command",
           command: "compact",
           label: "/compact",
-          description: "Compact this thread into a continuation summary",
+          description: "Save a conversation summary to memory",
           aliases: getComposerSlashCommandAliases("compact"),
+        },
+        {
+          id: "slash:reflect",
+          type: "slash-command",
+          command: "reflect",
+          label: "/reflect",
+          description: "Analyze memory patterns and gaps",
+          aliases: getComposerSlashCommandAliases("reflect"),
         },
         {
           id: "slash:share",
@@ -3181,6 +3209,14 @@ export default function ChatView({ threadId }: ChatViewProps) {
             ? "Hide tool details in the timeline"
             : "Show tool details in the timeline",
           aliases: getComposerSlashCommandAliases("details"),
+        },
+        {
+          id: "slash:remember",
+          type: "slash-command",
+          command: "remember",
+          label: "/remember",
+          description: "Ask the agent to update a memory block with the given text",
+          aliases: getComposerSlashCommandAliases("remember"),
         },
       ];
       if (composerMcpSupported) {
@@ -4831,11 +4867,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
   }, [activeThread, canRedoThread, redoThreadMutation]);
 
   const runStandaloneSlashCommand = useCallback(
-    async (command: Exclude<ComposerSlashCommand, "model" | "mcp">) => {
-      if (command === "init") {
-        await runInitCommand();
-        return;
-      }
+    async (command: Exclude<ComposerSlashCommand, "model" | "mcp" | "init">) => {
       if (command === "plan" || command === "default") {
         await handleInteractionModeChange(command);
         return;
@@ -4846,6 +4878,17 @@ export default function ChatView({ threadId }: ChatViewProps) {
             type: "warning",
             title: "No project available",
             description: "Add or select a project before starting a new thread.",
+          });
+          return;
+        }
+        const api = readNativeApi();
+        const defaultProject = projects.find((project) => project.id === defaultProjectId);
+        if (api && defaultProject) {
+          await createInheritedAgentForNewThread({
+            api,
+            projectId: defaultProjectId,
+            projectRoot: defaultProject.cwd,
+            openNewThread: openDefaultNewThread,
           });
           return;
         }
@@ -4935,9 +4978,9 @@ export default function ChatView({ threadId }: ChatViewProps) {
       isServerThread,
       openDefaultNewThread,
       openThreadExportDialog,
+      projects,
       redoThread,
       revokeThreadShare,
-      runInitCommand,
       settings.showToolDetails,
       undoThread,
       updateSettings,
@@ -4965,6 +5008,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
         await runStandaloneSlashCommand(standaloneSlashCommand);
         promptRef.current = "";
         clearComposerDraftContent(activeThread.id);
+        clearPersistedComposerTextDraft(activeThread.id);
         setPendingTemplateOverrides(null);
         setComposerHighlightedItemId(null);
         setComposerCursor(0);
@@ -4976,6 +5020,12 @@ export default function ChatView({ threadId }: ChatViewProps) {
         composerImages.length === 0 ? parseStandaloneComposerSlashInvocation(trimmed) : null;
       let textForSend = trimmed;
       let templateOverridesForSend = pendingTemplateOverrides;
+      // /remember TEXT — expand into a memory-guidance message for the agent.
+      const rememberExpansion =
+        composerImages.length === 0 ? expandRememberInvocation(trimmed) : null;
+      if (rememberExpansion) {
+        textForSend = rememberExpansion;
+      }
       if (standaloneSlashInvocation) {
         const template = resolveProjectCommandTemplate(
           projectCommandTemplates,
@@ -5090,6 +5140,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
       composerImages,
       copilotReasoningProbeQuery.data,
       clearComposerDraftContent,
+      clearPersistedComposerTextDraft,
       ensureOpenRouterModelSupportsToolsForDispatch,
       ensureProviderCredentialsForDispatch,
       interactionMode,
@@ -5111,12 +5162,13 @@ export default function ChatView({ threadId }: ChatViewProps) {
     (targetThreadId: ThreadId) => {
       promptRef.current = "";
       clearComposerDraftContent(targetThreadId);
+      clearPersistedComposerTextDraft(targetThreadId);
       setPendingTemplateOverrides(null);
       setComposerHighlightedItemId(null);
       setComposerCursor(0);
       setComposerTrigger(null);
     },
-    [clearComposerDraftContent],
+    [clearComposerDraftContent, clearPersistedComposerTextDraft],
   );
 
   const queueCurrentComposerTurn = useCallback(
@@ -5371,6 +5423,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
       });
       promptRef.current = "";
       clearComposerDraftContent(activeThread.id);
+      clearPersistedComposerTextDraft(activeThread.id);
       setComposerHighlightedItemId(null);
       setComposerCursor(0);
       setComposerTrigger(null);
@@ -5768,6 +5821,46 @@ export default function ChatView({ threadId }: ChatViewProps) {
       setRespondingRequestIds((existing) => existing.filter((id) => id !== requestId));
     },
     [setStoreThreadError, threadId],
+  );
+
+  const onApproveApprovalGate = useCallback(
+    async (gateId: ThreadApprovalGateId) => {
+      setBusyApprovalGateIds((existing) =>
+        existing.includes(gateId) ? existing : [...existing, gateId],
+      );
+      try {
+        await approvalGates.approve(gateId);
+      } catch (caught) {
+        toastManager.add({
+          type: "error",
+          title: "Failed to approve change",
+          description: caught instanceof Error ? caught.message : "Approval gate failed.",
+        });
+      } finally {
+        setBusyApprovalGateIds((existing) => existing.filter((id) => id !== gateId));
+      }
+    },
+    [approvalGates],
+  );
+
+  const onRejectApprovalGate = useCallback(
+    async (gateId: ThreadApprovalGateId) => {
+      setBusyApprovalGateIds((existing) =>
+        existing.includes(gateId) ? existing : [...existing, gateId],
+      );
+      try {
+        await approvalGates.reject(gateId);
+      } catch (caught) {
+        toastManager.add({
+          type: "error",
+          title: "Failed to reject change",
+          description: caught instanceof Error ? caught.message : "Approval gate failed.",
+        });
+      } finally {
+        setBusyApprovalGateIds((existing) => existing.filter((id) => id !== gateId));
+      }
+    },
+    [approvalGates],
   );
 
   const autoHandledApprovalRuleRequestIdsRef = useRef<Set<ApprovalRequestId>>(new Set());
@@ -6791,7 +6884,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-muted-foreground/40">
         {!isElectron && (
-          <header className="border-b border-border px-3 py-2">
+          <header className="border-b border-border/55 bg-background/72 px-3 py-2 backdrop-blur-xl">
             <div className="flex items-center gap-2">
               <ThreadSidebarToggle />
               <ThreadNewButton />
@@ -6800,7 +6893,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
           </header>
         )}
         {isElectron && (
-          <div className="drag-region flex h-[52px] shrink-0 items-center gap-2 border-b border-border px-5">
+          <div className="drag-region flex h-[52px] shrink-0 items-center gap-2 border-b border-border/55 bg-background/72 px-5 backdrop-blur-xl">
             <ThreadSidebarToggle />
             <ThreadNewButton />
             <span className="text-xs text-muted-foreground/50">No active thread</span>
@@ -6818,7 +6911,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
       {/* Top bar */}
       <header
         className={cn(
-          "border-b border-border px-3 sm:px-5",
+          "border-b border-border/55 bg-background/72 px-3 backdrop-blur-xl sm:px-5",
           isElectron ? "drag-region flex h-[52px] items-center" : "py-2 sm:py-3",
         )}
       >
@@ -6920,6 +7013,27 @@ export default function ChatView({ threadId }: ChatViewProps) {
                 />
               </div>
             ) : null}
+            {approvalGates.gates.length > 0 ? (
+              <div className="shrink-0 border-b border-border/50 px-3 py-2 sm:px-5">
+                <div className="mx-auto flex max-w-3xl flex-col gap-2">
+                  {approvalGates.gates.map((gate) => (
+                    <ApprovalGateCard
+                      key={gate.id}
+                      gate={gate}
+                      isBusy={busyApprovalGateIds.includes(gate.id)}
+                      onApprove={(nextGate) => void onApproveApprovalGate(nextGate.id)}
+                      onReject={(nextGate) => void onRejectApprovalGate(nextGate.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : approvalGates.error ? (
+              <div className="shrink-0 border-b border-border/50 px-3 py-2 sm:px-5">
+                <div className="mx-auto max-w-3xl rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {approvalGates.error}
+                </div>
+              </div>
+            ) : null}
             <ThreadTasksPanel
               tasks={threadTasks}
               timestampFormat={timestampFormat}
@@ -6934,7 +7048,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
               {/* Messages */}
               <div
                 ref={setMessagesScrollContainerRef}
-                className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-3 py-3 sm:px-5 sm:py-4"
+                className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-3 py-4 sm:px-5 sm:py-5"
                 onScroll={onMessagesScroll}
                 onClickCapture={onMessagesClickCapture}
                 onWheel={onMessagesWheel}
@@ -6994,21 +7108,22 @@ export default function ChatView({ threadId }: ChatViewProps) {
           </div>
 
           {/* Overseer alerts */}
-          {activeThread && (() => {
-            const alerts = (activeThread.activities ?? [])
-              .filter((a: any) => typeof a.kind === "string" && a.kind.startsWith("overseer."))
-              .slice(-3); // Show max 3 most recent
-            if (alerts.length === 0) return null;
-            return (
-              <div className="px-3 sm:px-5">
-                <div className="mx-auto max-w-3xl">
-                  {alerts.map((a: any) => (
-                    <OverseerAlertInline key={a.id ?? a.createdAt} activity={a} />
-                  ))}
+          {activeThread &&
+            (() => {
+              const alerts = (activeThread.activities ?? [])
+                .filter((a: any) => typeof a.kind === "string" && a.kind.startsWith("overseer."))
+                .slice(-3); // Show max 3 most recent
+              if (alerts.length === 0) return null;
+              return (
+                <div className="px-3 sm:px-5">
+                  <div className="mx-auto max-w-3xl">
+                    {alerts.map((a: any) => (
+                      <OverseerAlertInline key={a.id ?? a.createdAt} activity={a} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
 
           {/* Input bar */}
           <div
@@ -7025,8 +7140,8 @@ export default function ChatView({ threadId }: ChatViewProps) {
             >
               <div
                 data-chat-composer-surface="true"
-                className={`group app-interactive-motion rounded-[20px] border bg-card focus-within:border-ring/45 ${
-                  isDragOverComposer ? "border-primary/70 bg-accent/30" : "border-border"
+                className={`group app-interactive-motion rounded-2xl border bg-card/72 shadow-[var(--rowl-shadow-panel)] backdrop-blur-xl focus-within:border-ring/45 ${
+                  isDragOverComposer ? "border-primary/70 bg-accent/30" : "border-border/70"
                 }`}
                 onDragEnter={onComposerDragEnter}
                 onDragOver={onComposerDragOver}
@@ -7350,7 +7465,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                     <div className="px-2.5 pb-2 pt-1 text-[11px] text-muted-foreground/70 sm:px-3">
                       {agentsFileQuery.data?.status === "available"
                         ? `Using workspace instructions from ${agentsFileQuery.data.relativePath}`
-                        : "No workspace AGENTS.md found. Run /init to create one."}
+                        : "No workspace AGENTS.md found."}
                     </div>
                   ) : null}
                 </div>

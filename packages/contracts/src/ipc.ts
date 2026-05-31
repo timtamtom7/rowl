@@ -27,6 +27,25 @@ import type {
   SearchMemoryResult,
 } from "./memory";
 import type {
+  CoreAgentCreateRequest,
+  CoreAgentDeleteRequest,
+  CoreAgentDeleteResponse,
+  CoreAgentListRequest,
+  CoreAgentListResponse,
+  CoreAgentMutationResponse,
+  CoreAgentSetActiveRequest,
+  CoreAgentSetActiveResponse,
+  CoreAgentUpdateRequest,
+  MemoryChangedEvent,
+  MemoryNoteDeleteRequest,
+  MemoryNoteDeleteResponse,
+  MemoryNoteListRequest,
+  MemoryNoteListResponse,
+  MemoryNoteReadRequest,
+  MemoryNoteResponse,
+  MemoryNoteWriteRequest,
+} from "./core-agent";
+import type {
   GetCodebaseHealthInput,
   GetCodebaseHealthResult,
   UpdateCodebaseHealthInput,
@@ -74,6 +93,10 @@ import type {
   CreateGoalResult,
   DeleteGoalInput,
   DeleteGoalResult,
+  GetGoalAncestorsInput,
+  GetGoalAncestorsResult,
+  GetGoalChildrenInput,
+  GetGoalChildrenResult,
   GetGoalInput,
   GetGoalResult,
   LinkThreadToGoalInput,
@@ -84,12 +107,49 @@ import type {
   SetMainGoalResult,
   UnlinkThreadFromGoalInput,
   UnlinkThreadFromGoalResult,
+  UpdateGoalInput,
+  UpdateGoalResult,
   UpdateGoalTextInput,
   UpdateGoalTextResult,
 } from "./goals";
 import type {
+  CreateGoalDocumentInput,
+  DeleteGoalDocumentInput,
+  DeleteGoalDocumentResult,
+  GoalDocumentResult,
+  ListDocumentsByGoalInput,
+  ListDocumentsByGoalResult,
+  ReadGoalDocumentInput,
+  UpdateGoalDocumentInput,
+  WriteGoalDocumentInput,
+} from "./documents";
+import type {
+  ApprovalGateResult,
+  ApproveInput,
+  CreateApprovalInput,
+  IsGoalApprovedInput,
+  IsGoalApprovedResult,
+  ListApprovalsByGoalInput,
+  ListApprovalsByGoalResult,
+  RejectInput,
+} from "./approvals";
+import type {
+  CreateThreadApprovalGateInput,
+  ListThreadApprovalGatesInput,
+  ListThreadApprovalGatesResult,
+  ThreadApprovalGateIdInput,
+  ThreadApprovalGateResult,
+} from "./approvalGates";
+import type { OrganizingChangedEvent } from "./ws";
+import type {
+  CreateWorktreeInput,
+  CreateWorktreeResult,
+  GetWorktreeInfoInput,
   GitCheckoutInput,
+  GitCherryPickInput,
   GitCreateBranchInput,
+  GitIntegrationResult,
+  GitMergeBranchInput,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
   GitPullRequestRefInput,
@@ -106,7 +166,20 @@ import type {
   GitRunStackedActionResult,
   GitStatusInput,
   GitStatusResult,
+  ListWorktreesInput,
+  ListWorktreesResult,
+  RemoveWorktreeInput,
+  StackBranchInput,
+  StackBranchResult,
+  WorktreeInfo,
 } from "./git";
+import type {
+  CreateWorktreeCheckpointInput,
+  ListWorktreeCheckpointsInput,
+  ListWorktreeCheckpointsResult,
+  WorktreeCheckpointResult,
+} from "./checkpointing";
+import type { DiffTree, GitGetDiffTreeInput } from "./diffTree";
 import type {
   ProjectAgentsFileInput,
   ProjectAgentsFileResult,
@@ -270,9 +343,7 @@ export interface NativeApi {
       input: ProjectListCommandTemplatesInput,
     ) => Promise<ProjectListCommandTemplatesResult>;
     listSkills: (input: ProjectListSkillsInput) => Promise<ProjectListSkillsResult>;
-    listSourceFiles: (
-      input: ProjectListSourceFilesInput,
-    ) => Promise<ProjectListSourceFilesResult>;
+    listSourceFiles: (input: ProjectListSourceFilesInput) => Promise<ProjectListSourceFilesResult>;
     readFile: (input: ProjectReadFileInput) => Promise<ProjectReadFileResult>;
     writeFile: (input: ProjectWriteFileInput) => Promise<ProjectWriteFileResult>;
     deleteFile: (input: ProjectDeleteFileInput) => Promise<ProjectDeleteFileResult>;
@@ -314,6 +385,20 @@ export interface NativeApi {
     listByProject: (input: ListMemoryByProjectInput) => Promise<ListMemoryByProjectResult>;
     delete: (input: DeleteMemoryInput) => Promise<DeleteMemoryResult>;
   };
+  coreAgents: {
+    list: (input: CoreAgentListRequest) => Promise<CoreAgentListResponse>;
+    create: (input: CoreAgentCreateRequest) => Promise<CoreAgentMutationResponse>;
+    update: (input: CoreAgentUpdateRequest) => Promise<CoreAgentMutationResponse>;
+    delete: (input: CoreAgentDeleteRequest) => Promise<CoreAgentDeleteResponse>;
+    setActive: (input: CoreAgentSetActiveRequest) => Promise<CoreAgentSetActiveResponse>;
+  };
+  memoryNotes: {
+    list: (input: MemoryNoteListRequest) => Promise<MemoryNoteListResponse>;
+    read: (input: MemoryNoteReadRequest) => Promise<MemoryNoteResponse>;
+    write: (input: MemoryNoteWriteRequest) => Promise<MemoryNoteResponse>;
+    delete: (input: MemoryNoteDeleteRequest) => Promise<MemoryNoteDeleteResponse>;
+    onChanged: (callback: (event: MemoryChangedEvent) => void) => () => void;
+  };
   codebaseHealth: {
     getSummary: (input: GetCodebaseHealthInput) => Promise<GetCodebaseHealthResult>;
     updateHealth: (input: UpdateCodebaseHealthInput) => Promise<UpdateCodebaseHealthResult>;
@@ -328,14 +413,14 @@ export interface NativeApi {
     listPresets: () => Promise<ListHarnessPresetsResult>;
     activate: (input: ActivateHarnessInput) => Promise<ActivateHarnessResult>;
     deactivate: (input: DeactivateHarnessInput) => Promise<DeactivateHarnessResult>;
-    getActive: (input: { threadId: string }) => Promise<{ preset: { id: string; name: string } | null }>;
+    getActive: (input: {
+      threadId: string;
+    }) => Promise<{ preset: { id: string; name: string } | null }>;
   };
   featureThreadLinks: {
     link: (input: { featureId: string; threadId: string }) => Promise<unknown>;
     unlink: (input: { featureId: string; threadId: string }) => Promise<unknown>;
-    getLinks: (input: {
-      projectId: string;
-    }) => Promise<{
+    getLinks: (input: { projectId: string }) => Promise<{
       readonly links: ReadonlyArray<{
         readonly featureId: string;
         readonly threadId: string;
@@ -360,11 +445,38 @@ export interface NativeApi {
     create: (input: CreateGoalInput) => Promise<CreateGoalResult>;
     get: (input: GetGoalInput) => Promise<GetGoalResult>;
     listByProject: (input: ListGoalsByProjectInput) => Promise<ListGoalsByProjectResult>;
+    update: (input: UpdateGoalInput) => Promise<UpdateGoalResult>;
+    getChildren: (input: GetGoalChildrenInput) => Promise<GetGoalChildrenResult>;
+    getAncestors: (input: GetGoalAncestorsInput) => Promise<GetGoalAncestorsResult>;
     setMain: (input: SetMainGoalInput) => Promise<SetMainGoalResult>;
     linkThread: (input: LinkThreadToGoalInput) => Promise<LinkThreadToGoalResult>;
     unlinkThread: (input: UnlinkThreadFromGoalInput) => Promise<UnlinkThreadFromGoalResult>;
     updateText: (input: UpdateGoalTextInput) => Promise<UpdateGoalTextResult>;
     delete: (input: DeleteGoalInput) => Promise<DeleteGoalResult>;
+    onChanged: (callback: (event: OrganizingChangedEvent) => void) => () => void;
+  };
+  documents: {
+    listByGoal: (input: ListDocumentsByGoalInput) => Promise<ListDocumentsByGoalResult>;
+    read: (input: ReadGoalDocumentInput) => Promise<GoalDocumentResult>;
+    write: (input: WriteGoalDocumentInput) => Promise<GoalDocumentResult>;
+    create: (input: CreateGoalDocumentInput) => Promise<GoalDocumentResult>;
+    update: (input: UpdateGoalDocumentInput) => Promise<GoalDocumentResult>;
+    delete: (input: DeleteGoalDocumentInput) => Promise<DeleteGoalDocumentResult>;
+    onChanged: (callback: (event: OrganizingChangedEvent) => void) => () => void;
+  };
+  approvals: {
+    listByGoal: (input: ListApprovalsByGoalInput) => Promise<ListApprovalsByGoalResult>;
+    create: (input: CreateApprovalInput) => Promise<ApprovalGateResult>;
+    approve: (input: ApproveInput) => Promise<ApprovalGateResult>;
+    reject: (input: RejectInput) => Promise<ApprovalGateResult>;
+    isGoalApproved: (input: IsGoalApprovedInput) => Promise<IsGoalApprovedResult>;
+    onChanged: (callback: (event: OrganizingChangedEvent) => void) => () => void;
+  };
+  approvalGates: {
+    create: (input: CreateThreadApprovalGateInput) => Promise<ThreadApprovalGateResult>;
+    approve: (input: ThreadApprovalGateIdInput) => Promise<ThreadApprovalGateResult>;
+    reject: (input: ThreadApprovalGateIdInput) => Promise<ThreadApprovalGateResult>;
+    list: (input: ListThreadApprovalGatesInput) => Promise<ListThreadApprovalGatesResult>;
   };
   shell: {
     openInEditor: (cwd: string, editor: EditorId) => Promise<void>;
@@ -375,6 +487,15 @@ export interface NativeApi {
     listBranches: (input: GitListBranchesInput) => Promise<GitListBranchesResult>;
     createWorktree: (input: GitCreateWorktreeInput) => Promise<GitCreateWorktreeResult>;
     removeWorktree: (input: GitRemoveWorktreeInput) => Promise<void>;
+    cherryPick: (input: GitCherryPickInput) => Promise<GitIntegrationResult>;
+    mergeBranch: (input: GitMergeBranchInput) => Promise<GitIntegrationResult>;
+    stackBranch: (input: StackBranchInput) => Promise<StackBranchResult>;
+    worktrees: {
+      create: (input: CreateWorktreeInput) => Promise<CreateWorktreeResult>;
+      list: (input: ListWorktreesInput) => Promise<ListWorktreesResult>;
+      remove: (input: RemoveWorktreeInput) => Promise<void>;
+      info: (input: GetWorktreeInfoInput) => Promise<WorktreeInfo>;
+    };
     createBranch: (input: GitCreateBranchInput) => Promise<void>;
     checkout: (input: GitCheckoutInput) => Promise<void>;
     init: (input: GitInitInput) => Promise<void>;
@@ -386,6 +507,11 @@ export interface NativeApi {
     pull: (input: GitPullInput) => Promise<GitPullResult>;
     status: (input: GitStatusInput) => Promise<GitStatusResult>;
     runStackedAction: (input: GitRunStackedActionInput) => Promise<GitRunStackedActionResult>;
+    getDiffTree: (input: GitGetDiffTreeInput) => Promise<DiffTree>;
+  };
+  checkpoints: {
+    createInWorktree: (input: CreateWorktreeCheckpointInput) => Promise<WorktreeCheckpointResult>;
+    listByWorktree: (input: ListWorktreeCheckpointsInput) => Promise<ListWorktreeCheckpointsResult>;
   };
   contextMenu: {
     show: <T extends string>(

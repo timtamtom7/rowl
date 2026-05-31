@@ -69,13 +69,9 @@ export interface MemoryEntryRepositoryShape {
     input: ListMemoryByProjectInput,
   ) => Effect.Effect<ReadonlyArray<MemoryEntry>, ProjectionRepositoryError>;
 
-  readonly deleteById: (
-    input: DeleteMemoryInput,
-  ) => Effect.Effect<void, ProjectionRepositoryError>;
+  readonly deleteById: (input: DeleteMemoryInput) => Effect.Effect<void, ProjectionRepositoryError>;
 
-  readonly touchAccessed: (
-    id: MemoryEntryId,
-  ) => Effect.Effect<void, ProjectionRepositoryError>;
+  readonly touchAccessed: (id: MemoryEntryId) => Effect.Effect<void, ProjectionRepositoryError>;
 }
 
 export class MemoryEntryRepository extends ServiceMap.Service<

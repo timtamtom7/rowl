@@ -25,7 +25,8 @@
 }
 
 .react-flow .react-flow__node.selected > div > div:nth-child(2) {
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3),
+  box-shadow:
+    0 0 20px rgba(255, 255, 255, 0.3),
     inset 0 0 10px rgba(255, 255, 255, 0.1) !important;
 }
 
@@ -121,8 +122,7 @@
   background:
     radial-gradient(ellipse at 50% 50%, rgba(99, 102, 241, 0.03) 0%, transparent 60%),
     radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.02) 0%, transparent 50%),
-    radial-gradient(ellipse at 20% 80%, rgba(139, 92, 246, 0.02) 0%, transparent 50%),
-    #0a0a0f;
+    radial-gradient(ellipse at 20% 80%, rgba(139, 92, 246, 0.02) 0%, transparent 50%), #0a0a0f;
 }
 
 /* Health legend */

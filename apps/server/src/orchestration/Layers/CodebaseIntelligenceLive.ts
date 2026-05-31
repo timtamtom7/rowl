@@ -115,9 +115,7 @@ export const CodebaseIntelligenceLive = Layer.effect(
         Effect.catch(() => Effect.void),
       );
 
-    const getProjectHealthSummary: CodebaseIntelligenceShape["getProjectHealthSummary"] = (
-      input,
-    ) =>
+    const getProjectHealthSummary: CodebaseIntelligenceShape["getProjectHealthSummary"] = (input) =>
       Effect.gen(function* () {
         const rows = yield* sql`
           SELECT

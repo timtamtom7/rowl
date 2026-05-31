@@ -26,7 +26,9 @@ function readPersistedTab(): RightSidebarTab {
       stored === "threads" ||
       stored === "features" ||
       stored === "goals" ||
+      stored === "worktrees" ||
       stored === "context" ||
+      stored === "memory" ||
       stored === "map"
     ) {
       return stored;

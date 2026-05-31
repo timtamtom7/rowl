@@ -132,16 +132,17 @@ export const OverseerAlert = memo(function OverseerAlert({
 
   return (
     <div
-      className={cn(
-        "mx-4 my-2 rounded-lg border px-3 py-2",
-        config.bgColor,
-        config.borderColor,
-      )}
+      className={cn("mx-4 my-2 rounded-lg border px-3 py-2", config.bgColor, config.borderColor)}
     >
       <div className="flex items-start gap-2">
         <Icon className={cn("size-4 shrink-0 mt-0.5", config.color)} />
         <div className="flex-1 min-w-0">
-          <p className={cn("text-[10px] font-semibold uppercase tracking-wider mb-0.5", config.color)}>
+          <p
+            className={cn(
+              "text-[10px] font-semibold uppercase tracking-wider mb-0.5",
+              config.color,
+            )}
+          >
             {config.label}
           </p>
           <p className="text-xs text-foreground/70 leading-relaxed">
@@ -158,7 +159,13 @@ export const OverseerAlert = memo(function OverseerAlert({
  * and return them sorted by creation time.
  */
 export function getOverseerAlerts(
-  activities: ReadonlyArray<{ id?: string; kind?: string; summary?: string; createdAt?: string; [key: string]: unknown }>,
+  activities: ReadonlyArray<{
+    id?: string;
+    kind?: string;
+    summary?: string;
+    createdAt?: string;
+    [key: string]: unknown;
+  }>,
 ): OverseerActivity[] {
   return activities
     .filter((a) => typeof a.kind === "string" && a.kind.startsWith("overseer."))

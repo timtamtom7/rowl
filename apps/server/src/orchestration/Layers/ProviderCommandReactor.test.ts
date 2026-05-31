@@ -17,6 +17,10 @@ import { Effect, Exit, Layer, ManagedRuntime, PubSub, Scope, Stream } from "effe
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ServerConfig } from "../../config.ts";
+import {
+  createCoreAgentService,
+  createFileCoreAgentStore,
+} from "../../core-agent/CoreAgentService.ts";
 import { TextGenerationError } from "../../git/Errors.ts";
 import { ProviderAdapterRequestError } from "../../provider/Errors.ts";
 import { clearTransientTurnStartProviderOptions } from "../../provider/transientProviderOptions.ts";
@@ -31,10 +35,15 @@ import { GitCore, type GitCoreShape } from "../../git/Services/GitCore.ts";
 import { TextGeneration, type TextGenerationShape } from "../../git/Services/TextGeneration.ts";
 import { OrchestrationEngineLive } from "./OrchestrationEngine.ts";
 import { OrchestrationProjectionPipelineLive } from "./ProjectionPipeline.ts";
-import { ProviderCommandReactorLive } from "./ProviderCommandReactor.ts";
+import { applyThreadTurnContext, ProviderCommandReactorLive } from "./ProviderCommandReactor.ts";
 import { ContextTrimmerLive } from "./ContextTrimmerLive.ts";
 import { FeatureService } from "../Services/FeatureService.ts";
 import { MemoryService } from "../Services/MemoryService.ts";
+import {
+  CoreMemoryService,
+  type CoreMemoryServiceShape,
+} from "../../memory/Services/CoreMemoryService.ts";
+import type { MemoryBlock } from "../../memory/block.ts";
 import { ProjectPromptsService } from "../Services/ProjectPromptsService.ts";
 import { GoalsService } from "../Services/GoalsService.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
@@ -93,6 +102,7 @@ describe("ProviderCommandReactor", () => {
   async function createHarness(input?: {
     readonly stateDir?: string;
     readonly workspaceRoot?: string;
+    readonly coreMemoryService?: Partial<CoreMemoryServiceShape>;
     readonly capabilitiesByProvider?: Partial<
       Record<ProviderSession["provider"], "in-session" | "restart-session" | "unsupported">
     >;
@@ -103,6 +113,13 @@ describe("ProviderCommandReactor", () => {
     fs.mkdirSync(workspaceRoot, { recursive: true });
     createdStateDirs.add(stateDir);
     const runtimeEventPubSub = Effect.runSync(PubSub.unbounded<ProviderRuntimeEvent>());
+    const coreMemoryService: CoreMemoryServiceShape = {
+      listGlobal: () => Effect.succeed([]),
+      listProject: () => Effect.succeed([]),
+      ensureGlobalSeeded: () => Effect.void,
+      ensureProjectSeeded: () => Effect.void,
+      ...input?.coreMemoryService,
+    };
     let nextSessionIndex = 1;
     const runtimeSessions: Array<ProviderSession> = [];
     const startSession = vi.fn((_: unknown, input: unknown) => {
@@ -236,6 +253,9 @@ describe("ProviderCommandReactor", () => {
       Layer.provideMerge(
         Layer.succeed(GoalsService, {
           listGoalsByProject: () => Effect.succeed({ goals: [] }),
+          createGoal: () => Effect.die("unsupported goals.create in test harness"),
+          getGoal: () => Effect.die("unsupported goals.get in test harness"),
+          updateGoal: () => Effect.die("unsupported goals.update in test harness"),
         } as any),
       ),
       Layer.provideMerge(
@@ -249,6 +269,7 @@ describe("ProviderCommandReactor", () => {
           buildRelevantMemoriesBlock: () => Effect.succeed(null),
         } as any),
       ),
+      Layer.provideMerge(Layer.succeed(CoreMemoryService, coreMemoryService)),
       Layer.provideMerge(
         Layer.succeed(ProjectPromptsService, {
           getContextForThread: () => Effect.succeed({ prompts: [], harnessContent: null }),
@@ -302,6 +323,7 @@ describe("ProviderCommandReactor", () => {
       generateBranchName,
       stateDir,
       workspaceRoot,
+      coreMemoryService,
       drain,
     };
   }
@@ -379,6 +401,171 @@ describe("ProviderCommandReactor", () => {
     expect(String(sendTurnInput?.input)).toContain("Always mention the release checklist.");
     expect(String(sendTurnInput?.input)).toContain("<user_request>");
     expect(String(sendTurnInput?.input)).toContain("Ship the patch");
+  });
+
+  it("routes provider turns through the active project agent memory context", async () => {
+    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rowl-reactor-workspace-"));
+    const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "rowl-reactor-state-"));
+    createdStateDirs.add(workspaceRoot);
+    const now = "2026-05-29T12:00:00.000Z";
+    const coreAgentService = createCoreAgentService({
+      store: createFileCoreAgentStore({ stateDir }),
+      now: () => now,
+      generateId: () => "unused",
+    });
+    await coreAgentService.createAgent({
+      name: "Reviewer",
+      scope: { type: "project", projectRoot: workspaceRoot },
+      personality: {
+        kind: "custom",
+        instructions: "Review for correctness before changing code.",
+      },
+    });
+    await coreAgentService.setActiveAgent({
+      agentId: "unused",
+      scope: { type: "project", projectRoot: workspaceRoot },
+    });
+
+    const globalBlock: MemoryBlock = {
+      label: "persona",
+      description: "agent memory",
+      scope: "global",
+      readOnly: false,
+      version: 1,
+      body: "Reviewer-specific memory",
+    };
+    const listGlobal = vi.fn<CoreMemoryServiceShape["listGlobal"]>((input) => {
+      expect(input).toEqual({ agentId: "unused", projectRoot: workspaceRoot });
+      return Effect.succeed([globalBlock]);
+    });
+    const ensureGlobalSeeded = vi.fn<CoreMemoryServiceShape["ensureGlobalSeeded"]>((input) => {
+      expect(input).toEqual({ agentId: "unused", projectRoot: workspaceRoot });
+      return Effect.void;
+    });
+    const harness = await createHarness({
+      stateDir,
+      workspaceRoot,
+      coreMemoryService: {
+        listGlobal,
+        ensureGlobalSeeded,
+      },
+    });
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.makeUnsafe("cmd-turn-start-active-agent"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-active-agent"),
+          role: "user",
+          text: "Check this change",
+          attachments: [],
+        },
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(() => harness.sendTurn.mock.calls.length === 1);
+    const sendTurnInput = harness.sendTurn.mock.calls[0]?.[0] as { input?: string } | undefined;
+    expect(listGlobal).toHaveBeenCalled();
+    expect(ensureGlobalSeeded).toHaveBeenCalled();
+    expect(String(sendTurnInput?.input)).toContain("Name: Reviewer");
+    expect(String(sendTurnInput?.input)).toContain("ID: unused");
+    expect(String(sendTurnInput?.input)).toContain("Review for correctness");
+    expect(String(sendTurnInput?.input)).toContain("Reviewer-specific memory");
+  });
+
+  it("handles core agent slash commands without sending a provider turn", async () => {
+    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rowl-reactor-workspace-"));
+    const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "rowl-reactor-state-"));
+    createdStateDirs.add(workspaceRoot);
+    const now = "2026-05-29T12:00:00.000Z";
+    const coreAgentService = createCoreAgentService({
+      store: createFileCoreAgentStore({ stateDir }),
+      now: () => now,
+      generateId: () => "alpha",
+    });
+    await coreAgentService.createAgent({
+      name: "Alpha",
+      scope: { type: "project", projectRoot: workspaceRoot },
+      personality: {
+        kind: "custom",
+        instructions: "Alpha instructions.",
+      },
+    });
+    await coreAgentService.setActiveAgent({
+      agentId: "alpha",
+      scope: { type: "project", projectRoot: workspaceRoot },
+    });
+    const harness = await createHarness({ stateDir, workspaceRoot });
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.makeUnsafe("cmd-turn-start-agents-command"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-agents-command"),
+          role: "user",
+          text: "/agents",
+          attachments: [],
+        },
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(async () => {
+      const readModel = await Effect.runPromise(harness.engine.getReadModel());
+      const thread = readModel.threads.find(
+        (entry) => entry.id === ThreadId.makeUnsafe("thread-1"),
+      );
+      return Boolean(thread?.messages.some((message) => message.role === "assistant"));
+    });
+    expect(harness.sendTurn).not.toHaveBeenCalled();
+    const readModel = await Effect.runPromise(harness.engine.getReadModel());
+    const thread = readModel.threads.find((entry) => entry.id === ThreadId.makeUnsafe("thread-1"));
+    const assistant = thread?.messages.find((message) => message.role === "assistant");
+    expect(assistant?.text).toContain("Active agent: Alpha (alpha)");
+  });
+
+  it("routes organizing slash commands through services without sending a provider turn", async () => {
+    const harness = await createHarness();
+    const now = "2026-05-29T12:00:00.000Z";
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.makeUnsafe("cmd-turn-start-goals-command"),
+        threadId: ThreadId.makeUnsafe("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-goals-command"),
+          role: "user",
+          text: "/goals",
+          attachments: [],
+        },
+        interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+        runtimeMode: "approval-required",
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(async () => {
+      const readModel = await Effect.runPromise(harness.engine.getReadModel());
+      const thread = readModel.threads.find(
+        (entry) => entry.id === ThreadId.makeUnsafe("thread-1"),
+      );
+      return Boolean(thread?.messages.some((message) => message.role === "assistant"));
+    });
+    expect(harness.sendTurn).not.toHaveBeenCalled();
+    const readModel = await Effect.runPromise(harness.engine.getReadModel());
+    const thread = readModel.threads.find((entry) => entry.id === ThreadId.makeUnsafe("thread-1"));
+    const assistant = thread?.messages.find((message) => message.role === "assistant");
+    expect(assistant?.text).toContain("No goals found for this project.");
   });
 
   it("forwards codex model options through session start and turn send", async () => {
@@ -1583,5 +1770,42 @@ describe("ProviderCommandReactor", () => {
 
       expect(harness.sendTurn.mock.calls.length).toBe(2);
     });
+  });
+});
+
+describe("applyThreadTurnContext — agent memory", () => {
+  it("injects <agent_memory> section when preamble is non-empty", () => {
+    const result = applyThreadTurnContext({
+      agentsContents: undefined,
+      messageText: "hello",
+      agentMemory: "## persona — who\nI am Rowl.",
+    });
+    expect(result).toContain("<agent_memory>");
+    expect(result).toContain("## persona — who");
+    expect(result).toContain("</agent_memory>");
+    expect(result.indexOf("<agent_memory>")).toBeLessThan(result.indexOf("<user_request>"));
+  });
+
+  it("omits <agent_memory> when preamble is null", () => {
+    const result = applyThreadTurnContext({
+      agentsContents: undefined,
+      messageText: "hello",
+      agentMemory: null,
+    });
+    expect(result).not.toContain("<agent_memory>");
+  });
+
+  it("places <agent_memory> after <workspace_instructions> and before <project_context>", () => {
+    const result = applyThreadTurnContext({
+      agentsContents: "AGENTS rules",
+      messageText: "hi",
+      agentMemory: "MEM",
+      projectContext: "PC",
+    });
+    const iWorkspace = result.indexOf("<workspace_instructions");
+    const iMemory = result.indexOf("<agent_memory>");
+    const iProject = result.indexOf("<project_context>");
+    expect(iWorkspace).toBeLessThan(iMemory);
+    expect(iMemory).toBeLessThan(iProject);
   });
 });

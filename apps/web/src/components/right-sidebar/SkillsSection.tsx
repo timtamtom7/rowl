@@ -118,9 +118,7 @@ export function SkillsSection({
 
       // Find or create skill generator thread
       const existingThread = threads.find(
-        (t) =>
-          t.projectId === projectId &&
-          t.title.startsWith(SKILL_THREAD_TITLE_PREFIX),
+        (t) => t.projectId === projectId && t.title.startsWith(SKILL_THREAD_TITLE_PREFIX),
       );
 
       let threadId: ThreadId;
@@ -221,9 +219,7 @@ export function SkillsSection({
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border/40">
           <div className="flex items-center gap-1.5">
             <SparklesIcon className="size-3.5 text-muted-foreground/60" />
-            <span className="text-xs font-medium text-foreground/80">
-              Skills ({skills.length})
-            </span>
+            <span className="text-xs font-medium text-foreground/80">Skills ({skills.length})</span>
           </div>
           <Button
             size="xs"
@@ -416,8 +412,8 @@ export function SkillsSection({
             <SparklesIcon className="size-6 text-muted-foreground/20 mb-2" />
             <p className="text-sm text-muted-foreground">No skills yet.</p>
             <p className="mt-1 text-xs text-muted-foreground/70">
-              Skills give the AI specialized instructions for specific tasks.
-              Describe what you need and the AI will create one.
+              Skills give the AI specialized instructions for specific tasks. Describe what you need
+              and the AI will create one.
             </p>
             <Button
               size="xs"

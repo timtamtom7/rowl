@@ -27,9 +27,17 @@ describe("buildDependencyGraph", () => {
     expect(graph.edges.length).toBeGreaterThanOrEqual(2);
 
     // App → Button
-    expect(graph.edges.some((e) => e.source === "src/App.tsx" && e.target === "src/components/Button.tsx")).toBe(true);
+    expect(
+      graph.edges.some(
+        (e) => e.source === "src/App.tsx" && e.target === "src/components/Button.tsx",
+      ),
+    ).toBe(true);
     // Button → utils
-    expect(graph.edges.some((e) => e.source === "src/components/Button.tsx" && e.target === "src/lib/utils.ts")).toBe(true);
+    expect(
+      graph.edges.some(
+        (e) => e.source === "src/components/Button.tsx" && e.target === "src/lib/utils.ts",
+      ),
+    ).toBe(true);
   });
 
   it("resolves alias imports", () => {
@@ -48,7 +56,9 @@ describe("buildDependencyGraph", () => {
 
     const graph = buildDependencyGraph(files, { "~/": "src/" });
 
-    expect(graph.edges.some((e) => e.source === "src/App.tsx" && e.target === "src/lib/utils.ts")).toBe(true);
+    expect(
+      graph.edges.some((e) => e.source === "src/App.tsx" && e.target === "src/lib/utils.ts"),
+    ).toBe(true);
   });
 
   it("calculates stats correctly", () => {
@@ -71,9 +81,7 @@ describe("buildDependencyGraph", () => {
   });
 
   it("counts line numbers correctly", () => {
-    const files = [
-      { relativePath: "big.ts", content: "line\n".repeat(100), sizeBytes: 500 },
-    ];
+    const files = [{ relativePath: "big.ts", content: "line\n".repeat(100), sizeBytes: 500 }];
 
     const graph = buildDependencyGraph(files);
     expect(graph.nodes[0]?.lineCount).toBe(101); // 100 newlines + 1

@@ -55,6 +55,7 @@ import { useProjectCreationActions } from "../hooks/useProjectCreationActions";
 import { serverConfigQueryOptions } from "../lib/serverReactQuery";
 import { readNativeApi } from "../nativeApi";
 import { useComposerDraftStore } from "../composerDraftStore";
+import { clearPersistedDraft } from "../composer/useDraftPersistence";
 import { selectThreadTerminalState, useTerminalStateStore } from "../terminalStateStore";
 import { toastManager } from "./ui/toast";
 import {
@@ -864,6 +865,7 @@ export default function Sidebar() {
         // Terminal may already be closed
       }
       clearComposerDraftForThread(threadId);
+      clearPersistedDraft(threadId);
       clearProjectDraftThreadById(thread.projectId, thread.id);
       clearTerminalState(threadId);
       if (shouldNavigateToFallback) {
@@ -1162,6 +1164,7 @@ export default function Sidebar() {
         const projectDraftThread = getDraftThreadByProjectId(projectId);
         if (projectDraftThread) {
           clearComposerDraftForThread(projectDraftThread.threadId);
+          clearPersistedDraft(projectDraftThread.threadId);
         }
         clearProjectDraftThreadId(projectId);
         await api.orchestration.dispatchCommand({
@@ -1463,7 +1466,7 @@ export default function Sidebar() {
     <>
       {isElectron ? (
         <>
-          <SidebarHeader className="drag-region h-[52px] flex-row items-center gap-2 px-4 py-0 pl-[90px]">
+          <SidebarHeader className="drag-region h-[52px] flex-row items-center gap-2 border-b border-sidebar-border/55 bg-sidebar/35 px-4 py-0 pl-[90px] backdrop-blur-xl">
             {wordmark}
             {showDesktopUpdateButton && (
               <Tooltip>
@@ -1487,12 +1490,12 @@ export default function Sidebar() {
           </SidebarHeader>
         </>
       ) : (
-        <SidebarHeader className="gap-3 px-3 py-2 sm:gap-2.5 sm:px-4 sm:py-3">
+        <SidebarHeader className="gap-3 border-b border-sidebar-border/55 bg-sidebar/35 px-3 py-2 backdrop-blur-xl sm:gap-2.5 sm:px-4 sm:py-3">
           {wordmark}
         </SidebarHeader>
       )}
 
-      <SidebarContent className="gap-0">
+      <SidebarContent className="gap-0 py-1">
         {showArm64IntelBuildWarning && arm64IntelBuildWarningDescription ? (
           <SidebarGroup className="px-2 pt-2 pb-0">
             <Alert variant="warning" className="rounded-2xl border-warning/40 bg-warning/8">
@@ -1516,9 +1519,9 @@ export default function Sidebar() {
             </Alert>
           </SidebarGroup>
         ) : null}
-        <SidebarGroup className="px-2 py-2">
-          <div className="mb-1 flex items-center justify-between px-2">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+        <SidebarGroup className="px-2 py-2.5">
+          <div className="mb-1.5 flex items-center justify-between px-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/58">
               {sidebarCopy.projects}
             </span>
             <div className="flex items-center gap-1">
@@ -1532,7 +1535,7 @@ export default function Sidebar() {
                           ? sidebarCopy.sortByRecent
                           : sidebarCopy.sortByManual
                       }
-                      className="inline-flex size-5 items-center justify-center rounded-md text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      className="inline-flex size-5 items-center justify-center rounded-md text-sidebar-foreground/72 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       onClick={() =>
                         setProjectSortMode(projectSortMode === "recent" ? "manual" : "recent")
                       }
@@ -1554,7 +1557,7 @@ export default function Sidebar() {
                       type="button"
                       aria-label={sidebarCopy.addProject}
                       aria-pressed={shouldShowProjectPathEntry}
-                      className="inline-flex size-5 items-center justify-center rounded-md text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      className="inline-flex size-5 items-center justify-center rounded-md text-sidebar-foreground/72 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       onClick={handleStartAddProject}
                     />
                   }
@@ -1570,13 +1573,13 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <div className="mb-2 space-y-2 px-1">
+          <div className="mb-2.5 space-y-2 px-1">
             <label className="relative block">
               <SearchIcon className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/55" />
               <input
                 type="search"
                 aria-label={sidebarCopy.sidebarSearchPlaceholder}
-                className="w-full rounded-md border border-border bg-secondary pl-7 pr-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/45 focus:border-ring focus:outline-none"
+                className="w-full rounded-md border border-border/70 bg-background/50 py-1.5 pr-2 pl-7 text-xs text-foreground shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_4%,transparent)] outline-none backdrop-blur-sm transition-[border-color,background-color,box-shadow] placeholder:text-muted-foreground/45 focus:border-ring/70 focus:bg-background/72 focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--ring)_16%,transparent)]"
                 placeholder={sidebarCopy.sidebarSearchPlaceholder}
                 value={sidebarSearchQuery}
                 onChange={(event) => setSidebarSearchQuery(event.target.value)}
@@ -1595,8 +1598,8 @@ export default function Sidebar() {
                   type="button"
                   className={`rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
                     sidebarArchiveFilterMode === mode
-                      ? "border-primary/35 bg-primary/10 text-primary"
-                      : "border-border bg-background/70 text-muted-foreground hover:bg-accent hover:text-foreground"
+                      ? "border-primary/32 bg-primary/12 text-primary shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent)]"
+                      : "border-border/65 bg-background/42 text-muted-foreground hover:bg-accent hover:text-foreground"
                   }`}
                   aria-pressed={sidebarArchiveFilterMode === mode}
                   onClick={() => setSidebarArchiveFilterMode(mode)}
@@ -1612,7 +1615,7 @@ export default function Sidebar() {
               {isElectron && (
                 <button
                   type="button"
-                  className="mb-1.5 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary py-1.5 text-xs text-foreground/80 transition-colors duration-150 hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mb-1.5 flex w-full items-center justify-center gap-2 rounded-md border border-border/70 bg-background/50 py-1.5 text-xs text-foreground/80 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_4%,transparent)] transition-colors duration-150 hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => void handlePickFolder()}
                   disabled={isPickingFolder || isAddingProject}
                 >
@@ -1623,7 +1626,7 @@ export default function Sidebar() {
               <div className="flex gap-1.5">
                 <input
                   ref={addProjectInputRef}
-                  className={`min-w-0 flex-1 rounded-md border bg-secondary px-2 py-1 font-mono text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none ${
+                  className={`min-w-0 flex-1 rounded-md border bg-background/50 px-2 py-1 font-mono text-xs text-foreground shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_4%,transparent)] placeholder:text-muted-foreground/40 focus:outline-none ${
                     addProjectError
                       ? "border-red-500/70 focus:border-red-500"
                       : "border-border focus:border-ring"
@@ -1704,7 +1707,7 @@ export default function Sidebar() {
                             <SidebarMenuButton
                               size="sm"
                               className={cn(
-                                "gap-2 px-2 py-1.5 text-left hover:bg-accent group-hover/project-header:bg-accent group-hover/project-header:text-sidebar-accent-foreground",
+                                "gap-2 px-2 py-1.5 text-left text-sidebar-foreground/90 hover:bg-sidebar-accent group-hover/project-header:bg-sidebar-accent group-hover/project-header:text-sidebar-accent-foreground",
                                 canReorderProjects
                                   ? "cursor-grab active:cursor-grabbing"
                                   : "cursor-default",
@@ -1736,7 +1739,7 @@ export default function Sidebar() {
                                 cwd={project.cwd}
                                 refreshKey={projectIconRefreshKeys[project.id] ?? 0}
                               />
-                              <span className="flex-1 truncate text-xs font-medium text-foreground/90">
+                              <span className="flex-1 truncate text-xs font-medium text-sidebar-foreground/90">
                                 {project.name}
                               </span>
                               <div className="flex items-center gap-1 text-muted-foreground/60">
@@ -1784,7 +1787,7 @@ export default function Sidebar() {
                           </div>
 
                           <CollapsibleContent keepMounted>
-                            <SidebarMenuSub className="mx-1 my-0 w-full translate-x-0 gap-0.5 px-1.5 py-0">
+                            <SidebarMenuSub className="mx-1 my-1 w-full translate-x-0 gap-0.5 px-1.5 py-0.5">
                               {visibleThreads.map((threadEntry) => {
                                 const thread = threadEntry.thread;
                                 const isActive = routeThreadId === thread.id;
@@ -1952,7 +1955,7 @@ export default function Sidebar() {
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                         ) : (
-                                          <span className="min-w-0 flex-1 truncate text-xs">
+                                          <span className="min-w-0 flex-1 truncate text-[12px]">
                                             {thread.title}
                                           </span>
                                         )}
@@ -2037,8 +2040,8 @@ export default function Sidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarSeparator />
-      <SidebarFooter className="p-2">
+      <SidebarSeparator className="opacity-70" />
+      <SidebarFooter className="border-t border-sidebar-border/45 bg-sidebar/25 p-2 backdrop-blur-xl">
         <SidebarMenu>
           <SidebarMenuItem>
             {isOnSettings ? (

@@ -52,9 +52,7 @@ export interface MultiAgentCoordinatorShape {
   /** Check for file conflicts between running agents */
   readonly detectConflicts: (input: {
     readonly projectId: ProjectId;
-  }) => Effect.Effect<
-    ReadonlyArray<{ filePath: string; threads: ReadonlyArray<string> }>
-  >;
+  }) => Effect.Effect<ReadonlyArray<{ filePath: string; threads: ReadonlyArray<string> }>>;
 }
 
 export class MultiAgentCoordinator extends ServiceMap.Service<

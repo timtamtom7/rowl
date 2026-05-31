@@ -6,6 +6,8 @@ import * as SqlClient from "effect/unstable/sql/SqlClient";
 
 import { CheckpointDiffQueryLive } from "./checkpointing/Layers/CheckpointDiffQuery";
 import { CheckpointStoreLive } from "./checkpointing/Layers/CheckpointStore";
+import { WorktreeCheckpointServiceLive } from "./checkpointing/Layers/WorktreeCheckpointService";
+import { ContextMeterLive } from "./context-meter/ContextMeterLive";
 import { ServerConfig } from "./config";
 import { OrchestrationCommandReceiptRepositoryLive } from "./persistence/Layers/OrchestrationCommandReceipts";
 import { OrchestrationEventStoreLive } from "./persistence/Layers/OrchestrationEventStore";
@@ -40,6 +42,7 @@ import { ContextTrimmerLive } from "./orchestration/Layers/ContextTrimmerLive";
 import { HandoffServiceLive } from "./orchestration/Layers/HandoffServiceLive";
 import { EmbeddingServiceLive } from "./orchestration/Layers/EmbeddingServiceLive";
 import { MemoryServiceLive } from "./orchestration/Layers/MemoryServiceLive";
+import { CoreMemoryLive } from "./memory/Layers/CoreMemoryLive.ts";
 import { MultiAgentCoordinatorLive } from "./orchestration/Layers/MultiAgentCoordinatorLive";
 import { EvaluatorServiceLive } from "./orchestration/Layers/EvaluatorServiceLive";
 import { FeatureThreadLinkServiceLive } from "./orchestration/Layers/FeatureThreadLinkServiceLive";
@@ -48,6 +51,9 @@ import { MemoryEntryRepositoryLive } from "./persistence/Layers/MemoryEntries";
 import { OverseerReactorLive } from "./orchestration/Layers/OverseerReactor";
 import { FeatureServiceLive } from "./orchestration/Layers/FeatureServiceLive";
 import { GoalsServiceLive } from "./orchestration/Layers/GoalsServiceLive";
+import { DocumentServiceLive } from "./orchestration/Layers/DocumentServiceLive";
+import { ApprovalServiceLive } from "./orchestration/Layers/ApprovalServiceLive";
+import { ThreadApprovalServiceLive } from "./orchestration/Services/ThreadApprovalService";
 import { PMChatContextServiceLive } from "./orchestration/Layers/PMChatContextServiceLive";
 import { ProjectionContextNodeRepositoryLive } from "./persistence/Layers/ProjectionContextNodes";
 import { ProjectionFeatureRepositoryLive } from "./persistence/Layers/ProjectionFeatures";
@@ -56,6 +62,8 @@ import { TerminalManagerLive } from "./terminal/Layers/Manager";
 import { KeybindingsLive } from "./keybindings";
 import { GitManagerLive } from "./git/Layers/GitManager";
 import { GitCoreLive } from "./git/Layers/GitCore";
+import { WorktreeServiceLive } from "./git/Layers/WorktreeService";
+import { DiffTreeServiceLive } from "./git/DiffTreeServiceLive";
 import { GitHubCliLive } from "./git/Layers/GitHubCli";
 import { CodexTextGenerationLive } from "./git/Layers/CodexTextGeneration";
 import { GitServiceLive } from "./git/Layers/GitService";
@@ -139,12 +147,18 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(CheckpointStoreLive),
   );
 
+  const threadApprovalServiceLayer = ThreadApprovalServiceLive.pipe(
+    Layer.provide(orchestrationLayer),
+  );
+
   const runtimeServicesLayer = Layer.mergeAll(
     orchestrationLayer,
     OrchestrationProjectionSnapshotQueryLive,
     CheckpointStoreLive,
     checkpointDiffQueryLayer,
     RuntimeReceiptBusLive,
+    ContextMeterLive,
+    threadApprovalServiceLayer,
   );
   const runtimeIngestionLayer = ProviderRuntimeIngestionLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
@@ -158,6 +172,8 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provide(ProjectionFeatureRepositoryLive),
   );
   const goalsServiceLayer = GoalsServiceLive.pipe(Layer.provide(ProjectionGoalRepositoryLive));
+  const documentServiceLayer = DocumentServiceLive;
+  const approvalServiceLayer = ApprovalServiceLive;
   const pmChatContextServiceLayer = PMChatContextServiceLive.pipe(
     Layer.provide(orchestrationLayer),
     Layer.provide(goalsServiceLayer),
@@ -173,6 +189,10 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provide(MemoryEntryRepositoryLive),
     Layer.provide(EmbeddingServiceLive),
   );
+  const coreMemoryLayer = Effect.gen(function* () {
+    const { stateDir } = yield* ServerConfig;
+    return CoreMemoryLive({ stateDir });
+  }).pipe(Layer.unwrap);
   const multiAgentCoordinatorLayer = MultiAgentCoordinatorLive.pipe(
     Layer.provide(orchestrationLayer),
   );
@@ -197,9 +217,7 @@ export function makeServerRuntimeServicesLayer() {
   const checkpointReactorLayer = CheckpointReactorLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
   );
-  const evaluatorServiceLayer = EvaluatorServiceLive.pipe(
-    Layer.provide(orchestrationLayer),
-  );
+  const evaluatorServiceLayer = EvaluatorServiceLive.pipe(Layer.provide(orchestrationLayer));
   const overseerReactorLayer = OverseerReactorLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
     Layer.provideMerge(contextServiceLayer),
@@ -228,10 +246,16 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(GitHubCliLive),
     Layer.provideMerge(textGenerationLayer),
   );
+  const worktreeServiceLayer = WorktreeServiceLive.pipe(Layer.provideMerge(GitServiceLive));
+  const worktreeCheckpointServiceLayer = WorktreeCheckpointServiceLive.pipe(
+    Layer.provideMerge(worktreeServiceLayer),
+    Layer.provideMerge(CheckpointStoreLive),
+    Layer.provideMerge(GitServiceLive),
+  );
+  const diffTreeServiceLayer = DiffTreeServiceLive.pipe(Layer.provideMerge(GitServiceLive));
 
   return Layer.mergeAll(
     orchestrationReactorLayer,
-    gitCoreLayer,
     gitManagerLayer,
     terminalLayer,
     OpenCodeStateLive,
@@ -241,11 +265,27 @@ export function makeServerRuntimeServicesLayer() {
     contextBudgetCalculatorLayer,
     featureServiceLayer,
     goalsServiceLayer,
+    documentServiceLayer,
+    approvalServiceLayer,
+    threadApprovalServiceLayer,
     FeatureThreadLinkServiceLive,
     handoffServiceLayer,
     memoryServiceLayer,
     multiAgentCoordinatorLayer,
     ProjectPromptsServiceLive,
     pmChatContextServiceLayer,
-  ).pipe(Layer.provideMerge(NodeServices.layer));
+    worktreeServiceLayer,
+    worktreeCheckpointServiceLayer,
+    diffTreeServiceLayer,
+  ).pipe(
+    // Provide shared ambient services *after* the mergeAll so peer layers that
+    // transitively require them can resolve them. Putting them inside the
+    // mergeAll made Effect build layers in parallel, so peer layers could not
+    // see them. Covers GitCore and ContextTrimmer, both previously provided
+    // only deeper in the orchestration reactor chain.
+    Layer.provideMerge(gitCoreLayer),
+    Layer.provideMerge(ContextTrimmerLive),
+    Layer.provideMerge(coreMemoryLayer),
+    Layer.provideMerge(NodeServices.layer),
+  );
 }

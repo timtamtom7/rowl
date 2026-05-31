@@ -15,19 +15,21 @@
 SPEC §6 calls for a **dedicated `memory` tool** with 6 subcommands (`create` / `str_replace` / `insert` / `delete` / `rename` / `update_description`) and a **new `memory-write` approval kind**. Research during plan-authoring confirmed Rowl has **no central cross-provider tool registry** — tools are provider-native. Implementing SPEC §6 as specified requires either (a) inventing a cross-provider tool layer, or (b) duplicating the tool across seven provider adapters. Either is too much for phase 1a.
 
 **Phase 1a revised scope:**
+
 - Memory is file-based markdown at `.rowl/memory/*.md` and `~/.t3/rowl/agents/{id}/memory/*.md`, same as SPEC.
 - Memory **contents** are injected into every turn via the provider-agnostic reactor hook (SPEC §5 delivered as specified).
 - Memory **self-editing** uses the agent's existing file-edit tools. These already go through the `file-change` approval gate. Git-backing captures history. Atomic `str_replace` / `insert` semantics are provided by the agent's tools.
 - `/remember {text}` is a user slash command that produces a message nudging the agent toward the right memory file (not a direct server command).
 - The dedicated `memory` tool and new `memory-write` approval kind are **deferred to phase 1a-plus or 1b**, implemented once we decide whether to (a) introduce a cross-provider tool layer or (b) start with a single-provider prototype.
 
-This is still a full implementation of core memory's *outcome*: persistent memory that the agent can read and edit, gated by approval, versioned in git, inspectable by the user. Task 14 updates SPEC.md to reflect this.
+This is still a full implementation of core memory's _outcome_: persistent memory that the agent can read and edit, gated by approval, versioned in git, inspectable by the user. Task 14 updates SPEC.md to reflect this.
 
 ---
 
 ## File structure
 
 New files (created by this plan):
+
 - `packages/shared/src/frontmatter.ts` — extracted + exported frontmatter parsers
 - `packages/shared/src/frontmatter.test.ts` — tests for extracted parsers
 - `apps/server/src/memory/paths.ts` — dir resolution (global + project)
@@ -44,6 +46,7 @@ New files (created by this plan):
 - `apps/server/src/memory/preamble.test.ts`
 
 Modified files:
+
 - `apps/server/src/projectWorkspaceMetadata.ts` — inline parsers replaced with re-imports from `@t3tools/shared/frontmatter`
 - `apps/server/src/orchestration/Layers/ProviderCommandReactor.ts` — `applyThreadTurnContext` gains an `agentMemory` parameter; reactor reads `CoreMemoryService` before each turn
 - `apps/server/src/orchestration/Layers/ProviderCommandReactor.test.ts` — cover new memory section
@@ -65,6 +68,7 @@ No existing behavior regresses: all additions are additive. The reactor gains a 
 **Why first:** Phase 1a reads block frontmatter constantly. Three unexported functions in `projectWorkspaceMetadata.ts:185-239` already do the parsing; extracting them avoids duplication and lets memory code depend on `@t3tools/shared` rather than on server internals.
 
 **Files:**
+
 - Create: `packages/shared/src/frontmatter.ts`
 - Create: `packages/shared/src/frontmatter.test.ts`
 - Modify: `apps/server/src/projectWorkspaceMetadata.ts` (replace inline funcs with re-imports)
@@ -220,10 +224,7 @@ Expected: PASS (9 tests).
 In `apps/server/src/projectWorkspaceMetadata.ts`, delete lines 185-239 (the three `function` definitions) and add near the top with the other imports:
 
 ```typescript
-import {
-  parseFlatFrontmatter,
-  parseFrontmatterSection,
-} from "@t3tools/shared/frontmatter";
+import { parseFlatFrontmatter, parseFrontmatterSection } from "@t3tools/shared/frontmatter";
 ```
 
 (Do not import `parseFrontmatterValue` — it's only used internally by `parseFlatFrontmatter`.)
@@ -252,6 +253,7 @@ git commit -m "refactor(shared): extract frontmatter parsers to @t3tools/shared/
 **Why:** Every subsequent memory operation needs to resolve "where do global blocks live" and "where do this project's blocks live." Isolate that so path logic can be unit-tested with a fake fs.
 
 **Files:**
+
 - Create: `apps/server/src/memory/paths.ts`
 - Create: `apps/server/src/memory/paths.test.ts`
 
@@ -343,6 +345,7 @@ git commit -m "feat(memory): add path resolution for global and project memory d
 **Why:** All block IO goes through a single serialize/parse pair. This isolates the frontmatter schema (label/description/read_only/scope/version) from file IO.
 
 **Files:**
+
 - Create: `apps/server/src/memory/block.ts`
 - Create: `apps/server/src/memory/block.test.ts`
 
@@ -385,7 +388,7 @@ describe("serializeBlock", () => {
   it("quotes descriptions containing special characters", () => {
     const block: MemoryBlock = {
       label: "x",
-      description: 'has: a colon',
+      description: "has: a colon",
       readOnly: false,
       scope: "global",
       version: 1,
@@ -422,9 +425,7 @@ describe("parseBlock", () => {
   });
 
   it("throws on invalid scope", () => {
-    const raw = [
-      "---", "label: x", "description: y", "scope: sideways", "---", "",
-    ].join("\n");
+    const raw = ["---", "label: x", "description: y", "scope: sideways", "---", ""].join("\n");
     expect(() => parseBlock(raw)).toThrow(/scope/);
   });
 });
@@ -442,10 +443,7 @@ Expected: FAIL — module not found.
  * MemoryBlock — a named, versioned piece of persistent agent memory.
  * Persisted as a markdown file with flat YAML frontmatter.
  */
-import {
-  parseFlatFrontmatter,
-  parseFrontmatterSection,
-} from "@t3tools/shared/frontmatter";
+import { parseFlatFrontmatter, parseFrontmatterSection } from "@t3tools/shared/frontmatter";
 
 export type MemoryScope = "global" | "project";
 
@@ -509,8 +507,7 @@ export function parseBlock(raw: string): MemoryBlock {
   const versionRaw = fm.version;
   const versionParsed =
     typeof versionRaw === "string" ? Number.parseInt(versionRaw, 10) : Number.NaN;
-  const version =
-    Number.isFinite(versionParsed) && versionParsed >= 1 ? versionParsed : 1;
+  const version = Number.isFinite(versionParsed) && versionParsed >= 1 ? versionParsed : 1;
 
   return {
     label,
@@ -542,6 +539,7 @@ git commit -m "feat(memory): memory block type + (de)serialization"
 **Why:** Keep filesystem IO isolated from the Effect-TS service so we can unit-test file layout behavior with a tmpdir.
 
 **Files:**
+
 - Create: `apps/server/src/memory/blockFiles.ts`
 - Create: `apps/server/src/memory/blockFiles.test.ts`
 
@@ -554,12 +552,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import {
-  readBlockFromDir,
-  writeBlockToDir,
-  listBlocksInDir,
-  blockFileName,
-} from "./blockFiles.ts";
+import { readBlockFromDir, writeBlockToDir, listBlocksInDir, blockFileName } from "./blockFiles.ts";
 import type { MemoryBlock } from "./block.ts";
 
 let tmp: string;
@@ -659,10 +652,7 @@ export async function writeBlockToDir(dir: string, block: MemoryBlock): Promise<
   await fs.writeFile(filePath, serializeBlock(block), "utf8");
 }
 
-export async function readBlockFromDir(
-  dir: string,
-  label: string,
-): Promise<MemoryBlock | null> {
+export async function readBlockFromDir(dir: string, label: string): Promise<MemoryBlock | null> {
   const filePath = path.join(dir, blockFileName(label));
   let raw: string;
   try {
@@ -716,6 +706,7 @@ git commit -m "feat(memory): block filesystem IO (read/write/list)"
 **Why:** SPEC §4.4 defines default blocks for global (persona/human/preferences) and project (overview/architecture/conventions/decisions/current-focus). Put them in one data-only file so later tasks — and the reader — can see exactly what's seeded.
 
 **Files:**
+
 - Create: `apps/server/src/memory/defaultBlocks.ts`
 - (No test — this is pure data; tested by Task 7's service tests that consume it.)
 
@@ -742,8 +733,7 @@ export const DEFAULT_GLOBAL_BLOCKS: ReadonlyArray<MemoryBlock> = [
     readOnly: false,
     scope: "global",
     version: 1,
-    body:
-      "I am Rowl, a memory-first coding agent. I keep durable notes about the user and each project I work on, so every conversation starts with context instead of a blank slate.",
+    body: "I am Rowl, a memory-first coding agent. I keep durable notes about the user and each project I work on, so every conversation starts with context instead of a blank slate.",
   },
   {
     label: "human",
@@ -821,6 +811,7 @@ git commit -m "feat(memory): default block seeds for global + project"
 **Why:** Define the service shape first (tag + shape), so the reactor and live layer can both depend on the tag without circular deps. Mirrors `MemoryService.ts` style at `apps/server/src/orchestration/Services/MemoryService.ts`.
 
 **Files:**
+
 - Create: `apps/server/src/memory/Services/CoreMemoryService.ts`
 
 ### Steps
@@ -863,9 +854,7 @@ export interface CoreMemoryServiceShape {
    * Ensure project memory dir exists with default blocks seeded.
    * No-op if the project dir already has any block files.
    */
-  readonly ensureProjectSeeded: (input: {
-    readonly projectRoot: string;
-  }) => Effect.Effect<void>;
+  readonly ensureProjectSeeded: (input: { readonly projectRoot: string }) => Effect.Effect<void>;
 }
 
 export class CoreMemoryService extends ServiceMap.Service<
@@ -893,6 +882,7 @@ git commit -m "feat(memory): CoreMemoryService interface"
 **Why:** The live layer wires paths → block IO → git-init. Tests use a tmpdir and assert the disk outcome; the git layer is added in the next task so this one stays focused.
 
 **Files:**
+
 - Create: `apps/server/src/memory/Layers/CoreMemoryLive.ts`
 - Create: `apps/server/src/memory/Layers/CoreMemoryLive.test.ts`
 
@@ -1025,15 +1015,8 @@ Expected: FAIL — module not found.
 import { Effect, Layer } from "effect";
 import { CoreMemoryService } from "../Services/CoreMemoryService.ts";
 import { listBlocksInDir, writeBlockToDir } from "../blockFiles.ts";
-import {
-  DEFAULT_GLOBAL_BLOCKS,
-  DEFAULT_PROJECT_BLOCKS,
-} from "../defaultBlocks.ts";
-import {
-  DEFAULT_AGENT_ID,
-  globalAgentMemoryDir,
-  projectMemoryDir,
-} from "../paths.ts";
+import { DEFAULT_GLOBAL_BLOCKS, DEFAULT_PROJECT_BLOCKS } from "../defaultBlocks.ts";
+import { DEFAULT_AGENT_ID, globalAgentMemoryDir, projectMemoryDir } from "../paths.ts";
 import fs from "node:fs/promises";
 
 async function dirHasAnyBlocks(dir: string): Promise<boolean> {
@@ -1098,6 +1081,7 @@ git commit -m "feat(memory): CoreMemoryLive layer with seeding + listing"
 **Why:** Convert a list of blocks into the exact string we inject into the turn. Keep it pure so it's trivially testable; the reactor just calls it with the service's output.
 
 **Files:**
+
 - Create: `apps/server/src/memory/preamble.ts`
 - Create: `apps/server/src/memory/preamble.test.ts`
 
@@ -1133,13 +1117,7 @@ describe("assembleMemoryPreamble", () => {
       project: [blk({ label: "overview", description: "what", body: "A fork.", scope: "project" })],
     });
     expect(out).toBe(
-      [
-        "## persona — who",
-        "I am Rowl.",
-        "",
-        "## overview — what",
-        "A fork.",
-      ].join("\n"),
+      ["## persona — who", "I am Rowl.", "", "## overview — what", "A fork."].join("\n"),
     );
   });
 
@@ -1284,6 +1262,7 @@ git commit -m "feat(memory): assemble memory preamble from blocks"
 **Why:** Make the service available for injection into `ProviderCommandReactor`. `serverLayers.ts` at `apps/server/src/serverLayers.ts` is Rowl's central layer composition (per research: already wires `MemoryService`, `MemoryEntries`, etc.).
 
 **Files:**
+
 - Modify: `apps/server/src/serverLayers.ts`
 
 ### Steps
@@ -1303,7 +1282,7 @@ import { CoreMemoryLive } from "./memory/Layers/CoreMemoryLive.ts";
 In the layer composition, provide:
 
 ```typescript
-CoreMemoryLive({ stateDir: config.stateDir })
+CoreMemoryLive({ stateDir: config.stateDir });
 ```
 
 Merge it into the main layer via `Layer.mergeAll` (or whatever pattern the file uses — match existing style).
@@ -1332,6 +1311,7 @@ git commit -m "feat(memory): wire CoreMemoryService into server layers"
 **Why:** SPEC §5. Every provider goes through `applyThreadTurnContext` (`ProviderCommandReactor.ts:93-156`). Adding an `agentMemory` parameter there makes memory available to Codex, Copilot, KiloCode, Kimi, MiniMax, OpenCode, and Pi in one change.
 
 **Files:**
+
 - Modify: `apps/server/src/orchestration/Layers/ProviderCommandReactor.ts`
 - Modify: `apps/server/src/orchestration/Layers/ProviderCommandReactor.test.ts`
 
@@ -1407,11 +1387,11 @@ Place it right after the `workspace_instructions` push (lines ~126-132 in curren
 d. In the reactor's turn-dispatch logic (the same file, where `applyThreadTurnContext` is called), resolve the memory preamble before the call:
 
 ```typescript
-const coreMemory = yield* CoreMemoryService;
-yield* coreMemory.ensureGlobalSeeded();
-yield* coreMemory.ensureProjectSeeded({ projectRoot });
-const global = yield* coreMemory.listGlobal();
-const project = yield* coreMemory.listProject({ projectRoot });
+const coreMemory = yield * CoreMemoryService;
+yield * coreMemory.ensureGlobalSeeded();
+yield * coreMemory.ensureProjectSeeded({ projectRoot });
+const global = yield * coreMemory.listGlobal();
+const project = yield * coreMemory.listProject({ projectRoot });
 const agentMemory = assembleMemoryPreamble({ global, project });
 ```
 
@@ -1448,6 +1428,7 @@ git commit -m "feat(memory): inject <agent_memory> section into per-turn context
 **Why:** SPEC §9 — the user can say `/remember {text}` to ask the agent to record something. In 1a it's a thin client-side transform (no new server command) that turns into a user message with explicit memory guidance, letting the agent use its existing file-edit tool to update the right block.
 
 **Files:**
+
 - Modify: `apps/web/src/composer-logic.ts`
 - Modify: `apps/web/src/components/chat/ComposerCommandMenu.tsx`
 - Modify: one of `apps/web/src/composer-logic.ts` or wherever the existing slash commands expand into a message body
@@ -1531,9 +1512,10 @@ git commit -m "feat(memory): /remember slash command (client-side transform)"
 
 ## Task 12: Git-back the memory directories
 
-**Why:** SPEC §6 specifies git-backed memory with per-edit commits. In 1a, since writes come from the agent's existing file-edit tool (not a dedicated memory tool), we stage+commit on a *post-turn* hook: after any turn in which `.rowl/memory/` files changed, commit them with a generic message. The global memory dir gets the same treatment.
+**Why:** SPEC §6 specifies git-backed memory with per-edit commits. In 1a, since writes come from the agent's existing file-edit tool (not a dedicated memory tool), we stage+commit on a _post-turn_ hook: after any turn in which `.rowl/memory/` files changed, commit them with a generic message. The global memory dir gets the same treatment.
 
 **Files:**
+
 - Create: `apps/server/src/memory/memoryGit.ts`
 - Create: `apps/server/src/memory/memoryGit.test.ts`
 - Modify: `apps/server/src/memory/Layers/CoreMemoryLive.ts` (optionally: auto-init on seed)
@@ -1650,17 +1632,19 @@ Expected: PASS (4 tests).
 In `ProviderCommandReactor.ts`, where the turn completes (after `applyThreadTurnContext` runs and the provider returns a result — find the "turn done" boundary; `mapProviderSessionStatusToOrchestrationStatus` around line 158 is a clue, but the actual turn-complete handler is elsewhere), add:
 
 ```typescript
-yield* Effect.promise(() =>
-  commitMemoryChanges(projectMemoryDir(projectRoot), "rowl: memory update").catch(() => {
-    /* log only; never fail a turn because of memory git */
-  }),
-);
-yield* Effect.promise(() =>
-  commitMemoryChanges(
-    globalAgentMemoryDir(config.stateDir, DEFAULT_AGENT_ID),
-    "rowl: memory update",
-  ).catch(() => {}),
-);
+yield *
+  Effect.promise(() =>
+    commitMemoryChanges(projectMemoryDir(projectRoot), "rowl: memory update").catch(() => {
+      /* log only; never fail a turn because of memory git */
+    }),
+  );
+yield *
+  Effect.promise(() =>
+    commitMemoryChanges(
+      globalAgentMemoryDir(config.stateDir, DEFAULT_AGENT_ID),
+      "rowl: memory update",
+    ).catch(() => {}),
+  );
 ```
 
 Research did not identify the exact turn-complete line; the executor should find it by searching for where `thread.turn-start-requested` is processed to completion (`ProviderCommandReactor.ts` already has the `thread.*` handler switch around line 60+). If the right hook point isn't obvious, a deferred task is to add a clean "after-turn" hook; in the meantime commit on a simple post-dispatch point.
@@ -1693,6 +1677,7 @@ git commit -m "feat(memory): git-back global + project memory dirs"
 **Why:** SPEC §3 — project memory is gitignored by default (opt-in via `commitMemory: true`). In 1a we always gitignore (the opt-in config is phase 1b territory).
 
 **Files:**
+
 - Modify: `apps/server/src/memory/Layers/CoreMemoryLive.ts` (extend `ensureProjectSeeded`)
 
 ### Steps
@@ -1744,9 +1729,10 @@ try {
 }
 const lines = existing.split(/\r?\n/);
 if (!lines.some((l) => l.trim() === ".rowl/memory/")) {
-  const next = existing.endsWith("\n") || existing.length === 0
-    ? `${existing}.rowl/memory/\n`
-    : `${existing}\n.rowl/memory/\n`;
+  const next =
+    existing.endsWith("\n") || existing.length === 0
+      ? `${existing}.rowl/memory/\n`
+      : `${existing}\n.rowl/memory/\n`;
   await fs.writeFile(gitignorePath, next, "utf8");
 }
 ```
@@ -1770,6 +1756,7 @@ git commit -m "feat(memory): gitignore project memory dir by default"
 **Why:** Phase 1a ships with a scope adjustment (§"Scope adjustment vs SPEC" at the top of this plan). Docs must reflect reality, not aspirational SPEC, per AGENTS.md: "Treat stale docs as a bug."
 
 **Files:**
+
 - Modify: `plans/rowl-memory-first/SPEC.md`
 - Modify: `plans/rowl-memory-first/STATUS.md`
 - Modify: `plans/STATE.md`
@@ -1786,9 +1773,11 @@ Replace the dedicated memory-tool section with a note:
 - [ ] **Step 2: Add a new locked decision to SPEC §3 and STATUS**
 
 In SPEC §3 (the decisions table), append:
+
 > | Memory-editing mechanism in 1a | Agent uses existing file-edit tools; dedicated memory tool deferred | Rowl has no cross-provider tool registry. File-edit tools already have `file-change` approval. |
 
 In STATUS "Locked decisions":
+
 > - **YYYY-MM-DD** — Phase 1a scope adjusted: memory edits via existing file-edit tools, not a dedicated memory tool. SPEC §6 updated. Dedicated memory tool + `memory-write` approval kind deferred to later phase.
 
 - [ ] **Step 3: Update STATUS phase tracker**
@@ -1860,12 +1849,15 @@ In "Retro log" of `plans/rowl-memory-first/STATUS.md`, append a new section:
 ### Phase 1a — Core memory substrate (shipped YYYY-MM-DD)
 
 **What went well:**
+
 - [fill in]
 
 **What was painful:**
+
 - [fill in]
 
 **Notes for future phases:**
+
 - Dedicated memory tool still owed. Research a cross-provider tool layer before phase 1b starts or commit to per-adapter implementations.
 - The post-turn git commit hook is best-effort. If a cleaner "turn-complete" hook is added elsewhere in the reactor, re-wire.
 ```
@@ -1882,6 +1874,7 @@ git commit -m "docs(memory): phase 1a retro"
 ## Scope check & self-review
 
 **Spec coverage:**
+
 - SPEC §3 (architectural decisions) — honored, with one adjustment captured in Task 14 for the memory-tool decision. ✓
 - SPEC §4 (data model) — Tasks 3 (block), 5 (defaults), implicit in `paths.ts`. Agent data model (4.2) and project↔agent binding (4.3) are not implemented in 1a; a single implicit default agent suffices. Flagged for phase 1b in STATUS; not a regression since SPEC §10 lists "Multi-agent management UI" as out-of-scope for 1a.
 - SPEC §5 (reminder engine) — Task 8 + Task 10. ✓

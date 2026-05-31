@@ -47,15 +47,12 @@ export interface EvaluatorServiceShape {
    * Quick check — just verify compilation status for a project.
    * Lighter than full evaluation.
    */
-  readonly quickCheck: (input: {
-    readonly projectId: ProjectId;
-  }) => Effect.Effect<{
+  readonly quickCheck: (input: { readonly projectId: ProjectId }) => Effect.Effect<{
     compiles: boolean;
     errors: ReadonlyArray<string>;
   }>;
 }
 
-export class EvaluatorService extends ServiceMap.Service<
-  EvaluatorService,
-  EvaluatorServiceShape
->()("rowl/orchestration/Services/EvaluatorService") {}
+export class EvaluatorService extends ServiceMap.Service<EvaluatorService, EvaluatorServiceShape>()(
+  "rowl/orchestration/Services/EvaluatorService",
+) {}

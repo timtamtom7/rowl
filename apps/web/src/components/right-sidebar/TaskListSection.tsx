@@ -110,9 +110,7 @@ export function TaskListSection({ projectId }: { projectId: ProjectId }) {
           <span className="text-xs font-medium text-foreground/80">Tasks</span>
         </div>
         <div className="flex items-center gap-2 text-[9px] text-muted-foreground/40">
-          {activeCount > 0 && (
-            <span className="text-emerald-400">{activeCount} active</span>
-          )}
+          {activeCount > 0 && <span className="text-emerald-400">{activeCount} active</span>}
           {pendingCount > 0 && <span>{pendingCount} planned</span>}
           {doneCount > 0 && <span className="text-muted-foreground/30">{doneCount} done</span>}
         </div>

@@ -182,8 +182,7 @@ export function projectEvent(
           const existingByPath = !existingById
             ? nextBase.projects.find(
                 (entry) =>
-                  entry.deletedAt === null &&
-                  entry.workspaceRoot === payload.workspaceRoot,
+                  entry.deletedAt === null && entry.workspaceRoot === payload.workspaceRoot,
               )
             : undefined;
           const nextProject = {

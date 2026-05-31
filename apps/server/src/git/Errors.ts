@@ -58,6 +58,22 @@ export class GitManagerError extends Schema.TaggedErrorClass<GitManagerError>()(
 }
 
 /**
+ * WorktreeServiceError - Managed worktree orchestration failed.
+ */
+export class WorktreeServiceError extends Schema.TaggedErrorClass<WorktreeServiceError>()(
+  "WorktreeServiceError",
+  {
+    operation: Schema.String,
+    detail: Schema.String,
+    cause: Schema.optional(Schema.Defect),
+  },
+) {
+  override get message(): string {
+    return `Worktree service failed in ${this.operation}: ${this.detail}`;
+  }
+}
+
+/**
  * GitManagerServiceError - Errors emitted by stacked Git workflow orchestration.
  */
 export type GitManagerServiceError =
@@ -65,3 +81,5 @@ export type GitManagerServiceError =
   | GitCommandError
   | GitHubCliError
   | TextGenerationError;
+
+export type WorktreeServiceErrorType = WorktreeServiceError | GitCommandError;

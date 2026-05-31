@@ -161,6 +161,32 @@ export class GoalServiceError extends Schema.TaggedErrorClass<GoalServiceError>(
   }
 }
 
+export class DocumentServiceError extends Schema.TaggedErrorClass<DocumentServiceError>()(
+  "DocumentServiceError",
+  {
+    operation: Schema.String,
+    detail: Schema.String,
+    cause: Schema.optional(Schema.Defect),
+  },
+) {
+  override get message(): string {
+    return `Document service error in ${this.operation}: ${this.detail}`;
+  }
+}
+
+export class ApprovalServiceError extends Schema.TaggedErrorClass<ApprovalServiceError>()(
+  "ApprovalServiceError",
+  {
+    operation: Schema.String,
+    detail: Schema.String,
+    cause: Schema.optional(Schema.Defect),
+  },
+) {
+  override get message(): string {
+    return `Approval service error in ${this.operation}: ${this.detail}`;
+  }
+}
+
 export class ContextServiceError extends Schema.TaggedErrorClass<ContextServiceError>()(
   "ContextServiceError",
   {

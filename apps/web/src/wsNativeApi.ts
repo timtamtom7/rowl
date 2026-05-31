@@ -10,6 +10,13 @@ import {
   GetContextBudgetResult,
   GetContextNodeResult,
   CreateMemoryResult,
+  CoreAgentDeleteResponse,
+  CoreAgentListResponse,
+  CoreAgentMutationResponse,
+  CoreAgentSetActiveResponse,
+  MemoryNoteDeleteResponse,
+  MemoryNoteListResponse,
+  MemoryNoteResponse,
   SearchMemoryResult,
   ListMemoryByProjectResult,
   DeleteMemoryResult,
@@ -19,6 +26,7 @@ import {
   GetAgentOverviewResult,
   SpawnAgentForFeatureResult,
   DetectConflictsResult,
+  DiffTree,
   ListPromptsResult,
   CreatePromptResult,
   UpdatePromptResult,
@@ -27,22 +35,37 @@ import {
   ActivateHarnessResult,
   DeactivateHarnessResult,
   DeleteFeatureResult,
+  DeleteGoalDocumentResult,
   DeleteGoalResult,
   DispatchResult,
   GetFeatureResult,
   GetGoalResult,
+  GetGoalAncestorsResult,
+  GetGoalChildrenResult,
+  ApprovalGateResult,
+  ListThreadApprovalGatesResult,
+  ThreadApprovalGateResult,
   ListContextNodesByProjectResult,
   ListContextNodesByThreadResult,
   ListFeaturesByProjectResult,
   LinkThreadToGoalResult,
   ListGoalsByProjectResult,
+  ListApprovalsByGoalResult,
+  ListDocumentsByGoalResult,
+  ListWorktreeCheckpointsResult,
+  CreateWorktreeResult,
+  GoalDocumentResult,
+  IsGoalApprovedResult,
   GitCreateWorktreeResult,
+  GitIntegrationResult,
   GitListBranchesResult,
   GitPreparePullRequestThreadResult,
   GitPullResult,
   GitResolvePullRequestResult,
   GitRunStackedActionResult,
   GitStatusResult,
+  ListWorktreesResult,
+  WorktreeInfo,
   type NativeApi,
   OrchestrationGetFullThreadDiffResult,
   OrchestrationGetSnapshotResult,
@@ -63,8 +86,11 @@ import {
   ServerOpenCodeCredentialResult,
   RestoreContextNodeResult,
   SetMainGoalResult,
+  StackBranchResult,
   UpdateFeatureResult,
   UpdateFeatureStageResult,
+  UpdateGoalResult,
+  WorktreeCheckpointResult,
   ServerOpenCodeState,
   ServerUpsertKeybindingResult,
   TerminalSessionSnapshot,
@@ -300,6 +326,26 @@ export function createWsNativeApi(): NativeApi {
         requestWithSchema(WS_METHODS.memoryListByProject, ListMemoryByProjectResult, input),
       delete: (input) => requestWithSchema(WS_METHODS.memoryDelete, DeleteMemoryResult, input),
     },
+    coreAgents: {
+      list: (input) => requestWithSchema(WS_METHODS.coreAgentsList, CoreAgentListResponse, input),
+      create: (input) =>
+        requestWithSchema(WS_METHODS.coreAgentsCreate, CoreAgentMutationResponse, input),
+      update: (input) =>
+        requestWithSchema(WS_METHODS.coreAgentsUpdate, CoreAgentMutationResponse, input),
+      delete: (input) =>
+        requestWithSchema(WS_METHODS.coreAgentsDelete, CoreAgentDeleteResponse, input),
+      setActive: (input) =>
+        requestWithSchema(WS_METHODS.coreAgentsSetActive, CoreAgentSetActiveResponse, input),
+    },
+    memoryNotes: {
+      list: (input) => requestWithSchema(WS_METHODS.memoryNotesList, MemoryNoteListResponse, input),
+      read: (input) => requestWithSchema(WS_METHODS.memoryNotesRead, MemoryNoteResponse, input),
+      write: (input) => requestWithSchema(WS_METHODS.memoryNotesWrite, MemoryNoteResponse, input),
+      delete: (input) =>
+        requestWithSchema(WS_METHODS.memoryNotesDelete, MemoryNoteDeleteResponse, input),
+      onChanged: (callback) =>
+        transport.subscribe(WS_CHANNELS.memoryChanged, (message) => callback(message.data)),
+    },
     codebaseHealth: {
       getSummary: (input) =>
         requestWithSchema(WS_METHODS.codebaseHealthSummary, GetCodebaseHealthResult, input),
@@ -322,7 +368,9 @@ export function createWsNativeApi(): NativeApi {
       getActive: (input: { threadId: string }) =>
         requestWithSchema(
           WS_METHODS.harnessGetActive,
-          Schema.Struct({ preset: Schema.NullOr(Schema.Struct({ id: Schema.String, name: Schema.String })) }),
+          Schema.Struct({
+            preset: Schema.NullOr(Schema.Struct({ id: Schema.String, name: Schema.String })),
+          }),
           input,
         ),
     },
@@ -334,7 +382,15 @@ export function createWsNativeApi(): NativeApi {
       getLinks: (input: { projectId: string }) =>
         requestWithSchema(
           WS_METHODS.featureThreadGetLinks,
-          Schema.Struct({ links: Schema.Array(Schema.Struct({ featureId: Schema.String, threadId: Schema.String, createdAt: Schema.String })) }),
+          Schema.Struct({
+            links: Schema.Array(
+              Schema.Struct({
+                featureId: Schema.String,
+                threadId: Schema.String,
+                createdAt: Schema.String,
+              }),
+            ),
+          }),
           input,
         ),
     },
@@ -361,6 +417,11 @@ export function createWsNativeApi(): NativeApi {
       get: (input) => requestWithSchema(WS_METHODS.goalsGet, GetGoalResult, input),
       listByProject: (input) =>
         requestWithSchema(WS_METHODS.goalsListByProject, ListGoalsByProjectResult, input),
+      update: (input) => requestWithSchema(WS_METHODS.goalsUpdate, UpdateGoalResult, input),
+      getChildren: (input) =>
+        requestWithSchema(WS_METHODS.goalsChildren, GetGoalChildrenResult, input),
+      getAncestors: (input) =>
+        requestWithSchema(WS_METHODS.goalsAncestors, GetGoalAncestorsResult, input),
       setMain: (input) => requestWithSchema(WS_METHODS.goalsSetMain, SetMainGoalResult, input),
       linkThread: (input) =>
         requestWithSchema(WS_METHODS.goalsLinkThread, LinkThreadToGoalResult, input),
@@ -369,6 +430,41 @@ export function createWsNativeApi(): NativeApi {
       updateText: (input) =>
         requestWithSchema(WS_METHODS.goalsUpdateText, UpdateGoalTextResult, input),
       delete: (input) => requestWithSchema(WS_METHODS.goalsDelete, DeleteGoalResult, input),
+      onChanged: (callback) =>
+        transport.subscribe(WS_CHANNELS.organizingChanged, (message) => callback(message.data)),
+    },
+    documents: {
+      listByGoal: (input) =>
+        requestWithSchema(WS_METHODS.documentsList, ListDocumentsByGoalResult, input),
+      read: (input) => requestWithSchema(WS_METHODS.documentsRead, GoalDocumentResult, input),
+      write: (input) => requestWithSchema(WS_METHODS.documentsWrite, GoalDocumentResult, input),
+      create: (input) => requestWithSchema(WS_METHODS.documentsCreate, GoalDocumentResult, input),
+      update: (input) => requestWithSchema(WS_METHODS.documentsUpdate, GoalDocumentResult, input),
+      delete: (input) =>
+        requestWithSchema(WS_METHODS.documentsDelete, DeleteGoalDocumentResult, input),
+      onChanged: (callback) =>
+        transport.subscribe(WS_CHANNELS.organizingChanged, (message) => callback(message.data)),
+    },
+    approvals: {
+      listByGoal: (input) =>
+        requestWithSchema(WS_METHODS.approvalsList, ListApprovalsByGoalResult, input),
+      create: (input) => requestWithSchema(WS_METHODS.approvalsCreate, ApprovalGateResult, input),
+      approve: (input) => requestWithSchema(WS_METHODS.approvalsApprove, ApprovalGateResult, input),
+      reject: (input) => requestWithSchema(WS_METHODS.approvalsReject, ApprovalGateResult, input),
+      isGoalApproved: (input) =>
+        requestWithSchema(WS_METHODS.approvalsIsGoalApproved, IsGoalApprovedResult, input),
+      onChanged: (callback) =>
+        transport.subscribe(WS_CHANNELS.organizingChanged, (message) => callback(message.data)),
+    },
+    approvalGates: {
+      create: (input) =>
+        requestWithSchema(WS_METHODS.approvalGatesCreate, ThreadApprovalGateResult, input),
+      approve: (input) =>
+        requestWithSchema(WS_METHODS.approvalGatesApprove, ThreadApprovalGateResult, input),
+      reject: (input) =>
+        requestWithSchema(WS_METHODS.approvalGatesReject, ThreadApprovalGateResult, input),
+      list: (input) =>
+        requestWithSchema(WS_METHODS.approvalGatesList, ListThreadApprovalGatesResult, input),
     },
     shell: {
       openInEditor: (cwd, editor) =>
@@ -392,12 +488,26 @@ export function createWsNativeApi(): NativeApi {
       status: (input) => requestWithSchema(WS_METHODS.gitStatus, GitStatusResult, input),
       runStackedAction: (input) =>
         requestWithSchema(WS_METHODS.gitRunStackedAction, GitRunStackedActionResult, input),
+      getDiffTree: (input) => requestWithSchema(WS_METHODS.gitGetDiffTree, DiffTree, input),
       listBranches: (input) =>
         requestWithSchema(WS_METHODS.gitListBranches, GitListBranchesResult, input),
       createWorktree: (input) =>
         requestWithSchema(WS_METHODS.gitCreateWorktree, GitCreateWorktreeResult, input),
       removeWorktree: (input) =>
         requestWithSchema(WS_METHODS.gitRemoveWorktree, Schema.Void, input),
+      cherryPick: (input) =>
+        requestWithSchema(WS_METHODS.gitCherryPick, GitIntegrationResult, input),
+      mergeBranch: (input) =>
+        requestWithSchema(WS_METHODS.gitMergeBranch, GitIntegrationResult, input),
+      stackBranch: (input) =>
+        requestWithSchema(WS_METHODS.gitStackBranch, StackBranchResult, input),
+      worktrees: {
+        create: (input) =>
+          requestWithSchema(WS_METHODS.worktreesCreate, CreateWorktreeResult, input),
+        list: (input) => requestWithSchema(WS_METHODS.worktreesList, ListWorktreesResult, input),
+        remove: (input) => requestWithSchema(WS_METHODS.worktreesRemove, Schema.Void, input),
+        info: (input) => requestWithSchema(WS_METHODS.worktreesInfo, WorktreeInfo, input),
+      },
       createBranch: (input) => requestWithSchema(WS_METHODS.gitCreateBranch, Schema.Void, input),
       checkout: (input) => requestWithSchema(WS_METHODS.gitCheckout, Schema.Void, input),
       init: (input) => requestWithSchema(WS_METHODS.gitInit, Schema.Void, input),
@@ -407,6 +517,16 @@ export function createWsNativeApi(): NativeApi {
         requestWithSchema(
           WS_METHODS.gitPreparePullRequestThread,
           GitPreparePullRequestThreadResult,
+          input,
+        ),
+    },
+    checkpoints: {
+      createInWorktree: (input) =>
+        requestWithSchema(WS_METHODS.checkpointsCreateInWorktree, WorktreeCheckpointResult, input),
+      listByWorktree: (input) =>
+        requestWithSchema(
+          WS_METHODS.checkpointsListByWorktree,
+          ListWorktreeCheckpointsResult,
           input,
         ),
     },

@@ -89,9 +89,7 @@ const makeRepo = Effect.gen(function* () {
       if (!query) return [] as any[];
 
       // FTS5 search with ranking
-      const projectFilter = input.projectId
-        ? sql`AND m.project_id = ${input.projectId}`
-        : sql``;
+      const projectFilter = input.projectId ? sql`AND m.project_id = ${input.projectId}` : sql``;
 
       const rows = yield* sql`
         SELECT

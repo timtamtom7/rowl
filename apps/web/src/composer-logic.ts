@@ -14,7 +14,10 @@ export type ComposerSlashCommand =
   | "undo"
   | "redo"
   | "export"
-  | "details";
+  | "details"
+  | "remember"
+  | "memory"
+  | "reflect";
 
 export interface ComposerSlashInvocation {
   command: string;
@@ -42,6 +45,9 @@ const COMPOSER_SLASH_COMMAND_ALIASES: Record<ComposerSlashCommand, ReadonlyArray
   redo: [],
   export: [],
   details: [],
+  remember: [],
+  memory: [],
+  reflect: [],
 };
 
 export function getComposerSlashCommandAliases(
@@ -274,13 +280,21 @@ export function detectComposerTrigger(text: string, cursorInput: number): Compos
 
 export function parseStandaloneComposerSlashCommand(
   text: string,
-): Exclude<ComposerSlashCommand, "model" | "mcp"> | null {
+): Exclude<ComposerSlashCommand, "model" | "mcp" | "init"> | null {
   const match = /^\/([a-z0-9][a-z0-9_-]*)\s*$/i.exec(text.trim());
   if (!match) {
     return null;
   }
-  const normalized = normalizeBuiltInComposerSlashCommand(match[1] ?? "");
-  if (normalized === null || normalized === "model" || normalized === "mcp") {
+  const rawCommand = (match[1] ?? "").toLowerCase();
+  const normalized = normalizeBuiltInComposerSlashCommand(rawCommand);
+  if (
+    normalized === null ||
+    normalized === "model" ||
+    normalized === "mcp" ||
+    normalized === "init" ||
+    rawCommand === "compact" ||
+    rawCommand === "reflect"
+  ) {
     return null;
   }
   return normalized;
@@ -301,6 +315,33 @@ export function parseStandaloneComposerSlashInvocation(
     command,
     argumentsText: (match[2] ?? "").trim(),
   };
+}
+
+const REMEMBER_INVOCATION_PATTERN = /^\s*\/remember(?:\s+([\s\S]*))?\s*$/i;
+
+/**
+ * Transform a `/remember TEXT` composer invocation into a memory-guidance
+ * message that instructs the agent to persist the content to the right
+ * memory block. Returns `null` when the input is not a `/remember`
+ * invocation, or when the argument is empty.
+ *
+ * The transform is deliberately permissive about the target location so the
+ * agent can pick the right block (global vs. project) based on the content.
+ */
+export function expandRememberInvocation(text: string): string | null {
+  const match = REMEMBER_INVOCATION_PATTERN.exec(text);
+  if (!match) return null;
+  const argument = (match[1] ?? "").trim();
+  if (argument.length === 0) return null;
+  return [
+    "Please remember the following and update the appropriate block under",
+    "`.rowl/memory/` (or `~/.t3/rowl/agents/default/memory/` if it's about the user",
+    "or general preferences rather than this project). Use your file-edit tool;",
+    "it will go through the normal approval gate.",
+    "",
+    "Content to remember:",
+    argument,
+  ].join("\n");
 }
 
 export function replaceTextRange(

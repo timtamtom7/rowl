@@ -41,8 +41,7 @@ const TYPE_LABELS: Record<string, { label: string; color: string }> = {
 type SortMode = "importance" | "recent";
 
 export function MemoryTabContent({ projectId }: { projectId: ProjectId }) {
-  const { memories, isLoading, createMemory, deleteMemory, search } =
-    useSidebarMemories(projectId);
+  const { memories, isLoading, createMemory, deleteMemory, search } = useSidebarMemories(projectId);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<MemoryEntry[] | null>(null);
@@ -107,9 +106,7 @@ export function MemoryTabContent({ projectId }: { projectId: ProjectId }) {
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/40 shrink-0">
         <div className="flex items-center gap-1.5">
           <BrainIcon className="size-3.5 text-muted-foreground/60" />
-          <span className="text-xs font-medium text-foreground/80">
-            Memory ({memories.length})
-          </span>
+          <span className="text-xs font-medium text-foreground/80">Memory ({memories.length})</span>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -158,7 +155,11 @@ export function MemoryTabContent({ projectId }: { projectId: ProjectId }) {
             onClick={() => void handleSearch()}
             disabled={isSearching}
           >
-            {isSearching ? <Loader2Icon className="size-3 animate-spin" /> : <SearchIcon className="size-3" />}
+            {isSearching ? (
+              <Loader2Icon className="size-3 animate-spin" />
+            ) : (
+              <SearchIcon className="size-3" />
+            )}
           </Button>
         </div>
         {searchResults !== null && (
@@ -206,7 +207,12 @@ export function MemoryTabContent({ projectId }: { projectId: ProjectId }) {
               <option value="architecture">Architecture</option>
             </select>
             <div className="flex gap-1">
-              <Button size="xs" variant="ghost" className="h-6 text-[10px]" onClick={() => setIsCreating(false)}>
+              <Button
+                size="xs"
+                variant="ghost"
+                className="h-6 text-[10px]"
+                onClick={() => setIsCreating(false)}
+              >
                 Cancel
               </Button>
               <Button
@@ -236,7 +242,10 @@ export function MemoryTabContent({ projectId }: { projectId: ProjectId }) {
         </div>
       ) : (
         sortedMemories.map((memory) => {
-          const typeInfo = TYPE_LABELS[memory.type] ?? { label: memory.type, color: "text-muted-foreground" };
+          const typeInfo = TYPE_LABELS[memory.type] ?? {
+            label: memory.type,
+            color: "text-muted-foreground",
+          };
           const isExpanded = expandedId === memory.id;
 
           return (
@@ -286,7 +295,8 @@ export function MemoryTabContent({ projectId }: { projectId: ProjectId }) {
                   <p className="whitespace-pre-wrap break-words">{memory.content}</p>
                   <p className="mt-1 text-[9px] text-muted-foreground/30">
                     Created {new Date(memory.createdAt).toLocaleDateString()}
-                    {memory.lastAccessedAt && ` · Last used ${new Date(memory.lastAccessedAt).toLocaleDateString()}`}
+                    {memory.lastAccessedAt &&
+                      ` · Last used ${new Date(memory.lastAccessedAt).toLocaleDateString()}`}
                   </p>
                 </div>
               )}

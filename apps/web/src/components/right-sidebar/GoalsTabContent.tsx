@@ -101,7 +101,9 @@ export function GoalsTabContent({ projectId }: { projectId: ProjectId }) {
           {totalFeatures > 0 && (
             <div className="mt-2">
               <div className="flex items-center justify-between text-[9px] text-muted-foreground/50 mb-1">
-                <span>{doneFeatures}/{totalFeatures} features done</span>
+                <span>
+                  {doneFeatures}/{totalFeatures} features done
+                </span>
                 <span>{progressPercent}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">

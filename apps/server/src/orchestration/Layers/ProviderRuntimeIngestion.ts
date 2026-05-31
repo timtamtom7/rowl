@@ -15,6 +15,7 @@ import { Cache, Cause, Duration, Effect, Layer, Option, Ref, Stream } from "effe
 import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 
 import { ProviderService } from "../../provider/Services/ProviderService.ts";
+import { ContextMeter } from "../../context-meter/ContextMeter.ts";
 import { resolveThreadWorkspaceCwd } from "../../checkpointing/Utils.ts";
 import { isGitRepository } from "../../git/isRepo.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
@@ -22,6 +23,7 @@ import {
   ProviderRuntimeIngestionService,
   type ProviderRuntimeIngestionShape,
 } from "../Services/ProviderRuntimeIngestion.ts";
+import { ThreadApprovalService } from "../Services/ThreadApprovalService.ts";
 
 const providerTurnKey = (threadId: ThreadId, turnId: TurnId) => `${threadId}:${turnId}`;
 const providerCommandId = (event: ProviderRuntimeEvent, tag: string): CommandId =>
@@ -104,6 +106,16 @@ function runtimePayloadRecord(event: ProviderRuntimeEvent): Record<string, unkno
     return undefined;
   }
   return payload as Record<string, unknown>;
+}
+
+function proposedChangeFromRequestEvent(event: ProviderRuntimeEvent) {
+  const payload = runtimePayloadRecord(event);
+  const detail = asString(payload?.detail);
+  const args = payload?.args;
+  return {
+    ...(detail ? { details: detail } : {}),
+    ...(args !== undefined ? { raw: args } : {}),
+  };
 }
 
 function normalizeRuntimeTokenUsage(value: unknown): unknown {
@@ -581,6 +593,8 @@ function runtimeEventToActivities(
 const make = Effect.gen(function* () {
   const orchestrationEngine = yield* OrchestrationEngineService;
   const providerService = yield* ProviderService;
+  const contextMeter = yield* ContextMeter;
+  const threadApprovalService = yield* ThreadApprovalService;
 
   const assistantDeliveryModeRef = yield* Ref.make<AssistantDeliveryMode>(
     DEFAULT_ASSISTANT_DELIVERY_MODE,
@@ -947,6 +961,18 @@ const make = Effect.gen(function* () {
                   : {}),
               })
             : undefined;
+        if (event.type === "turn.completed" && nextTokenUsage !== undefined) {
+          yield* contextMeter
+            .recordTurnUsage({
+              threadId: thread.id,
+              ...(eventTurnId !== undefined ? { turnId: eventTurnId } : {}),
+              provider: event.provider,
+              model: thread.model,
+              usage: nextTokenUsage,
+              observedAt: now,
+            })
+            .pipe(Effect.catch(() => Effect.void));
+        }
         const nextActiveTurnId =
           event.type === "turn.started"
             ? (eventTurnId ?? null)
@@ -1007,6 +1033,16 @@ const make = Effect.gen(function* () {
       }
 
       if (event.type === "thread.token-usage.updated") {
+        yield* contextMeter
+          .recordTurnUsage({
+            threadId: thread.id,
+            ...(eventTurnId !== undefined ? { turnId: eventTurnId } : {}),
+            provider: event.provider,
+            model: thread.model,
+            usage: event.payload.usage,
+            observedAt: now,
+          })
+          .pipe(Effect.catch(() => Effect.void));
         yield* orchestrationEngine.dispatch({
           type: "thread.session.set",
           commandId: providerCommandId(event, "thread-token-usage-session-set"),
@@ -1262,6 +1298,41 @@ const make = Effect.gen(function* () {
           .pipe(Effect.catch(() => Effect.void));
         // Skip creating the approval activity — user doesn't need to see it
         return;
+      }
+
+      if (
+        event.type === "request.opened" &&
+        event.requestId &&
+        event.payload.requestType !== "tool_user_input"
+      ) {
+        const requestKind = requestKindFromCanonicalRequestType(event.payload.requestType);
+        const turnId = eventTurnId ?? activeTurnId ?? undefined;
+        if (requestKind === "file-change" && turnId) {
+          const requestId = ApprovalRequestId.makeUnsafe(String(event.requestId));
+          yield* threadApprovalService.createGate(
+            {
+              threadId: thread.id,
+              turnId,
+              type: "file-change",
+              description: event.payload.detail
+                ? `Approve file change: ${truncateDetail(event.payload.detail, 96)}`
+                : "Approve file change",
+              proposedChange: proposedChangeFromRequestEvent(event),
+            },
+            {
+              onApprove: providerService.respondToRequest({
+                threadId: thread.id,
+                requestId,
+                decision: "accept",
+              }),
+              onReject: providerService.respondToRequest({
+                threadId: thread.id,
+                requestId,
+                decision: "decline",
+              }),
+            },
+          );
+        }
       }
 
       const activities = runtimeEventToActivities(event);

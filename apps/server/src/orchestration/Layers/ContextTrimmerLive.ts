@@ -154,8 +154,7 @@ export const ContextTrimmerLive = Layer.succeed(ContextTrimmer, {
       const tombstones: string[] = [];
 
       for (const msg of oldMessages) {
-        const content =
-          typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+        const content = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
 
         if (isLikelyToolCallResult(content) && estimateTokens(content) > 100) {
           const summary = extractSummaryFromContent(content);
@@ -231,10 +230,7 @@ export const ContextTrimmerLive = Layer.succeed(ContextTrimmer, {
         summary = summary.slice(0, maxChars - 20) + "\n[summary truncated]";
       }
 
-      const originalTokens = messages.reduce(
-        (sum, m) => sum + estimateTokens(m.content),
-        0,
-      );
+      const originalTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
       const summaryTokens = estimateTokens(summary);
 
       return {

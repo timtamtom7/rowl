@@ -33,10 +33,9 @@ export interface EmbeddingServiceShape {
   ) => Effect.Effect<ReadonlyArray<{ id: string; score: number }>, Error>;
 }
 
-export class EmbeddingService extends ServiceMap.Service<
-  EmbeddingService,
-  EmbeddingServiceShape
->()("rowl/orchestration/Services/EmbeddingService") {}
+export class EmbeddingService extends ServiceMap.Service<EmbeddingService, EmbeddingServiceShape>()(
+  "rowl/orchestration/Services/EmbeddingService",
+) {}
 
 // ── Implementation ────────────────────────────────────────────────
 

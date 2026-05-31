@@ -90,13 +90,21 @@ import { ContextBudgetCalculator } from "./orchestration/Services/ContextBudgetC
 import { MemoryService } from "./orchestration/Services/MemoryService";
 import { FeatureService } from "./orchestration/Services/FeatureService";
 import { GoalsService } from "./orchestration/Services/GoalsService";
+import { DocumentService } from "./orchestration/Services/DocumentService";
+import { ApprovalService } from "./orchestration/Services/ApprovalService";
+import { ThreadApprovalService } from "./orchestration/Services/ThreadApprovalService";
 import { ProviderHealth } from "./provider/Services/ProviderHealth";
 import { OpenCodeState } from "./provider/Services/OpenCodeState";
 import { CheckpointDiffQuery } from "./checkpointing/Services/CheckpointDiffQuery";
+import { CheckpointStore } from "./checkpointing/Services/CheckpointStore";
+import { WorktreeCheckpointService } from "./checkpointing/Services/WorktreeCheckpointService";
+import { ContextMeter } from "./context-meter/ContextMeter.ts";
 import { clamp } from "effect/Number";
 import { Open, resolveAvailableEditors } from "./open";
 import { ServerConfig } from "./config";
+import { DiffTreeService } from "./git/DiffTreeService.ts";
 import { GitCore } from "./git/Services/GitCore.ts";
+import { WorktreeService } from "./git/Services/WorktreeService.ts";
 import { tryHandleProjectFaviconRequest } from "./projectFaviconRoute";
 import {
   ATTACHMENTS_ROUTE_PREFIX,
@@ -139,6 +147,9 @@ import {
   popThreadRedoSnapshot,
   pushThreadRedoSnapshot,
 } from "./threadRedoStore.ts";
+import { createCoreAgentService, createFileCoreAgentStore } from "./core-agent/CoreAgentService.ts";
+import { setActiveCoreAgentAndPublish } from "./core-agent/CoreAgentEvents.ts";
+import { createMemoryPalaceService } from "./core-agent/MemoryPalaceService.ts";
 
 /**
  * ServerShape - Service API for server lifecycle control.
@@ -370,6 +381,10 @@ export type ServerCoreRuntimeServices =
   | OrchestrationEngineService
   | ProjectionSnapshotQuery
   | CheckpointDiffQuery
+  | CheckpointStore
+  | WorktreeCheckpointService
+  | DiffTreeService
+  | ContextMeter
   | OrchestrationReactor
   | ProviderService
   | ProviderHealth
@@ -379,6 +394,7 @@ export type ServerRuntimeServices =
   | ServerCoreRuntimeServices
   | GitManager
   | GitCore
+  | WorktreeService
   | TerminalManager
   | Keybindings
   | Open
@@ -388,6 +404,9 @@ export type ServerRuntimeServices =
   | ContextBudgetCalculator
   | FeatureService
   | GoalsService
+  | DocumentService
+  | ApprovalService
+  | ThreadApprovalService
   | MemoryService
   | MultiAgentCoordinator
   | FeatureThreadLinkService
@@ -423,7 +442,21 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
     autoBootstrapProjectFromCwd,
   } = serverConfig;
   const availableEditors = resolveAvailableEditors();
+  const coreAgentService = createCoreAgentService({
+    store: createFileCoreAgentStore({ stateDir: serverConfig.stateDir }),
+    now: () => new Date().toISOString(),
+    generateId: () => crypto.randomUUID(),
+  });
+  const memoryPalaceService = createMemoryPalaceService({
+    stateDir: serverConfig.stateDir,
+    now: () => new Date().toISOString(),
+  });
   const gitManager = yield* GitManager;
+  const worktreeService = yield* WorktreeService;
+  const checkpointStore = yield* CheckpointStore;
+  const worktreeCheckpointService = yield* WorktreeCheckpointService;
+  const diffTreeService = yield* DiffTreeService;
+  const contextMeter = yield* ContextMeter;
   const terminalManager = yield* TerminalManager;
   const keybindingsManager = yield* Keybindings;
   const providerService = yield* ProviderService;
@@ -437,6 +470,9 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const projectPromptsService = yield* ProjectPromptsService;
   const featureService = yield* FeatureService;
   const goalsService = yield* GoalsService;
+  const documentService = yield* DocumentService;
+  const approvalService = yield* ApprovalService;
+  const threadApprovalService = yield* ThreadApprovalService;
   const git = yield* GitCore;
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -1149,8 +1185,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
       const resolvedCwd = nodePath.resolve(cwd);
       const existingProject = snapshot.projects.find(
         (project) =>
-          project.deletedAt === null &&
-          nodePath.resolve(project.workspaceRoot) === resolvedCwd,
+          project.deletedAt === null && nodePath.resolve(project.workspaceRoot) === resolvedCwd,
       );
       let bootstrapProjectId: ProjectId;
       let bootstrapProjectDefaultModel: string;
@@ -1163,8 +1198,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         const recentThread = snapshot.threads
           .filter((t) => t.deletedAt === null)
           .toSorted((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))[0];
-        bootstrapProjectDefaultModel =
-          recentThread?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex;
+        bootstrapProjectDefaultModel = recentThread?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex;
         yield* orchestrationEngine.dispatch({
           type: "project.create",
           commandId: CommandId.makeUnsafe(crypto.randomUUID()),
@@ -1797,6 +1831,17 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         });
       }
 
+      case WS_METHODS.gitGetDiffTree: {
+        const body = stripRequestTag(request.body);
+        return yield* diffTreeService.getDiffTree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git diff tree",
+          }),
+        });
+      }
+
       case WS_METHODS.gitListBranches: {
         const body = stripRequestTag(request.body);
         return yield* git.listBranches({
@@ -1834,6 +1879,74 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         });
       }
 
+      case WS_METHODS.gitCherryPick: {
+        const body = stripRequestTag(request.body);
+        return yield* checkpointStore.cherryPickCheckpoint({
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git cherry-pick",
+          }),
+          checkpointRef: body.sourceRef,
+          targetBranch: body.targetBranch,
+        });
+      }
+
+      case WS_METHODS.gitMergeBranch: {
+        const body = stripRequestTag(request.body);
+        return yield* checkpointStore.mergeCheckpoint({
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git branch merge",
+          }),
+          branch: body.branch,
+          targetBranch: body.targetBranch,
+        });
+      }
+
+      case WS_METHODS.worktreesCreate: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeService.createWorktree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree creation",
+          }),
+        });
+      }
+
+      case WS_METHODS.worktreesList: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeService.listWorktrees({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree listing",
+          }),
+        });
+      }
+
+      case WS_METHODS.worktreesRemove: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeService.removeWorktree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree removal",
+          }),
+        });
+      }
+
+      case WS_METHODS.worktreesInfo: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeService.getWorktreeInfo({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree info",
+          }),
+        });
+      }
+
       case WS_METHODS.gitCreateBranch: {
         const body = stripRequestTag(request.body);
         return yield* git.createBranch({
@@ -1841,6 +1954,39 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           cwd: yield* authorizePath({
             requestedPath: body.cwd,
             operation: "Git branch creation",
+          }),
+        });
+      }
+
+      case WS_METHODS.gitStackBranch: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeCheckpointService.createStackedBranch({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Git stacked branch creation",
+          }),
+        });
+      }
+
+      case WS_METHODS.checkpointsCreateInWorktree: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeCheckpointService.createCheckpointInWorktree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree checkpoint creation",
+          }),
+        });
+      }
+
+      case WS_METHODS.checkpointsListByWorktree: {
+        const body = stripRequestTag(request.body);
+        return yield* worktreeCheckpointService.listCheckpointsByWorktree({
+          ...body,
+          cwd: yield* authorizePath({
+            requestedPath: body.cwd,
+            operation: "Worktree checkpoint listing",
           }),
         });
       }
@@ -1967,22 +2113,192 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return yield* featureService.updateFeatureStage(stripRequestTag(request.body) as any);
       case WS_METHODS.featuresDelete:
         return yield* featureService.deleteFeature(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsCreate:
-        return yield* goalsService.createGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsCreate: {
+        const result = yield* goalsService.createGoal(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "create",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.goalsList:
+        return yield* goalsService.listGoalsByProject(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsUpdate: {
+        const result = yield* goalsService.updateGoal(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "update",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
       case WS_METHODS.goalsGet:
         return yield* goalsService.getGoal(stripRequestTag(request.body) as any);
       case WS_METHODS.goalsListByProject:
         return yield* goalsService.listGoalsByProject(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsSetMain:
-        return yield* goalsService.setMainGoal(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsLinkThread:
-        return yield* goalsService.linkThreadToGoal(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsUnlinkThread:
-        return yield* goalsService.unlinkThreadFromGoal(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsUpdateText:
-        return yield* goalsService.updateGoalText(stripRequestTag(request.body) as any);
-      case WS_METHODS.goalsDelete:
-        return yield* goalsService.deleteGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsSetMain: {
+        const result = yield* goalsService.setMainGoal(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "setMain",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.goalsLinkThread: {
+        const result = yield* goalsService.linkThreadToGoal(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "linkThread",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.goalsUnlinkThread: {
+        const result = yield* goalsService.unlinkThreadFromGoal(
+          stripRequestTag(request.body) as any,
+        );
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "unlinkThread",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.goalsUpdateText: {
+        const result = yield* goalsService.updateGoalText(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "updateText",
+          projectId: result.goal.projectId,
+          goalId: result.goal.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.goalsChildren:
+        return yield* goalsService.getGoalChildren(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsAncestors:
+        return yield* goalsService.getGoalAncestors(stripRequestTag(request.body) as any);
+      case WS_METHODS.goalsDelete: {
+        const input = stripRequestTag(request.body) as any;
+        const result = yield* goalsService.deleteGoal(input);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "goals",
+          action: "delete",
+          goalId: input.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.documentsList:
+        return yield* documentService.listDocumentsByGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.documentsRead:
+        return yield* documentService.readDocument(stripRequestTag(request.body) as any);
+      case WS_METHODS.documentsWrite: {
+        const result = yield* documentService.writeDocument(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "documents",
+          action: "write",
+          goalId: result.document.goalId,
+          documentId: result.document.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.documentsCreate: {
+        const result = yield* documentService.createDocument(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "documents",
+          action: "create",
+          goalId: result.document.goalId,
+          documentId: result.document.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.documentsUpdate: {
+        const result = yield* documentService.updateDocument(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "documents",
+          action: "update",
+          goalId: result.document.goalId,
+          documentId: result.document.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.documentsDelete: {
+        const input = stripRequestTag(request.body) as any;
+        const result = yield* documentService.deleteDocument(input);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "documents",
+          action: "delete",
+          goalId: input.goalId,
+          documentId: input.documentId,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.approvalsList:
+        return yield* approvalService.listApprovalsByGoal(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalsCreate: {
+        const result = yield* approvalService.createApproval(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "approvals",
+          action: "create",
+          goalId: result.approval.goalId,
+          documentId: result.approval.documentId,
+          approvalId: result.approval.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.approvalsApprove: {
+        const result = yield* approvalService.approve(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "approvals",
+          action: "approve",
+          goalId: result.approval.goalId,
+          documentId: result.approval.documentId,
+          approvalId: result.approval.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.approvalsReject: {
+        const result = yield* approvalService.reject(stripRequestTag(request.body) as any);
+        yield* pushBus.publishAll(WS_CHANNELS.organizingChanged, {
+          domain: "approvals",
+          action: "reject",
+          goalId: result.approval.goalId,
+          documentId: result.approval.documentId,
+          approvalId: result.approval.id,
+          timestamp: new Date().toISOString(),
+        });
+        return result;
+      }
+      case WS_METHODS.approvalsIsGoalApproved:
+        return yield* approvalService.isGoalApproved(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalGatesList:
+        return yield* threadApprovalService.listGates(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalGatesCreate:
+        return yield* threadApprovalService.createGate(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalGatesApprove:
+        return yield* threadApprovalService.approveGate(stripRequestTag(request.body) as any);
+      case WS_METHODS.approvalGatesReject:
+        return yield* threadApprovalService.rejectGate(stripRequestTag(request.body) as any);
       case WS_METHODS.reviewApprove: {
         const reviewBody = stripRequestTag(request.body) as any;
         yield* orchestrationEngine.dispatch({
@@ -2053,6 +2369,27 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return { breakdown };
       }
 
+      case WS_METHODS.contextMeterGet: {
+        const body = stripRequestTag(request.body);
+        const { thread } = yield* resolveLiveThreadContext(body.threadId);
+        const provider =
+          thread.session?.providerName === "codex" ||
+          thread.session?.providerName === "copilot" ||
+          thread.session?.providerName === "kilocode" ||
+          thread.session?.providerName === "kimi" ||
+          thread.session?.providerName === "minimax" ||
+          thread.session?.providerName === "opencode" ||
+          thread.session?.providerName === "pi"
+            ? thread.session.providerName
+            : undefined;
+        const snapshot = yield* contextMeter.getSnapshot({
+          threadId: body.threadId,
+          model: thread.model,
+          ...(provider !== undefined ? { provider } : {}),
+        });
+        return { snapshot };
+      }
+
       // Memory methods
       case WS_METHODS.memoryCreate: {
         const memBody = stripRequestTag(request.body) as any;
@@ -2070,9 +2407,66 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return { memories };
       }
       case WS_METHODS.memoryDelete:
-        return yield* memoryService.deleteMemory(stripRequestTag(request.body) as any).pipe(
-          Effect.map(() => ({})),
+        return yield* memoryService
+          .deleteMemory(stripRequestTag(request.body) as any)
+          .pipe(Effect.map(() => ({})));
+
+      case WS_METHODS.coreAgentsList:
+        return yield* Effect.promise(() =>
+          coreAgentService.listAgents(stripRequestTag(request.body) as any),
         );
+      case WS_METHODS.coreAgentsCreate:
+        return yield* Effect.promise(() =>
+          coreAgentService.createAgent(stripRequestTag(request.body) as any),
+        );
+      case WS_METHODS.coreAgentsUpdate:
+        return yield* Effect.promise(() =>
+          coreAgentService.updateAgent(stripRequestTag(request.body) as any),
+        );
+      case WS_METHODS.coreAgentsDelete:
+        return yield* Effect.promise(() =>
+          coreAgentService.deleteAgent(stripRequestTag(request.body) as any),
+        );
+      case WS_METHODS.coreAgentsSetActive:
+        return yield* setActiveCoreAgentAndPublish({
+          service: coreAgentService,
+          pushBus,
+          request: stripRequestTag(request.body) as any,
+        });
+      case WS_METHODS.memoryNotesList:
+        return yield* Effect.promise(() =>
+          memoryPalaceService.list(stripRequestTag(request.body) as any).pipe(Effect.runPromise),
+        );
+      case WS_METHODS.memoryNotesRead: {
+        const note = yield* Effect.promise(() =>
+          memoryPalaceService.read(stripRequestTag(request.body) as any).pipe(Effect.runPromise),
+        );
+        return { note };
+      }
+      case WS_METHODS.memoryNotesWrite: {
+        const body = stripRequestTag(request.body) as any;
+        const note = yield* Effect.promise(() =>
+          memoryPalaceService.write(body).pipe(Effect.runPromise),
+        );
+        yield* pushBus.publishAll(WS_CHANNELS.memoryChanged, {
+          scope: body.scope,
+          agentId: body.agentId,
+          filename: body.filename,
+          operation: "updated",
+        });
+        return { note };
+      }
+      case WS_METHODS.memoryNotesDelete: {
+        const body = stripRequestTag(request.body) as any;
+        yield* Effect.promise(() => memoryPalaceService.delete(body).pipe(Effect.runPromise));
+        yield* pushBus.publishAll(WS_CHANNELS.memoryChanged, {
+          scope: body.scope,
+          agentId: body.agentId,
+          filename: body.filename,
+          operation: "deleted",
+        });
+        return {};
+      }
 
       // Codebase Intelligence
       case WS_METHODS.codebaseHealthSummary: {

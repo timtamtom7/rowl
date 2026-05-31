@@ -52,10 +52,7 @@ export const MultiAgentCoordinatorLive = Layer.effect(
           let status: AgentStatus["status"] = "idle";
           if (session?.status === "running") status = "running";
           else if (session?.status === "error") status = "error";
-          else if (
-            t.turnDiffSummaries?.length > 0 &&
-            session?.status !== "running"
-          ) {
+          else if (t.turnDiffSummaries?.length > 0 && session?.status !== "running") {
             status = "completed";
           }
 
@@ -67,9 +64,7 @@ export const MultiAgentCoordinatorLive = Layer.effect(
             provider: session?.providerName ?? null,
             model: t.model ?? null,
             lastActivity: t.updatedAt ?? null,
-            turnCount: t.messages?.filter(
-              (m: any) => m.role === "assistant",
-            ).length ?? 0,
+            turnCount: t.messages?.filter((m: any) => m.role === "assistant").length ?? 0,
           };
         });
 
@@ -123,28 +118,22 @@ export const MultiAgentCoordinatorLive = Layer.effect(
         const readModel = yield* orchestrationEngine.getReadModel();
         const project = readModel.projects.find((p) => p.id === input.projectId);
         if (!project) {
-          return yield* Effect.fail(
-            new Error(`Project ${input.projectId} not found`),
-          );
+          return yield* Effect.fail(new Error(`Project ${input.projectId} not found`));
         }
 
         const threadId = ThreadId.makeUnsafe(randomUUID());
         const now = new Date().toISOString();
 
         // Derive a safe branch name from the feature name
-        const branchName = input.featureName
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "")
-          + `-${Date.now().toString(36)}`;
+        const branchName =
+          input.featureName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "") + `-${Date.now().toString(36)}`;
 
         // Create a dedicated worktree for this agent so it can make
         // commits without conflicting with other agents or the main branch.
-        const worktreesDir = join(
-          dirname(project.workspaceRoot),
-          "rowl-worktrees",
-          project.title,
-        );
+        const worktreesDir = join(dirname(project.workspaceRoot), "rowl-worktrees", project.title);
         const worktreePath = join(worktreesDir, branchName);
 
         // Try to create a worktree; fall back to main workspace on failure.
@@ -157,9 +146,7 @@ export const MultiAgentCoordinatorLive = Layer.effect(
           })
           .pipe(
             Effect.map((r) => ({ branch: r.worktree.branch, path: r.worktree.path })),
-            Effect.catch(() =>
-              Effect.succeed(null as { branch: string; path: string } | null),
-            ),
+            Effect.catch(() => Effect.succeed(null as { branch: string; path: string } | null)),
           );
 
         const resolvedWorktreePath = worktreeResult?.path ?? project.workspaceRoot;
@@ -204,9 +191,7 @@ export const MultiAgentCoordinatorLive = Layer.effect(
       ) as any;
 
     const detectConflicts: MultiAgentCoordinatorShape["detectConflicts"] = (input) =>
-      getProjectAgentOverview(input).pipe(
-        Effect.map((overview) => overview.conflicts),
-      );
+      getProjectAgentOverview(input).pipe(Effect.map((overview) => overview.conflicts));
 
     return {
       getProjectAgentOverview,

@@ -52,6 +52,7 @@ Plans directory is NOT in the ignored list — safe to put anywhere outside `.ro
 ## Relevant ROWL_ROADMAP_V2.md Entries
 
 From the roadmap priority stack:
+
 - #11 Overseer — Tier 2, Needs testing
 - #12 PM Chat — Tier 2, Done
 - #14 Multi-Agent Coordination — Tier 3, Not started
@@ -62,6 +63,7 @@ From the roadmap priority stack:
 ## Connection to Comprehensive Build Plan
 
 The `2026-04-13-comprehensive-build-plan.md` covers:
+
 - Phase A: Fix blockers (approval loop, session status, brand rename)
 - Phase B: Harness presets + ProjectPromptsService
 - Phase C: Make existing features bulletproof (all E2E testing)

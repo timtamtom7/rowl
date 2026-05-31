@@ -11,6 +11,7 @@
 ### Current State (updated 2026-04-12)
 
 **What ships today and works (Tier 1 complete):**
+
 - 7 provider integrations (Codex, GitHub Copilot, KiloCode, Kimi Code, MiniMax, OpenCode, Pi)
 - Event-sourced orchestration engine, SQLite persistence
 - Git checkpointing with rollback
@@ -23,6 +24,7 @@
 - Onboarding wizard, Settings reorganization
 
 **Feature status table (from roadmap):**
+
 - Provider Integrations: 100%, Yes
 - Settings Reorganization: 100%, Yes
 - Thread Goal Statement: 100%, Yes
@@ -42,6 +44,7 @@
 ### Tier 2 Status
 
 > Most of Tier 2 is implemented. Remaining work:
+>
 > - Overseer Hardening: patterns exist, needs testing with real AI output, false-positive tuning, confidence scoring
 > - PM Multi-Question Clarification: infrastructure exists, needs behavioral integration
 > - Context Compression (Real): current is toggle, needs LLM-based summarization
@@ -62,21 +65,21 @@
 
 ### Priority Stack (from ROWL_ROADMAP_V2.md)
 
-| # | Item | Tier | Status |
-|---|---|---|---|
-| 1 | Provider session resilience | 0 | Partial |
-| 2 | Checkpoint UX hardening | 0 | Not started |
-| 3 | Context budget meter | 0 | Done |
-| 4 | Settings reorganization | 0 | Done |
-| 5-10 | Threads/Goals/Features/Brief/Skills/Context | 1 | Done |
-| 11 | Overseer | 2 | Needs testing |
-| 12 | PM Chat | 2 | Done |
-| 13 | Real-world integration testing | - | Next |
-| 14 | Multi-Agent Coordination | 3 | Not started |
-| 15 | Process Isolation | 3 | Not started |
-| 16 | Apply/Review System | 3 | Partial |
-| 17 | Visual Dashboard | 3 | Partial |
-| 18-20 | Agent Type Abstraction/Flora/Flashboards | 4 | Not started |
+| #     | Item                                        | Tier | Status        |
+| ----- | ------------------------------------------- | ---- | ------------- |
+| 1     | Provider session resilience                 | 0    | Partial       |
+| 2     | Checkpoint UX hardening                     | 0    | Not started   |
+| 3     | Context budget meter                        | 0    | Done          |
+| 4     | Settings reorganization                     | 0    | Done          |
+| 5-10  | Threads/Goals/Features/Brief/Skills/Context | 1    | Done          |
+| 11    | Overseer                                    | 2    | Needs testing |
+| 12    | PM Chat                                     | 2    | Done          |
+| 13    | Real-world integration testing              | -    | Next          |
+| 14    | Multi-Agent Coordination                    | 3    | Not started   |
+| 15    | Process Isolation                           | 3    | Not started   |
+| 16    | Apply/Review System                         | 3    | Partial       |
+| 17    | Visual Dashboard                            | 3    | Partial       |
+| 18-20 | Agent Type Abstraction/Flora/Flashboards    | 4    | Not started   |
 
 ## Key Insight: Overseer is the Safety Net
 

@@ -46,54 +46,56 @@ const ACTION_PATTERN =
 
 function parseActions(text: string): { cleanText: string; actions: PMAction[] } {
   const actions: PMAction[] = [];
-  const cleanText = text.replace(ACTION_PATTERN, (_, type, args) => {
-    const params = new Map<string, string>();
-    // Accept both double and single quotes, and also escaped quotes
-    for (const match of (args as string).matchAll(/(\w+)=(?:"([^"]*?)"|'([^']*?)'|(\S+))/g)) {
-      params.set(match[1]!, match[2] ?? match[3] ?? match[4] ?? "");
-    }
+  const cleanText = text
+    .replace(ACTION_PATTERN, (_, type, args) => {
+      const params = new Map<string, string>();
+      // Accept both double and single quotes, and also escaped quotes
+      for (const match of (args as string).matchAll(/(\w+)=(?:"([^"]*?)"|'([^']*?)'|(\S+))/g)) {
+        params.set(match[1]!, match[2] ?? match[3] ?? match[4] ?? "");
+      }
 
-    switch (type as string) {
-      case "CREATE_FEATURE":
-        if (params.has("name")) {
-          actions.push({
-            type: "create_feature",
-            name: params.get("name")!,
-            stage: params.get("stage") ?? "backlog",
-          });
-        }
-        break;
-      case "CREATE_GOAL":
-        if (params.has("text")) {
-          actions.push({
-            type: "create_goal",
-            text: params.get("text")!,
-            isMain: params.get("isMain") === "true",
-          });
-        }
-        break;
-      case "CREATE_THREAD":
-        if (params.has("title")) {
-          actions.push({ type: "create_thread", title: params.get("title")! });
-        }
-        break;
-      case "SPAWN_AGENT":
-        if (params.has("feature") && params.has("instructions")) {
-          actions.push({
-            type: "spawn_agent",
-            feature: params.get("feature")!,
-            instructions: params.get("instructions")!,
-          });
-        }
-        break;
-      case "ACTIVATE_HARNESS":
-        if (params.has("preset")) {
-          actions.push({ type: "activate_harness", preset: params.get("preset")! });
-        }
-        break;
-    }
-    return "";
-  }).trim();
+      switch (type as string) {
+        case "CREATE_FEATURE":
+          if (params.has("name")) {
+            actions.push({
+              type: "create_feature",
+              name: params.get("name")!,
+              stage: params.get("stage") ?? "backlog",
+            });
+          }
+          break;
+        case "CREATE_GOAL":
+          if (params.has("text")) {
+            actions.push({
+              type: "create_goal",
+              text: params.get("text")!,
+              isMain: params.get("isMain") === "true",
+            });
+          }
+          break;
+        case "CREATE_THREAD":
+          if (params.has("title")) {
+            actions.push({ type: "create_thread", title: params.get("title")! });
+          }
+          break;
+        case "SPAWN_AGENT":
+          if (params.has("feature") && params.has("instructions")) {
+            actions.push({
+              type: "spawn_agent",
+              feature: params.get("feature")!,
+              instructions: params.get("instructions")!,
+            });
+          }
+          break;
+        case "ACTIVATE_HARNESS":
+          if (params.has("preset")) {
+            actions.push({ type: "activate_harness", preset: params.get("preset")! });
+          }
+          break;
+      }
+      return "";
+    })
+    .trim();
 
   return { cleanText, actions };
 }
@@ -179,13 +181,19 @@ If the user hasn't set up a project brief or goals yet, suggest they do that fir
     in_progress: context.features.filter((f) => f.stage === "in_progress").length,
     done: context.features.filter((f) => f.stage === "done").length,
   };
-  parts.push(`\nProject state: ${featuresByStage.done} features done, ${featuresByStage.in_progress} in progress, ${featuresByStage.backlog} in backlog.`);
-  parts.push("You are focused on THIS project. If the user mentions another project, note that cross-project work is possible but each project has its own context.");
+  parts.push(
+    `\nProject state: ${featuresByStage.done} features done, ${featuresByStage.in_progress} in progress, ${featuresByStage.backlog} in backlog.`,
+  );
+  parts.push(
+    "You are focused on THIS project. If the user mentions another project, note that cross-project work is possible but each project has its own context.",
+  );
   if (context.memoryCount && context.memoryCount > 0) {
     parts.push(`${context.memoryCount} memories stored from previous conversations.`);
   }
   if (context.runningAgents && context.runningAgents > 0) {
-    parts.push(`${context.runningAgents} AI agent${context.runningAgents > 1 ? "s" : ""} currently working.`);
+    parts.push(
+      `${context.runningAgents} AI agent${context.runningAgents > 1 ? "s" : ""} currently working.`,
+    );
   }
 
   parts.push(
@@ -236,7 +244,8 @@ export function PMChatTabContent({
 
   // Find existing PM thread
   const pmThread = useMemo(
-    () => threads.find((t) => t.projectId === projectId && t.title.startsWith(PM_THREAD_TITLE_PREFIX)),
+    () =>
+      threads.find((t) => t.projectId === projectId && t.title.startsWith(PM_THREAD_TITLE_PREFIX)),
     [threads, projectId],
   );
 
@@ -324,7 +333,9 @@ export function PMChatTabContent({
       try {
         const memResult = await api.memory.listByProject({ projectId });
         memoryCount = memResult.memories?.length ?? 0;
-      } catch { /* non-critical */ }
+      } catch {
+        /* non-critical */
+      }
       runningAgents = threads.filter(
         (t) => t.projectId === projectId && t.session?.status === "running",
       ).length;
@@ -429,7 +440,9 @@ export function PMChatTabContent({
                 createdBy: "pm",
               });
               featureId = (result.feature as any)?.id ?? null;
-            } catch { /* feature might already exist */ }
+            } catch {
+              /* feature might already exist */
+            }
 
             // Spawn the agent via multi-agent coordinator
             const spawnResult = await api.agents.spawnForFeature({
@@ -477,11 +490,13 @@ export function PMChatTabContent({
     if (!pmThreadId) return;
     const api = readNativeApi();
     if (!api) return;
-    api.harness.getActive({ threadId: pmThreadId as string })
+    api.harness
+      .getActive({ threadId: pmThreadId as string })
       .then((r) => setActiveHarnessName(r.preset?.name ?? null))
       .catch(() => {});
   }, [pmThreadId]);
-  const effectiveModel = pmModel ?? projects.find((p) => p.id === projectId)?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex;
+  const effectiveModel =
+    pmModel ?? projects.find((p) => p.id === projectId)?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex;
 
   // Proactive suggestions based on project state — personalized with actual data
   const projectName = projects.find((p) => p.id === projectId)?.name ?? "project";
@@ -540,7 +555,11 @@ export function PMChatTabContent({
       });
     }
 
-    if (doneFeatures.length > 0 && backlogFeatures.length === 0 && inProgressFeatures.length === 0) {
+    if (
+      doneFeatures.length > 0 &&
+      backlogFeatures.length === 0 &&
+      inProgressFeatures.length === 0
+    ) {
       items.push({
         icon: <ZapIcon className="size-3" />,
         label: "What's next?",
@@ -557,7 +576,16 @@ export function PMChatTabContent({
     }
 
     return items.slice(0, 4); // Max 4 suggestions
-  }, [brief, goals, features, projectName, mainGoal, backlogFeatures, inProgressFeatures, doneFeatures]);
+  }, [
+    brief,
+    goals,
+    features,
+    projectName,
+    mainGoal,
+    backlogFeatures,
+    inProgressFeatures,
+    doneFeatures,
+  ]);
 
   return (
     <div className="flex flex-col h-full">
@@ -582,15 +610,23 @@ export function PMChatTabContent({
               title="Select PM model"
             >
               <option value="">
-                {(projects.find((p) => p.id === projectId)?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex).split("/").pop()?.slice(0, 20)} (project default)
+                {(
+                  projects.find((p) => p.id === projectId)?.model ?? DEFAULT_MODEL_BY_PROVIDER.codex
+                )
+                  .split("/")
+                  .pop()
+                  ?.slice(0, 20)}{" "}
+                (project default)
               </option>
               {Object.entries(MODEL_OPTIONS_BY_PROVIDER).map(([provider, models]) => (
                 <optgroup key={provider} label={provider}>
-                  {(models as ReadonlyArray<{ slug: string; name: string }>).slice(0, 5).map((m) => (
-                    <option key={m.slug} value={m.slug}>
-                      {m.name}
-                    </option>
-                  ))}
+                  {(models as ReadonlyArray<{ slug: string; name: string }>)
+                    .slice(0, 5)
+                    .map((m) => (
+                      <option key={m.slug} value={m.slug}>
+                        {m.name}
+                      </option>
+                    ))}
                 </optgroup>
               ))}
             </select>
@@ -651,19 +687,18 @@ export function PMChatTabContent({
         {pmMessages.map((msg, i) => {
           const displayText =
             msg.role === "user"
-              ? msg.text.split("<!-- USER_MESSAGE -->\n").pop() ?? msg.text
+              ? (msg.text.split("<!-- USER_MESSAGE -->\n").pop() ?? msg.text)
               : msg.text;
 
           const { cleanText, actions } =
-            msg.role === "assistant" ? parseActions(displayText) : { cleanText: displayText, actions: [] };
+            msg.role === "assistant"
+              ? parseActions(displayText)
+              : { cleanText: displayText, actions: [] };
 
           return (
             <div
               key={`${msg.role}-${i}`}
-              className={cn(
-                "flex gap-2",
-                msg.role === "user" ? "justify-end" : "justify-start",
-              )}
+              className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}
             >
               {msg.role === "assistant" && (
                 <SparklesIcon className="size-4 text-primary shrink-0 mt-1" />
@@ -688,7 +723,9 @@ export function PMChatTabContent({
                         onClick={() => void executeAction(action)}
                         className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
                       >
-                        {action.type === "create_feature" && <LayoutGridIcon className="size-2.5" />}
+                        {action.type === "create_feature" && (
+                          <LayoutGridIcon className="size-2.5" />
+                        )}
                         {action.type === "create_goal" && <TargetIcon className="size-2.5" />}
                         {action.type === "create_thread" && <PlusIcon className="size-2.5" />}
                         {action.type === "spawn_agent" && <RocketIcon className="size-2.5" />}

@@ -105,13 +105,9 @@ export function AgentOverviewSection({ projectId }: { projectId: ProjectId }) {
       <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-1.5">
           <BotIcon className="size-3.5 text-muted-foreground/60" />
-          <span className="text-xs font-medium text-foreground/80">
-            Agents ({agents.length})
-          </span>
+          <span className="text-xs font-medium text-foreground/80">Agents ({agents.length})</span>
           {runningCount > 0 && (
-            <span className="text-[10px] text-emerald-400 font-medium">
-              {runningCount} running
-            </span>
+            <span className="text-[10px] text-emerald-400 font-medium">{runningCount} running</span>
           )}
         </div>
       </div>
@@ -121,9 +117,7 @@ export function AgentOverviewSection({ projectId }: { projectId: ProjectId }) {
         <div className="mx-3 mb-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5">
           <div className="flex items-center gap-1.5">
             <AlertTriangleIcon className="size-3 text-amber-400 shrink-0" />
-            <span className="text-[10px] text-amber-400 font-medium">
-              File conflicts detected
-            </span>
+            <span className="text-[10px] text-amber-400 font-medium">File conflicts detected</span>
           </div>
           {conflicts.map((c) => (
             <p key={c.filePath} className="text-[9px] text-amber-400/60 mt-0.5 pl-4">
@@ -141,27 +135,21 @@ export function AgentOverviewSection({ projectId }: { projectId: ProjectId }) {
           <div
             key={agent.threadId}
             className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent/10 cursor-pointer"
-            onClick={() => void navigate({ to: "/$threadId", params: { threadId: agent.threadId } })}
+            onClick={() =>
+              void navigate({ to: "/$threadId", params: { threadId: agent.threadId } })
+            }
             title="Click to open this thread"
           >
             <Icon
-              className={cn(
-                "size-3 shrink-0",
-                config.color,
-                config.animate && "animate-spin",
-              )}
+              className={cn("size-3 shrink-0", config.color, config.animate && "animate-spin")}
             />
             <div className="flex-1 min-w-0">
               <p className="text-[11px] text-foreground/80 truncate">{agent.threadTitle}</p>
               {agent.featureName && (
-                <p className="text-[9px] text-muted-foreground/50 truncate">
-                  {agent.featureName}
-                </p>
+                <p className="text-[9px] text-muted-foreground/50 truncate">{agent.featureName}</p>
               )}
             </div>
-            <span className="text-[9px] text-muted-foreground/40 shrink-0">
-              {agent.turnCount}T
-            </span>
+            <span className="text-[9px] text-muted-foreground/40 shrink-0">{agent.turnCount}T</span>
           </div>
         );
       })}

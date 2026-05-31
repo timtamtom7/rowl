@@ -68,7 +68,12 @@ describe("WorkflowEngine", () => {
     it("builds XML from enabled prompts", () => {
       const result = buildProjectPromptsBlock(
         [
-          { scope: "project", name: "Use TypeScript", content: "Always use TypeScript.", enabled: true },
+          {
+            scope: "project",
+            name: "Use TypeScript",
+            content: "Always use TypeScript.",
+            enabled: true,
+          },
         ],
         null,
       );
@@ -81,7 +86,12 @@ describe("WorkflowEngine", () => {
     it("skips disabled prompts", () => {
       const result = buildProjectPromptsBlock(
         [
-          { scope: "project", name: "Disabled Rule", content: "Should not appear.", enabled: false },
+          {
+            scope: "project",
+            name: "Disabled Rule",
+            content: "Should not appear.",
+            enabled: false,
+          },
         ],
         null,
       );
@@ -89,10 +99,7 @@ describe("WorkflowEngine", () => {
     });
 
     it("includes harness content when provided", () => {
-      const result = buildProjectPromptsBlock(
-        [],
-        '<harness name="test">Do the thing.</harness>',
-      );
+      const result = buildProjectPromptsBlock([], '<harness name="test">Do the thing.</harness>');
       expect(result).toContain("<harness");
       expect(result).toContain("Do the thing.");
     });

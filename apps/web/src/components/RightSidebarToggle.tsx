@@ -23,7 +23,7 @@ export default function RightSidebarToggle({ className }: { className?: string }
       variant="ghost"
       size="icon"
       className={cn(
-        "size-8 shrink-0 rounded-md border border-border/70 bg-background/80 shadow-sm backdrop-blur-sm hover:bg-accent/80",
+        "size-8 shrink-0 rounded-md border border-border/65 bg-background/62 shadow-[var(--rowl-shadow-minimal)] backdrop-blur-xl hover:bg-accent/80",
         className,
       )}
       onClick={toggleRightSidebar}

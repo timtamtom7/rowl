@@ -48,15 +48,8 @@ export function ContextTabContent({ projectId }: { projectId: ProjectId }) {
     .filter((t) => t.projectId === projectId)
     .toSorted((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))[0];
 
-  const {
-    nodes,
-    budget,
-    breakdown,
-    isLoading,
-    compressNode,
-    restoreNode,
-    deleteNode,
-  } = useSidebarContext(projectId, activeThread?.id ?? null);
+  const { nodes, budget, breakdown, isLoading, compressNode, restoreNode, deleteNode } =
+    useSidebarContext(projectId, activeThread?.id ?? null);
 
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
 
@@ -96,25 +89,33 @@ export function ContextTabContent({ projectId }: { projectId: ProjectId }) {
               {breakdown.agentsMd > 0 && (
                 <div className="flex justify-between text-[10px]">
                   <span className="text-foreground/50">AGENTS.md</span>
-                  <span className="text-muted-foreground/40 tabular-nums">{formatSize(breakdown.agentsMd)}</span>
+                  <span className="text-muted-foreground/40 tabular-nums">
+                    {formatSize(breakdown.agentsMd)}
+                  </span>
                 </div>
               )}
               {breakdown.projectContext > 0 && (
                 <div className="flex justify-between text-[10px]">
                   <span className="text-foreground/50">Brief + Goals + Features</span>
-                  <span className="text-muted-foreground/40 tabular-nums">{formatSize(breakdown.projectContext)}</span>
+                  <span className="text-muted-foreground/40 tabular-nums">
+                    {formatSize(breakdown.projectContext)}
+                  </span>
                 </div>
               )}
               {breakdown.resumeSummary > 0 && (
                 <div className="flex justify-between text-[10px]">
                   <span className="text-foreground/50">Session history</span>
-                  <span className="text-muted-foreground/40 tabular-nums">{formatSize(breakdown.resumeSummary)}</span>
+                  <span className="text-muted-foreground/40 tabular-nums">
+                    {formatSize(breakdown.resumeSummary)}
+                  </span>
                 </div>
               )}
               {breakdown.skills > 0 && (
                 <div className="flex justify-between text-[10px]">
                   <span className="text-foreground/50">Skills</span>
-                  <span className="text-muted-foreground/40 tabular-nums">{formatSize(breakdown.skills)}</span>
+                  <span className="text-muted-foreground/40 tabular-nums">
+                    {formatSize(breakdown.skills)}
+                  </span>
                 </div>
               )}
               {activeNodes.length > 0 && (
@@ -128,9 +129,7 @@ export function ContextTabContent({ projectId }: { projectId: ProjectId }) {
               </p>
             </div>
           ) : (
-            <p className="text-[10px] text-foreground/50 mt-0.5">
-              Click to see token breakdown
-            </p>
+            <p className="text-[10px] text-foreground/50 mt-0.5">Click to see token breakdown</p>
           )}
         </div>
       )}
@@ -173,8 +172,8 @@ export function ContextTabContent({ projectId }: { projectId: ProjectId }) {
                   </p>
                   {budgetPercent > 0.9 && (
                     <p className="text-[9px] text-amber-400/60 mt-1">
-                      Create a new thread to continue with fresh context.
-                      Your brief, goals, and memories carry over automatically.
+                      Create a new thread to continue with fresh context. Your brief, goals, and
+                      memories carry over automatically.
                     </p>
                   )}
                 </div>
@@ -190,23 +189,59 @@ export function ContextTabContent({ projectId }: { projectId: ProjectId }) {
               </p>
               <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden">
                 {breakdown.agentsMd > 0 && (
-                  <div className="bg-sky-500/60 rounded-full" style={{ flex: breakdown.agentsMd }} title={`AGENTS.md: ~${formatSize(breakdown.agentsMd)}`} />
+                  <div
+                    className="bg-sky-500/60 rounded-full"
+                    style={{ flex: breakdown.agentsMd }}
+                    title={`AGENTS.md: ~${formatSize(breakdown.agentsMd)}`}
+                  />
                 )}
                 {breakdown.projectContext > 0 && (
-                  <div className="bg-emerald-500/60 rounded-full" style={{ flex: breakdown.projectContext }} title={`Project: ~${formatSize(breakdown.projectContext)}`} />
+                  <div
+                    className="bg-emerald-500/60 rounded-full"
+                    style={{ flex: breakdown.projectContext }}
+                    title={`Project: ~${formatSize(breakdown.projectContext)}`}
+                  />
                 )}
                 {breakdown.resumeSummary > 0 && (
-                  <div className="bg-amber-500/60 rounded-full" style={{ flex: breakdown.resumeSummary }} title={`Resume: ~${formatSize(breakdown.resumeSummary)}`} />
+                  <div
+                    className="bg-amber-500/60 rounded-full"
+                    style={{ flex: breakdown.resumeSummary }}
+                    title={`Resume: ~${formatSize(breakdown.resumeSummary)}`}
+                  />
                 )}
                 {breakdown.skills > 0 && (
-                  <div className="bg-violet-500/60 rounded-full" style={{ flex: breakdown.skills }} title={`Skills: ~${formatSize(breakdown.skills)}`} />
+                  <div
+                    className="bg-violet-500/60 rounded-full"
+                    style={{ flex: breakdown.skills }}
+                    title={`Skills: ~${formatSize(breakdown.skills)}`}
+                  />
                 )}
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-muted-foreground/40">
-                {breakdown.agentsMd > 0 && <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-500/60 mr-0.5" />AGENTS {formatSize(breakdown.agentsMd)}</span>}
-                {breakdown.projectContext > 0 && <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/60 mr-0.5" />Project {formatSize(breakdown.projectContext)}</span>}
-                {breakdown.resumeSummary > 0 && <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500/60 mr-0.5" />Resume {formatSize(breakdown.resumeSummary)}</span>}
-                {breakdown.skills > 0 && <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500/60 mr-0.5" />Skills {formatSize(breakdown.skills)}</span>}
+                {breakdown.agentsMd > 0 && (
+                  <span>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-500/60 mr-0.5" />
+                    AGENTS {formatSize(breakdown.agentsMd)}
+                  </span>
+                )}
+                {breakdown.projectContext > 0 && (
+                  <span>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/60 mr-0.5" />
+                    Project {formatSize(breakdown.projectContext)}
+                  </span>
+                )}
+                {breakdown.resumeSummary > 0 && (
+                  <span>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500/60 mr-0.5" />
+                    Resume {formatSize(breakdown.resumeSummary)}
+                  </span>
+                )}
+                {breakdown.skills > 0 && (
+                  <span>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500/60 mr-0.5" />
+                    Skills {formatSize(breakdown.skills)}
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -260,7 +295,8 @@ export function ContextTabContent({ projectId }: { projectId: ProjectId }) {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-foreground/80 truncate">{node.summary}</p>
                     <p className="text-[10px] text-muted-foreground/40 mt-0.5">
-                      {config.label} · {formatSize(node.size)} · {formatRelativeTime(node.createdAt)}
+                      {config.label} · {formatSize(node.size)} ·{" "}
+                      {formatRelativeTime(node.createdAt)}
                     </p>
                   </div>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -292,10 +328,18 @@ export function ContextTabContent({ projectId }: { projectId: ProjectId }) {
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div className="px-3 pb-2 pl-10 text-[10px] text-muted-foreground/60 space-y-1 bg-accent/5">
-                    <p><strong>Type:</strong> {config.label}</p>
-                    <p><strong>Size:</strong> ~{formatSize(node.size)} tokens</p>
-                    <p><strong>Created:</strong> {new Date(node.createdAt).toLocaleString()}</p>
-                    <p className="whitespace-pre-wrap break-words text-foreground/60">{node.summary}</p>
+                    <p>
+                      <strong>Type:</strong> {config.label}
+                    </p>
+                    <p>
+                      <strong>Size:</strong> ~{formatSize(node.size)} tokens
+                    </p>
+                    <p>
+                      <strong>Created:</strong> {new Date(node.createdAt).toLocaleString()}
+                    </p>
+                    <p className="whitespace-pre-wrap break-words text-foreground/60">
+                      {node.summary}
+                    </p>
                   </div>
                 )}
               </div>
