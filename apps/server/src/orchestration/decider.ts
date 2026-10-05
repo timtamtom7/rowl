@@ -413,6 +413,16 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
           ...(command.workspaceRoot !== undefined ? { workspaceRoot: command.workspaceRoot } : {}),
           ...(command.defaultModel !== undefined ? { defaultModel: command.defaultModel } : {}),
           ...(command.scripts !== undefined ? { scripts: command.scripts } : {}),
+          ...(command.projectGroupId !== undefined
+            ? { projectGroupId: command.projectGroupId }
+            : {}),
+          ...(command.briefGoal !== undefined ? { briefGoal: command.briefGoal } : {}),
+          ...(command.briefProblemSolving !== undefined
+            ? { briefProblemSolving: command.briefProblemSolving }
+            : {}),
+          ...(command.briefKeyContext !== undefined
+            ? { briefKeyContext: command.briefKeyContext }
+            : {}),
           updatedAt: occurredAt,
         },
       };

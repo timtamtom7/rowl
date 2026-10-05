@@ -193,6 +193,7 @@ import {
 } from "../keybindings";
 import PlanSidebar from "./PlanSidebar";
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
+import { VoiceInputButton } from "./VoiceInputButton";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "./ui/alert";
 import {
   BotIcon,
@@ -7444,6 +7445,19 @@ export default function ChatView({ threadId }: ChatViewProps) {
                           </TooltipPopup>
                         </Tooltip>
                       ) : null}
+                      <VoiceInputButton
+                        projectId={thread?.projectId ?? ""}
+                        threadId={threadId}
+                        onTranscription={(text) => {
+                          const expanded = expandCollapsedComposerCursor(prompt, prompt.length);
+                          const newPrompt =
+                            prompt.slice(0, expanded) +
+                            (expanded > 0 && prompt[expanded - 1] !== " " ? " " : "") +
+                            text +
+                            prompt.slice(expanded);
+                          setComposerDraftPrompt(newPrompt);
+                        }}
+                      />
                       {isPreparingWorktree ? (
                         <span className="text-muted-foreground/70 text-xs">
                           {chatCopy.preparingWorktree}
