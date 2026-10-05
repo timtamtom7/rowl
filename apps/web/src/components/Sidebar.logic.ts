@@ -171,6 +171,24 @@ export interface SidebarProjectEntry {
   orderedThreadIds: ThreadId[];
 }
 
+export interface SidebarGroupEntry {
+  groupId: string;
+  groupName: string;
+  projectIds: ProjectId[];
+  isCollapsed: boolean;
+}
+
+export interface SidebarGroupedProjectEntries {
+  groups: SidebarGroupEntry[];
+  ungroupedEntries: SidebarProjectEntry[];
+  entryByProjectId: ReadonlyMap<ProjectId, SidebarProjectEntry>;
+}
+
+function getGroupName(groupId: string | null): string {
+  if (groupId === null) return "";
+  return groupId;
+}
+
 export function buildSidebarProjectEntries(input: {
   projects: readonly Project[];
   threads: readonly Thread[];
@@ -265,4 +283,93 @@ export function buildSidebarProjectEntries(input: {
         },
       ];
     });
+}
+
+export function buildSidebarGroupedProjectEntries(input: {
+  projects: readonly Project[];
+  threads: readonly Thread[];
+  query: string;
+  filterMode: SidebarArchiveFilterMode;
+  projectSortMode: SidebarProjectSortMode;
+  pinnedProjectIds?: ReadonlySet<ProjectId>;
+  archivedProjectIds?: ReadonlySet<ProjectId>;
+  pinnedThreadIds?: ReadonlySet<ThreadId>;
+  archivedThreadIds?: ReadonlySet<ThreadId>;
+  collapsedGroupIds?: ReadonlySet<string>;
+  groupOrder?: readonly string[];
+}): SidebarGroupedProjectEntries {
+  const entries = buildSidebarProjectEntries({
+    projects: input.projects,
+    threads: input.threads,
+    query: input.query,
+    filterMode: input.filterMode,
+    projectSortMode: input.projectSortMode,
+    ...(input.pinnedProjectIds !== undefined ? { pinnedProjectIds: input.pinnedProjectIds } : {}),
+    ...(input.archivedProjectIds !== undefined
+      ? { archivedProjectIds: input.archivedProjectIds }
+      : {}),
+    ...(input.pinnedThreadIds !== undefined ? { pinnedThreadIds: input.pinnedThreadIds } : {}),
+    ...(input.archivedThreadIds !== undefined
+      ? { archivedThreadIds: input.archivedThreadIds }
+      : {}),
+  });
+
+  const collapsedGroupIds = input.collapsedGroupIds ?? new Set<string>();
+  const groupOrder = input.groupOrder ?? [];
+
+  const projectsByGroupId = new Map<string | null, SidebarProjectEntry[]>();
+  for (const entry of entries) {
+    const groupId = entry.project.projectGroupId;
+    if (!projectsByGroupId.has(groupId)) {
+      projectsByGroupId.set(groupId, []);
+    }
+    projectsByGroupId.get(groupId)!.push(entry);
+  }
+
+  const entryByProjectId = new Map<ProjectId, SidebarProjectEntry>(
+    entries.map((e) => [e.project.id, e] as const),
+  );
+
+  const groups: SidebarGroupEntry[] = [];
+  const ungroupedEntries: SidebarProjectEntry[] = [];
+
+  for (const [groupId, groupEntries] of projectsByGroupId) {
+    if (groupId === null) {
+      ungroupedEntries.push(...groupEntries);
+      continue;
+    }
+
+    const sortedGroupEntries =
+      groupOrder.length > 0
+        ? groupEntries.toSorted((a, b) => {
+            const indexA = groupOrder.indexOf(a.project.id);
+            const indexB = groupOrder.indexOf(b.project.id);
+            if (indexA === -1 && indexB === -1) return 0;
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          })
+        : groupEntries;
+
+    groups.push({
+      groupId,
+      groupName: getGroupName(groupId),
+      projectIds: sortedGroupEntries.map((e) => e.project.id),
+      isCollapsed: collapsedGroupIds.has(groupId),
+    });
+  }
+
+  const sortedGroups =
+    groupOrder.length > 0
+      ? groups.toSorted((a, b) => {
+          const indexA = groupOrder.indexOf(a.groupId);
+          const indexB = groupOrder.indexOf(b.groupId);
+          if (indexA === -1 && indexB === -1) return a.groupId.localeCompare(b.groupId);
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          return indexA - indexB;
+        })
+      : groups.toSorted((a, b) => a.groupName.localeCompare(b.groupName));
+
+  return { groups: sortedGroups, ungroupedEntries, entryByProjectId };
 }

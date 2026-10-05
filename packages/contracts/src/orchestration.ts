@@ -13,6 +13,7 @@ import {
   ProviderItemId,
   ThreadId,
   TrimmedNonEmptyString,
+  TrimmedString,
   TurnId,
 } from "./baseSchemas";
 
@@ -155,6 +156,7 @@ export const OrchestrationProject = Schema.Struct({
   workspaceRoot: TrimmedNonEmptyString,
   defaultModel: Schema.NullOr(TrimmedNonEmptyString),
   scripts: Schema.Array(ProjectScript),
+  projectGroupId: Schema.NullOr(TrimmedNonEmptyString),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
   deletedAt: Schema.NullOr(IsoDateTime),
@@ -283,6 +285,7 @@ export const OrchestrationThread = Schema.Struct({
   ),
   branch: Schema.NullOr(TrimmedNonEmptyString),
   worktreePath: Schema.NullOr(TrimmedNonEmptyString),
+  goal: Schema.NullOr(TrimmedString).pipe(Schema.withDecodingDefault(() => null)),
   latestTurn: Schema.NullOr(OrchestrationLatestTurn),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
@@ -321,12 +324,25 @@ const ProjectMetaUpdateCommand = Schema.Struct({
   workspaceRoot: Schema.optional(TrimmedNonEmptyString),
   defaultModel: Schema.optional(TrimmedNonEmptyString),
   scripts: Schema.optional(Schema.Array(ProjectScript)),
+  projectGroupId: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+  briefGoal: Schema.optional(Schema.NullOr(Schema.String)),
+  briefProblemSolving: Schema.optional(Schema.NullOr(Schema.String)),
+  briefKeyContext: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
 const ProjectDeleteCommand = Schema.Struct({
   type: Schema.Literal("project.delete"),
   commandId: CommandId,
   projectId: ProjectId,
+});
+
+const SkillCreateCommand = Schema.Struct({
+  type: Schema.Literal("skill.create"),
+  commandId: CommandId,
+  cwd: TrimmedNonEmptyString,
+  name: ProjectSkillName,
+  description: TrimmedNonEmptyString.check(Schema.isMaxLength(1024)),
+  contents: Schema.String,
 });
 
 const ThreadCreateCommand = Schema.Struct({
@@ -342,6 +358,7 @@ const ThreadCreateCommand = Schema.Struct({
   ),
   branch: Schema.NullOr(TrimmedNonEmptyString),
   worktreePath: Schema.NullOr(TrimmedNonEmptyString),
+  goal: Schema.NullOr(TrimmedString),
   createdAt: IsoDateTime,
 });
 
@@ -391,6 +408,7 @@ const ThreadMetaUpdateCommand = Schema.Struct({
   model: Schema.optional(TrimmedNonEmptyString),
   branch: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   worktreePath: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+  goal: Schema.optional(Schema.NullOr(TrimmedString)),
 });
 
 const ThreadRuntimeModeSetCommand = Schema.Struct({
@@ -496,10 +514,19 @@ const ThreadSessionStopCommand = Schema.Struct({
   createdAt: IsoDateTime,
 });
 
+const ThreadProviderSwitchCommand = Schema.Struct({
+  type: Schema.Literal("thread.provider.switch"),
+  commandId: CommandId,
+  threadId: ThreadId,
+  targetProvider: ProviderKind,
+  createdAt: IsoDateTime,
+});
+
 const DispatchableClientOrchestrationCommand = Schema.Union([
   ProjectCreateCommand,
   ProjectMetaUpdateCommand,
   ProjectDeleteCommand,
+  SkillCreateCommand,
   ThreadCreateCommand,
   ThreadForkCommand,
   ThreadDeleteCommand,
@@ -512,6 +539,7 @@ const DispatchableClientOrchestrationCommand = Schema.Union([
   ThreadUserInputRespondCommand,
   ThreadCheckpointRevertCommand,
   ThreadSessionStopCommand,
+  ThreadProviderSwitchCommand,
 ]);
 export type DispatchableClientOrchestrationCommand =
   typeof DispatchableClientOrchestrationCommand.Type;
@@ -520,6 +548,7 @@ export const ClientOrchestrationCommand = Schema.Union([
   ProjectCreateCommand,
   ProjectMetaUpdateCommand,
   ProjectDeleteCommand,
+  SkillCreateCommand,
   ThreadCreateCommand,
   ThreadForkCommand,
   ThreadDeleteCommand,
@@ -532,6 +561,7 @@ export const ClientOrchestrationCommand = Schema.Union([
   ThreadUserInputRespondCommand,
   ThreadCheckpointRevertCommand,
   ThreadSessionStopCommand,
+  ThreadProviderSwitchCommand,
 ]);
 export type ClientOrchestrationCommand = typeof ClientOrchestrationCommand.Type;
 
@@ -649,6 +679,7 @@ export const OrchestrationEventType = Schema.Literals([
   "project.created",
   "project.meta-updated",
   "project.deleted",
+  "skill.created",
   "thread.created",
   "thread.deleted",
   "thread.meta-updated",
@@ -662,6 +693,7 @@ export const OrchestrationEventType = Schema.Literals([
   "thread.checkpoint-revert-requested",
   "thread.reverted",
   "thread.session-stop-requested",
+  "thread.provider.switched",
   "thread.session-set",
   "thread.proposed-plan-upserted",
   "thread.turn-diff-completed",
@@ -680,6 +712,7 @@ export const ProjectCreatedPayload = Schema.Struct({
   workspaceRoot: TrimmedNonEmptyString,
   defaultModel: Schema.NullOr(TrimmedNonEmptyString),
   scripts: Schema.Array(ProjectScript),
+  projectGroupId: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
 });
@@ -690,12 +723,24 @@ export const ProjectMetaUpdatedPayload = Schema.Struct({
   workspaceRoot: Schema.optional(TrimmedNonEmptyString),
   defaultModel: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   scripts: Schema.optional(Schema.Array(ProjectScript)),
+  projectGroupId: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+  briefGoal: Schema.optional(Schema.NullOr(Schema.String)),
+  briefProblemSolving: Schema.optional(Schema.NullOr(Schema.String)),
+  briefKeyContext: Schema.optional(Schema.NullOr(Schema.String)),
   updatedAt: IsoDateTime,
 });
 
 export const ProjectDeletedPayload = Schema.Struct({
   projectId: ProjectId,
   deletedAt: IsoDateTime,
+});
+
+export const SkillCreatedPayload = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  name: ProjectSkillName,
+  description: TrimmedNonEmptyString,
+  relativePath: TrimmedNonEmptyString,
+  createdAt: IsoDateTime,
 });
 
 export const ThreadCreatedPayload = Schema.Struct({
@@ -709,6 +754,7 @@ export const ThreadCreatedPayload = Schema.Struct({
   ),
   branch: Schema.NullOr(TrimmedNonEmptyString),
   worktreePath: Schema.NullOr(TrimmedNonEmptyString),
+  goal: Schema.NullOr(TrimmedString),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
 });
@@ -724,6 +770,7 @@ export const ThreadMetaUpdatedPayload = Schema.Struct({
   model: Schema.optional(TrimmedNonEmptyString),
   branch: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   worktreePath: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+  goal: Schema.optional(Schema.NullOr(TrimmedString)),
   updatedAt: IsoDateTime,
 });
 
@@ -806,6 +853,13 @@ export const ThreadSessionStopRequestedPayload = Schema.Struct({
   createdAt: IsoDateTime,
 });
 
+export const ThreadProviderSwitchedPayload = Schema.Struct({
+  threadId: ThreadId,
+  sourceProvider: ProviderKind,
+  targetProvider: ProviderKind,
+  createdAt: IsoDateTime,
+});
+
 export const ThreadSessionSetPayload = Schema.Struct({
   threadId: ThreadId,
   session: OrchestrationSession,
@@ -876,6 +930,11 @@ export const OrchestrationEvent = Schema.Union([
   }),
   Schema.Struct({
     ...EventBaseFields,
+    type: Schema.Literal("skill.created"),
+    payload: SkillCreatedPayload,
+  }),
+  Schema.Struct({
+    ...EventBaseFields,
     type: Schema.Literal("thread.created"),
     payload: ThreadCreatedPayload,
   }),
@@ -938,6 +997,11 @@ export const OrchestrationEvent = Schema.Union([
     ...EventBaseFields,
     type: Schema.Literal("thread.session-stop-requested"),
     payload: ThreadSessionStopRequestedPayload,
+  }),
+  Schema.Struct({
+    ...EventBaseFields,
+    type: Schema.Literal("thread.provider.switched"),
+    payload: ThreadProviderSwitchedPayload,
   }),
   Schema.Struct({
     ...EventBaseFields,

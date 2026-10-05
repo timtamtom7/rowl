@@ -28,6 +28,12 @@ import Migration0013 from "./Migrations/013_ProjectionThreadProposedPlans.ts";
 import Migration0014 from "./Migrations/014_ProjectionThreadSessionTokenUsage.ts";
 import Migration0015 from "./Migrations/015_SanitizePersistedProviderOptions.ts";
 import Migration0016 from "./Migrations/016_ProjectionThreadSessionStartedAt.ts";
+import Migration0017 from "./Migrations/017_Tombstones.ts";
+import Migration0018 from "./Migrations/018_Overseer.ts";
+import Migration0019 from "./Migrations/019_MessageSearchFts.ts";
+import Migration0020 from "./Migrations/020_SmartDefaults.ts";
+import Migration0021 from "./Migrations/021_ProjectionThreadsGoal.ts";
+import Migration0022 from "./Migrations/022_ActivityFeed.ts";
 import { Effect } from "effect";
 
 /**
@@ -57,6 +63,12 @@ const loader = Migrator.fromRecord({
   "14_ProjectionThreadSessionTokenUsage": Migration0014,
   "15_SanitizePersistedProviderOptions": Migration0015,
   "16_ProjectionThreadSessionStartedAt": Migration0016,
+  "17_Tombstones": Migration0017,
+  "18_Overseer": Migration0018,
+  "19_MessageSearchFts": Migration0019,
+  "20_SmartDefaults": Migration0020,
+  "21_ProjectionThreadsGoal": Migration0021,
+  "22_ActivityFeed": Migration0022,
 });
 
 /**

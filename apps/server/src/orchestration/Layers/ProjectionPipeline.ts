@@ -364,6 +364,7 @@ const makeOrchestrationProjectionPipeline = Effect.gen(function* () {
             workspaceRoot: event.payload.workspaceRoot,
             defaultModel: event.payload.defaultModel,
             scripts: event.payload.scripts,
+            projectGroupId: event.payload.projectGroupId ?? null,
             createdAt: event.payload.createdAt,
             updatedAt: event.payload.updatedAt,
             deletedAt: null,
@@ -387,6 +388,18 @@ const makeOrchestrationProjectionPipeline = Effect.gen(function* () {
               ? { defaultModel: event.payload.defaultModel }
               : {}),
             ...(event.payload.scripts !== undefined ? { scripts: event.payload.scripts } : {}),
+            ...(event.payload.projectGroupId !== undefined
+              ? { projectGroupId: event.payload.projectGroupId }
+              : {}),
+            ...(event.payload.briefGoal !== undefined
+              ? { briefGoal: event.payload.briefGoal }
+              : {}),
+            ...(event.payload.briefProblemSolving !== undefined
+              ? { briefProblemSolving: event.payload.briefProblemSolving }
+              : {}),
+            ...(event.payload.briefKeyContext !== undefined
+              ? { briefKeyContext: event.payload.briefKeyContext }
+              : {}),
             updatedAt: event.payload.updatedAt,
           });
           return;
@@ -425,6 +438,7 @@ const makeOrchestrationProjectionPipeline = Effect.gen(function* () {
             interactionMode: event.payload.interactionMode,
             branch: event.payload.branch,
             worktreePath: event.payload.worktreePath,
+            goal: event.payload.goal,
             latestTurnId: null,
             createdAt: event.payload.createdAt,
             updatedAt: event.payload.updatedAt,
@@ -447,6 +461,7 @@ const makeOrchestrationProjectionPipeline = Effect.gen(function* () {
             ...(event.payload.worktreePath !== undefined
               ? { worktreePath: event.payload.worktreePath }
               : {}),
+            ...(event.payload.goal !== undefined ? { goal: event.payload.goal } : {}),
             updatedAt: event.payload.updatedAt,
           });
           return;

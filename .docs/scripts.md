@@ -3,11 +3,11 @@
 - `bun run dev` — Starts contracts, server, and web in `turbo watch` mode.
 - `bun run dev:server` — Starts just the WebSocket server (uses Bun TypeScript execution).
 - `bun run dev:web` — Starts just the Vite dev server for the web app.
-- Dev commands default `CUT3_STATE_DIR` to `~/.t3/dev` to keep dev state isolated from desktop/prod state.
-- Separate `bun run dev:web` and `bun run dev:server` launches reuse one shared port offset per `CUT3_STATE_DIR`, so they stay on the same `377x` / `573x` pair instead of drifting apart.
+- Dev commands default `Rowl_STATE_DIR` to `~/.t3/dev` to keep dev state isolated from desktop/prod state.
+- Separate `bun run dev:web` and `bun run dev:server` launches reuse one shared port offset per `Rowl_STATE_DIR`, so they stay on the same `377x` / `573x` pair instead of drifting apart.
 - Override server CLI-equivalent flags from root dev commands with `--`, for example:
   `bun run dev -- --state-dir ~/.t3/another-dev-state`
-- If you bind the web server off loopback, set `CUT3_AUTH_TOKEN`; unauthenticated off-box WebSocket clients are rejected.
+- If you bind the web server off loopback, set `Rowl_AUTH_TOKEN`; unauthenticated off-box WebSocket clients are rejected.
 - `bun run start` — Runs the production server (serves built web app as static files).
 - `bun run build` — Builds contracts, web app, and server through Turbo.
 - `bun run typecheck` — Strict TypeScript checks for all packages.
@@ -47,10 +47,10 @@
 
 ## Running multiple dev instances
 
-Set `CUT3_DEV_INSTANCE` to any value to deterministically shift all dev ports together.
+Set `Rowl_DEV_INSTANCE` to any value to deterministically shift all dev ports together.
 
 - Default ports: server `3773`, web `5733`
-- Shifted ports: `base + offset` (offset is hashed from `CUT3_DEV_INSTANCE`)
-- Example: `CUT3_DEV_INSTANCE=branch-a bun run dev:desktop`
+- Shifted ports: `base + offset` (offset is hashed from `Rowl_DEV_INSTANCE`)
+- Example: `Rowl_DEV_INSTANCE=branch-a bun run dev:desktop`
 
-If you want full control instead of hashing, set `CUT3_PORT_OFFSET` to a numeric offset.
+If you want full control instead of hashing, set `Rowl_PORT_OFFSET` to a numeric offset.

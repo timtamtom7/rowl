@@ -10,6 +10,7 @@ const project: Project = {
   name: "Export Project",
   cwd: "/tmp/export-project",
   model: "gpt-5-codex",
+  projectGroupId: null,
   expanded: true,
   scripts: [],
 };

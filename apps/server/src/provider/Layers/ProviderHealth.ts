@@ -1,8 +1,8 @@
 /**
  * ProviderHealthLive - On-demand provider health checks.
  *
- * Runs provider readiness probes whenever CUT3 asks for a fresh snapshot,
- * so auth/model changes made outside CUT3 can appear without restarting the
+ * Runs provider readiness probes whenever Rowl asks for a fresh snapshot,
+ * so auth/model changes made outside Rowl can appear without restarting the
  * server.
  *
  * Uses effect's ChildProcessSpawner to run CLI probes natively.

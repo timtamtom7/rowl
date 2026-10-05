@@ -1110,6 +1110,11 @@ export default function ChatView({ threadId }: ChatViewProps) {
   const [isKimiApiKeyDialogOpen, setIsKimiApiKeyDialogOpen] = useState(false);
   const [kimiApiKeyDraft, setKimiApiKeyDraft] = useState("");
   const [kimiApiKeyError, setKimiApiKeyError] = useState<string | null>(null);
+  const [isCreateSkillDialogOpen, setIsCreateSkillDialogOpen] = useState(false);
+  const [createSkillNameDraft, setCreateSkillNameDraft] = useState("");
+  const [createSkillDescriptionDraft, setCreateSkillDescriptionDraft] = useState("");
+  const [createSkillContentsDraft, setCreateSkillContentsDraft] = useState("");
+  const [createSkillError, setCreateSkillError] = useState<string | null>(null);
   const [pullRequestDialogState, setPullRequestDialogState] =
     useState<PullRequestDialogState | null>(null);
   const [attachmentPreviewHandoffByMessageId, setAttachmentPreviewHandoffByMessageId] = useState<
@@ -1975,6 +1980,13 @@ export default function ChatView({ threadId }: ChatViewProps) {
     },
     [settings.openRouterApiKey],
   );
+  const openCreateSkillDialog = useCallback(() => {
+    setCreateSkillNameDraft("");
+    setCreateSkillDescriptionDraft("");
+    setCreateSkillContentsDraft("");
+    setCreateSkillError(null);
+    setIsCreateSkillDialogOpen(true);
+  }, []);
   const openKimiApiKeyDialog = useCallback(
     (continuation: "submit-form" | "implement-plan-in-new-thread" | null) => {
       pendingKimiContinuationRef.current = continuation;
@@ -6078,6 +6090,55 @@ export default function ChatView({ threadId }: ChatViewProps) {
       }
     }, 0);
   }, [kimiApiKeyDraft, onImplementPlanInNewThread, updateSettings]);
+  const saveCreateSkill = useCallback(() => {
+    const trimmedName = createSkillNameDraft.trim();
+    const trimmedDescription = createSkillDescriptionDraft.trim();
+    const trimmedContents = createSkillContentsDraft;
+    if (!trimmedName) {
+      setCreateSkillError("Enter a skill name.");
+      return;
+    }
+    if (!trimmedDescription) {
+      setCreateSkillError("Enter a description.");
+      return;
+    }
+    if (!trimmedContents.trim()) {
+      setCreateSkillError("Enter skill instructions.");
+      return;
+    }
+    if (!activeWorkspaceCwd) {
+      setCreateSkillError("No active project workspace.");
+      return;
+    }
+    const api = readNativeApi();
+    if (!api) {
+      setCreateSkillError("API not available.");
+      return;
+    }
+    setIsCreateSkillDialogOpen(false);
+    void api.orchestration
+      .dispatchCommand({
+        type: "skill.create",
+        commandId: newCommandId(),
+        cwd: activeWorkspaceCwd,
+        name: trimmedName as ProjectSkillName,
+        description: trimmedDescription,
+        contents: trimmedContents,
+      })
+      .then(() => {
+        void projectSkillsQuery.refetch();
+      })
+      .catch(() => {
+        setCreateSkillError("Failed to create skill.");
+        setIsCreateSkillDialogOpen(true);
+      });
+  }, [
+    createSkillNameDraft,
+    createSkillDescriptionDraft,
+    createSkillContentsDraft,
+    activeWorkspaceCwd,
+    projectSkillsQuery,
+  ]);
   const openRouterApiKeyDialogInputId = useId();
   const kimiApiKeyDialogInputId = useId();
   const providerCustomModelSettings = useMemo<ProviderCustomModelSettings>(
@@ -6657,6 +6718,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
         <ChatHeader
           activeThreadId={activeThread.id}
           activeThreadTitle={activeThread.title}
+          activeThreadGoal={activeThread.goal}
           activeProjectName={activeProject?.name}
           isGitRepo={isGitRepo}
           openInCwd={activeThread.worktreePath ?? activeProject?.cwd ?? null}
@@ -7252,6 +7314,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
                         disabled={!activeWorkspaceCwd || isConnecting || phase === "running"}
                         compact={isComposerFooterCompact}
                         onToggleSkill={toggleSelectedSkill}
+                        onCreateSkill={openCreateSkillDialog}
                       />
 
                       <ComposerContextWindowStatus
@@ -8054,6 +8117,94 @@ export default function ChatView({ threadId }: ChatViewProps) {
             </Button>
             <Button size="sm" onClick={saveKimiApiKey}>
               Save key
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+
+      <Dialog
+        open={isCreateSkillDialogOpen}
+        onOpenChange={(open) => {
+          setIsCreateSkillDialogOpen(open);
+          if (!open) {
+            setCreateSkillError(null);
+          }
+        }}
+      >
+        <DialogPopup className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create repository skill</DialogTitle>
+            <DialogDescription>
+              Create a reusable prompt template that can be attached to turns in this project.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel className="space-y-3">
+            <label htmlFor="skill-name" className="grid gap-1.5">
+              <span className="text-xs font-medium text-foreground">Skill name</span>
+              <Input
+                id="skill-name"
+                value={createSkillNameDraft}
+                onChange={(event) => {
+                  setCreateSkillNameDraft(event.target.value);
+                  if (createSkillError) {
+                    setCreateSkillError(null);
+                  }
+                }}
+                placeholder="e.g. react-component-gen"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <label htmlFor="skill-description" className="grid gap-1.5">
+              <span className="text-xs font-medium text-foreground">Description</span>
+              <Input
+                id="skill-description"
+                value={createSkillDescriptionDraft}
+                onChange={(event) => {
+                  setCreateSkillDescriptionDraft(event.target.value);
+                  if (createSkillError) {
+                    setCreateSkillError(null);
+                  }
+                }}
+                placeholder="e.g. Generates React components with TypeScript and proper hooks"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <label htmlFor="skill-contents" className="grid gap-1.5">
+              <span className="text-xs font-medium text-foreground">Instructions</span>
+              <textarea
+                id="skill-contents"
+                value={createSkillContentsDraft}
+                onChange={(event) => {
+                  setCreateSkillContentsDraft(event.target.value);
+                  if (createSkillError) {
+                    setCreateSkillError(null);
+                  }
+                }}
+                placeholder="You are a React expert. Always use TypeScript, functional components with hooks, and follow the existing project patterns..."
+                className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            {createSkillError ? (
+              <p className="text-xs text-destructive">{createSkillError}</p>
+            ) : null}
+          </DialogPanel>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsCreateSkillDialogOpen(false);
+                setCreateSkillError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button size="sm" onClick={saveCreateSkill}>
+              Create skill
             </Button>
           </DialogFooter>
         </DialogPopup>
@@ -9083,6 +9234,12 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
     percentUsed !== null
       ? ringCircumference - (ringCircumference * Math.max(0, Math.min(100, percentUsed))) / 100
       : ringCircumference;
+  const ringColorClass =
+    percentUsed !== null && percentUsed >= 80
+      ? "text-amber-500"
+      : percentUsed !== null && percentUsed >= 60
+        ? "text-amber-400/80"
+        : "text-foreground/55";
 
   if (!primaryLabel) {
     return null;
@@ -9128,7 +9285,10 @@ const ComposerContextWindowStatus = memo(function ComposerContextWindowStatus(pr
                   strokeLinecap="round"
                   strokeDasharray={ringCircumference}
                   strokeDashoffset={ringOffset}
-                  className="text-foreground/55 transition-[stroke-dashoffset,stroke-opacity] duration-300 ease-out"
+                  className={cn(
+                    "transition-[stroke-dashoffset,stroke-opacity] duration-300 ease-out",
+                    ringColorClass,
+                  )}
                 />
               ) : null}
             </svg>

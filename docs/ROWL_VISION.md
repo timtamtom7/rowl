@@ -227,6 +227,94 @@ Technical documentation, architecture decision records, RFCs—all part of the e
 
 ---
 
+## Project AI Sidebar: Your AI Project Manager
+
+Every project in Rowl has its own AI assistant—its own "project manager" that understands the goal of the project, the context, and can help coordinate work.
+
+### The Concept
+
+Just like you are chatting with me (the Rowl PM/coordinator AI) right now, every project has an AI that the user can chat with directly. This AI:
+
+- Understands the **project's goals and context**
+- Knows what **threads exist** and what work has been done
+- Can **answer questions** about the project
+- Can **suggest next steps**, approaches, and priorities
+- Can **coordinate with the main agent** in threads
+
+### The UX
+
+Inside each project, you can open an **AI sidebar** (a collapsible panel, like the project inspector in Xcode). This sidebar has a chat interface where you can:
+
+- Ask "what's the current status of this project?"
+- Ask "what should I work on next?"
+- Ask "summarize what we did in the last three threads"
+- Ask "how does this project relate to our overall goal?"
+
+The Project AI has access to:
+
+- Project metadata and description
+- All thread summaries
+- Skills available in the project
+- Provider configurations
+
+### AI-with-AI Coordination
+
+The magic happens when the Project AI works **with** the main thread agent:
+
+1. **User chats with Project AI** → "I want to add user authentication"
+2. **Project AI understands the goal** → Looks at project context, suggests approach
+3. **Project AI coordinates with thread agent** → Passes context and direction to the main agent
+4. **Main agent executes in thread** → With full understanding of the project goal
+5. **Project AI stays informed** → Can answer questions, track progress
+
+This is **not** a separate chat. It's an **overlay intelligence** that helps the user stay oriented while the main agent does the work.
+
+### Thread AI Chat
+
+Within each thread, there's also the option to open a **Thread AI Chat**—a focused conversation specifically about what's happening in that thread.
+
+- **Context-aware**: Knows everything in the thread
+- **Goal-oriented**: Understands what the thread is trying to accomplish
+- **Non-intrusive**: Can be open in a sidebar while main chat runs
+- **Collaborative**: Can feed information to the main agent
+
+---
+
+## Memory Visualization: See What the AI Knows
+
+One of the most powerful features for building trust is **visualizing the AI's memory and context**.
+
+### Context Visualization
+
+Show users:
+
+- **Context budget meter**: Like a fuel gauge, shows how much context is used/remaining
+- **Tombstone markers**: Visual indicators of trimmed content with restore options
+- **Context breakdown**: System prompts vs. history vs. attachments
+- **Cross-thread references**: Lines connecting related threads
+
+### Memory State
+
+For the Project AI and Thread AI:
+
+- **Loaded context**: What is currently in the AI's context window
+- **Recent history**: What the AI has "seen" recently
+- **Forgotten items**: What was tombstoned and could be restored
+- **Learned patterns**: What the AI has inferred about user preferences
+
+### Visual Timeline
+
+A **horizontal timeline** showing:
+
+- All events in a project/thread
+- Color-coded by agent/provider
+- Zoomable and pannable
+- Exportable as JSON/Markdown
+
+This gives users the same visibility into their AI workspace that a pilot has into their aircraft.
+
+---
+
 ## Why This Matters: The Meta-Argument
 
 You might ask: "Why build all this? Aren't existing tools good enough?"

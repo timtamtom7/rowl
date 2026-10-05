@@ -31,15 +31,16 @@ interface CommandEnvelope {
 
 function commandToAggregateRef(command: OrchestrationCommand): {
   readonly aggregateKind: "project" | "thread";
-  readonly aggregateId: ProjectId | ThreadId;
+  readonly aggregateId: string;
 } {
   switch (command.type) {
     case "project.create":
     case "project.meta.update":
     case "project.delete":
+    case "skill.create":
       return {
         aggregateKind: "project",
-        aggregateId: command.projectId,
+        aggregateId: command.type === "skill.create" ? command.cwd : command.projectId,
       };
     default:
       return {
@@ -180,7 +181,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
               .upsert({
                 commandId: envelope.command.commandId,
                 aggregateKind: aggregateRef.aggregateKind,
-                aggregateId: aggregateRef.aggregateId,
+                aggregateId: aggregateRef.aggregateId as ProjectId | ThreadId,
                 acceptedAt: new Date().toISOString(),
                 resultSequence: readModel.snapshotSequence,
                 status: "rejected",

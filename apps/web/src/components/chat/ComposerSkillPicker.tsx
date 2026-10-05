@@ -1,8 +1,9 @@
 import { memo } from "react";
 
 import type { ProjectSkill, ProjectSkillName } from "@t3tools/contracts";
-import { CheckIcon, SparklesIcon } from "lucide-react";
+import { CheckIcon, PlusIcon, SparklesIcon } from "lucide-react";
 
+import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { buttonVariants } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
@@ -15,6 +16,7 @@ export const ComposerSkillPicker = memo(function ComposerSkillPicker(props: {
   disabled: boolean;
   compact: boolean;
   onToggleSkill: (skillName: ProjectSkillName) => void;
+  onCreateSkill?: () => void;
 }) {
   const selectedCount = props.selectedSkillNames.length;
 
@@ -36,9 +38,27 @@ export const ComposerSkillPicker = memo(function ComposerSkillPicker(props: {
       </PopoverTrigger>
       <PopoverPopup align="start" side="top" className="w-80 p-0">
         <div className="border-b border-border/60 px-4 py-3">
-          <div className="font-medium text-sm text-foreground">Repository skills</div>
-          <div className="mt-1 text-muted-foreground text-xs leading-relaxed">
-            Attach reusable repo-local instructions to the next turn.
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-sm text-foreground">Repository skills</div>
+              <div className="mt-1 text-muted-foreground text-xs leading-relaxed">
+                Attach reusable repo-local instructions to the next turn.
+              </div>
+            </div>
+            {props.onCreateSkill ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-7 rounded-full p-0"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  props.onCreateSkill?.();
+                }}
+              >
+                <PlusIcon className="size-4" />
+              </Button>
+            ) : null}
           </div>
         </div>
         <div className="max-h-80 overflow-y-auto px-2 py-2">

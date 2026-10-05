@@ -7,10 +7,12 @@ import * as SqlClient from "effect/unstable/sql/SqlClient";
 import { CheckpointDiffQueryLive } from "./checkpointing/Layers/CheckpointDiffQuery";
 import { CheckpointStoreLive } from "./checkpointing/Layers/CheckpointStore";
 import { ServerConfig } from "./config";
+import { TombstoneRepositoryLive } from "./persistence/Layers/TombstoneRepository";
 import { OrchestrationCommandReceiptRepositoryLive } from "./persistence/Layers/OrchestrationCommandReceipts";
 import { OrchestrationEventStoreLive } from "./persistence/Layers/OrchestrationEventStore";
 import { ProviderSessionRuntimeRepositoryLive } from "./persistence/Layers/ProviderSessionRuntime";
 import { OrchestrationEngineLive } from "./orchestration/Layers/OrchestrationEngine";
+import { ContextManagerLive } from "./orchestration/Layers/ContextManager";
 import { CheckpointReactorLive } from "./orchestration/Layers/CheckpointReactor";
 import { OrchestrationReactorLive } from "./orchestration/Layers/OrchestrationReactor";
 import { ProviderCommandReactorLive } from "./orchestration/Layers/ProviderCommandReactor";
@@ -41,6 +43,13 @@ import { GitServiceLive } from "./git/Layers/GitService";
 import { BunPtyAdapterLive } from "./terminal/Layers/BunPTY";
 import { NodePtyAdapterLive } from "./terminal/Layers/NodePTY";
 import { AnalyticsService } from "./telemetry/Services/AnalyticsService";
+import { OverseerServiceLive } from "./overseer/Layers/OverseerServiceImpl";
+import { OverseerStateRepositoryLive } from "./overseer/persistence/OverseerStateRepositoryImpl";
+import { SmartDefaultsServiceLive } from "./smartDefaults/Layers/SmartDefaultsServiceImpl.ts";
+import { SmartDefaultsRepositoryLive } from "./persistence/Layers/SmartDefaultsRepository.ts";
+import { SearchRepositoryLive } from "./persistence/Layers/SearchRepository.ts";
+import { ProjectionActivityRepositoryLive } from "./persistence/Layers/ProjectionActivityRepository.ts";
+import { ActivityFeedReactorLive } from "./orchestration/Layers/ActivityFeedReactor.ts";
 
 const ENABLE_PROVIDER_EVENT_LOGS_ENV = "ROWL_ENABLE_PROVIDER_EVENT_LOGS";
 
@@ -120,22 +129,32 @@ export function makeServerRuntimeServicesLayer() {
     CheckpointStoreLive,
     checkpointDiffQueryLayer,
     RuntimeReceiptBusLive,
+    TombstoneRepositoryLive,
+    ProjectionActivityRepositoryLive,
   );
+  const contextManagerLayer = ContextManagerLive.pipe(Layer.provide(TombstoneRepositoryLive));
+  const runtimeWithContextLayer = Layer.mergeAll(runtimeServicesLayer, contextManagerLayer);
   const runtimeIngestionLayer = ProviderRuntimeIngestionLive.pipe(
-    Layer.provideMerge(runtimeServicesLayer),
+    Layer.provideMerge(runtimeWithContextLayer),
+    Layer.provide(OverseerServiceLive),
+    Layer.provide(OverseerStateRepositoryLive),
   );
   const providerCommandReactorLayer = ProviderCommandReactorLive.pipe(
-    Layer.provideMerge(runtimeServicesLayer),
+    Layer.provideMerge(runtimeWithContextLayer),
     Layer.provideMerge(gitCoreLayer),
     Layer.provideMerge(textGenerationLayer),
   );
   const checkpointReactorLayer = CheckpointReactorLive.pipe(
-    Layer.provideMerge(runtimeServicesLayer),
+    Layer.provideMerge(runtimeWithContextLayer),
+  );
+  const activityFeedReactorLayer = ActivityFeedReactorLive.pipe(
+    Layer.provideMerge(runtimeWithContextLayer),
   );
   const orchestrationReactorLayer = OrchestrationReactorLive.pipe(
     Layer.provideMerge(runtimeIngestionLayer),
     Layer.provideMerge(providerCommandReactorLayer),
     Layer.provideMerge(checkpointReactorLayer),
+    Layer.provideMerge(activityFeedReactorLayer),
   );
 
   const terminalLayer = TerminalManagerLive.pipe(
@@ -152,6 +171,14 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(textGenerationLayer),
   );
 
+  const overseerLayer = OverseerServiceLive.pipe(Layer.provide(OverseerStateRepositoryLive));
+
+  const smartDefaultsLayer = SmartDefaultsServiceLive.pipe(
+    Layer.provide(SmartDefaultsRepositoryLive),
+  );
+
+  const searchLayer = SearchRepositoryLive;
+
   return Layer.mergeAll(
     orchestrationReactorLayer,
     gitCoreLayer,
@@ -159,5 +186,8 @@ export function makeServerRuntimeServicesLayer() {
     terminalLayer,
     OpenCodeStateLive,
     KeybindingsLive,
+    overseerLayer,
+    smartDefaultsLayer,
+    searchLayer,
   ).pipe(Layer.provideMerge(NodeServices.layer));
 }

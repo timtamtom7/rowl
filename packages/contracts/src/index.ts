@@ -1,5 +1,9 @@
 export * from "./baseSchemas";
+export * from "./context";
+export * from "./search";
 export * from "./ipc";
+export * from "./overseer";
+export * from "./smartDefaults";
 export * from "./terminal";
 export * from "./provider";
 export * from "./providerRuntime";
@@ -12,3 +16,4 @@ export * from "./orchestration";
 export * from "./editor";
 export * from "./project";
 export * from "./threadFeatures";
+export * from "./voice";

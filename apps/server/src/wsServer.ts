@@ -78,6 +78,7 @@ import {
 import { OrchestrationEngineService } from "./orchestration/Services/OrchestrationEngine";
 import { ProjectionSnapshotQuery } from "./orchestration/Services/ProjectionSnapshotQuery";
 import { OrchestrationReactor } from "./orchestration/Services/OrchestrationReactor";
+import { ContextManager, ContextBudgetDefaults } from "./orchestration/Services/ContextManager";
 import { ProviderService } from "./provider/Services/ProviderService";
 import { ProviderHealth } from "./provider/Services/ProviderHealth";
 import { OpenCodeState } from "./provider/Services/OpenCodeState";
@@ -87,6 +88,7 @@ import { Open, resolveAvailableEditors } from "./open";
 import { ServerConfig } from "./config";
 import { GitCore } from "./git/Services/GitCore.ts";
 import { tryHandleProjectFaviconRequest } from "./projectFaviconRoute";
+import { handleVoiceRoute } from "./voice/voiceRouter";
 import {
   ATTACHMENTS_ROUTE_PREFIX,
   normalizeAttachmentRelativePath,
@@ -100,6 +102,9 @@ import {
 } from "./attachmentStore.ts";
 import { parseBase64DataUrl } from "./imageMime.ts";
 import { AnalyticsService } from "./telemetry/Services/AnalyticsService.ts";
+import { OverseerService } from "./overseer/Services/OverseerService.ts";
+import { SmartDefaultsService } from "./smartDefaults/Services/SmartDefaultsService.ts";
+import { SearchRepository } from "./persistence/Services/SearchRepository.ts";
 import { expandHomePath } from "./os-jank.ts";
 import { createCopilotUsageReader } from "./copilotUsage.ts";
 import { CopilotAcpManager, readCopilotReasoningEffortSelector } from "./copilotAcpManager.ts";
@@ -360,6 +365,7 @@ export type ServerCoreRuntimeServices =
   | ProjectionSnapshotQuery
   | CheckpointDiffQuery
   | OrchestrationReactor
+  | ContextManager
   | ProviderService
   | ProviderHealth
   | OpenCodeState;
@@ -371,7 +377,8 @@ export type ServerRuntimeServices =
   | TerminalManager
   | Keybindings
   | Open
-  | AnalyticsService;
+  | AnalyticsService
+  | OverseerService;
 
 export class ServerLifecycleError extends Schema.TaggedErrorClass<ServerLifecycleError>()(
   "ServerLifecycleError",
@@ -578,6 +585,13 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
       return {
         ...input.command,
         workspaceRoot: yield* normalizeProjectWorkspaceRoot(input.command.workspaceRoot),
+      } satisfies OrchestrationCommand;
+    }
+
+    if (input.command.type === "skill.create") {
+      return {
+        ...input.command,
+        cwd: yield* normalizeProjectWorkspaceRoot(input.command.cwd),
       } satisfies OrchestrationCommand;
     }
 
@@ -900,6 +914,10 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           return;
         }
 
+        if (yield* Effect.promise(() => handleVoiceRoute(url, req, res, listeningPort))) {
+          return;
+        }
+
         if (url.pathname.startsWith(ATTACHMENTS_ROUTE_PREFIX)) {
           if (authToken && getWsAuthToken(url) !== authToken) {
             rejectHttpRequest(res, 401, "Unauthorized attachment request");
@@ -1089,6 +1107,9 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const projectionReadModelQuery = yield* ProjectionSnapshotQuery;
   const checkpointDiffQuery = yield* CheckpointDiffQuery;
   const orchestrationReactor = yield* OrchestrationReactor;
+  const contextManager = yield* ContextManager;
+  const overseerService = yield* OverseerService;
+  const smartDefaultsService = yield* SmartDefaultsService;
   const { openInEditor } = yield* Open;
 
   const subscriptionsScope = yield* Scope.make("sequential");
@@ -1522,6 +1543,23 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         const body = stripRequestTag(request.body);
         const { thread } = yield* resolveLiveThreadContext(body.threadId);
         const compactedAt = new Date().toISOString();
+
+        const compactMessages = thread.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          text: m.text,
+          turnId: m.turnId,
+        }));
+
+        const trimResult = yield* contextManager.trimForCompact({
+          threadId: body.threadId,
+          messages: compactMessages,
+          createdBy: "user",
+          reason: "user_preference",
+          category: "conversation",
+          createdAt: compactedAt,
+        });
+
         const summary = buildThreadContinuationSummary(thread);
         yield* stopProviderSessionForThread(body.threadId);
         yield* setStoppedThreadSession({ threadId: body.threadId, createdAt: compactedAt });
@@ -1533,11 +1571,16 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
             id: EventId.makeUnsafe(`activity:${crypto.randomUUID()}`),
             tone: "info",
             kind: THREAD_RESUME_CONTEXT_ACTIVITY_KIND,
-            summary: "Thread compacted",
+            summary:
+              trimResult.tombstones.length > 0
+                ? `Thread compacted, ${trimResult.tombstones.length} tombstone(s) created`
+                : "Thread compacted",
             payload: {
               summary,
               compactedAt,
               source: "manual-compaction",
+              tombstoneCount: trimResult.tombstones.length,
+              tokensRemoved: trimResult.tombstones.reduce((sum, t) => sum + t.tokensRemoved, 0),
             },
             turnId: null,
             createdAt: compactedAt,
@@ -1547,6 +1590,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         return {
           compactedAt,
           summary,
+          tombstoneCount: trimResult.tombstones.length,
         };
       }
 
@@ -1644,6 +1688,85 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           stateDir: serverConfig.stateDir,
           threadId: body.threadId,
         });
+      }
+
+      case WS_METHODS.threadsGetContextBudget: {
+        const body = stripRequestTag(request.body);
+        const { thread } = yield* resolveLiveThreadContext(body.threadId);
+        const tombstones = yield* contextManager.getTombstones(body.threadId);
+
+        const messageTokens = thread.messages.reduce(
+          (sum, m) => sum + Math.ceil(m.text.length / 4),
+          0,
+        );
+        const tombstoneTokens = tombstones.reduce((sum, t) => sum + t.tokensRemoved, 0);
+        const usedTokens = messageTokens + tombstoneTokens;
+        const maxTokens = ContextBudgetDefaults.DEFAULT_MAX_TOKENS;
+        const tokenLimit = Math.floor(maxTokens * ContextBudgetDefaults.CRITICAL_THRESHOLD);
+        const isOverBudget = usedTokens > tokenLimit;
+        const isOverCritical = usedTokens > maxTokens;
+
+        return {
+          threadId: body.threadId,
+          maxTokens,
+          usedTokens,
+          tokenLimit,
+          warningThreshold: ContextBudgetDefaults.WARNING_THRESHOLD,
+          criticalThreshold: ContextBudgetDefaults.CRITICAL_THRESHOLD,
+          tombstoneCount: tombstones.length,
+          isOverBudget,
+          isOverCritical,
+        };
+      }
+
+      case WS_METHODS.overseerGetState: {
+        const body = stripRequestTag(request.body);
+        yield* resolveLiveThreadContext(body.threadId);
+        const state = yield* overseerService.getState(body.threadId);
+        return { state };
+      }
+
+      case WS_METHODS.overseerToggle: {
+        const body = stripRequestTag(request.body);
+        yield* resolveLiveThreadContext(body.threadId);
+        yield* overseerService.toggle(body.threadId, body.enabled);
+        return;
+      }
+
+      case WS_METHODS.overseerAddPattern: {
+        const body = stripRequestTag(request.body);
+        yield* resolveLiveThreadContext(body.threadId);
+        yield* overseerService.addPattern(body.threadId, body.pattern);
+        return;
+      }
+
+      case WS_METHODS.overseerRemovePattern: {
+        const body = stripRequestTag(request.body);
+        yield* resolveLiveThreadContext(body.threadId);
+        yield* overseerService.removePattern(body.threadId, body.patternId);
+        return;
+      }
+
+      case WS_METHODS.smartDefaultsTrackSelection: {
+        const body = stripRequestTag(request.body);
+        yield* smartDefaultsService.trackSelection(body.projectName, body.provider, body.model);
+        return;
+      }
+
+      case WS_METHODS.smartDefaultsGetSuggestion: {
+        const body = stripRequestTag(request.body);
+        const result = yield* smartDefaultsService.getSuggestion(body.projectName);
+        return result;
+      }
+
+      case WS_METHODS.smartDefaultsGetAllPreferences: {
+        const preferences = yield* smartDefaultsService.getAllPreferences();
+        return { preferences };
+      }
+
+      case WS_METHODS.smartDefaultsClearPreferences: {
+        yield* smartDefaultsService.clearPreferences();
+        return;
       }
 
       case WS_METHODS.shellOpenInEditor: {
@@ -1869,6 +1992,12 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         const body = stripRequestTag(request.body);
         const keybindingsConfig = yield* keybindingsManager.upsertKeybindingRule(body);
         return { keybindings: keybindingsConfig, issues: [] };
+      }
+
+      case WS_METHODS.search: {
+        const body = stripRequestTag(request.body);
+        const searchRepository = yield* SearchRepository;
+        return yield* searchRepository.search(body);
       }
 
       default: {

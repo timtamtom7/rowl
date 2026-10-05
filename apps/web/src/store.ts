@@ -147,6 +147,7 @@ function mapProjectsFromReadModel(
       name: project.title,
       cwd: project.workspaceRoot,
       model: readProjectDefaultModel(project.defaultModel),
+      projectGroupId: project.projectGroupId ?? null,
       expanded:
         existing?.expanded ??
         (persistedExpandedProjectCwds.size > 0
@@ -449,6 +450,7 @@ export function syncServerReadModel(state: AppState, readModel: OrchestrationRea
         lastVisitedAt: existing?.lastVisitedAt ?? thread.updatedAt,
         branch: thread.branch,
         worktreePath: thread.worktreePath,
+        goal: thread.goal ?? null,
         turnDiffSummaries: thread.checkpoints.map((checkpoint) => ({
           turnId: checkpoint.turnId,
           completedAt: checkpoint.completedAt,

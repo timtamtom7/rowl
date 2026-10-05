@@ -56,7 +56,8 @@ type ProviderIntentEvent = Extract<
       | "thread.turn-interrupt-requested"
       | "thread.approval-response-requested"
       | "thread.user-input-response-requested"
-      | "thread.session-stop-requested";
+      | "thread.session-stop-requested"
+      | "thread.provider.switched";
   }
 >;
 
@@ -1029,6 +1030,9 @@ const make = Effect.gen(function* () {
           return;
         case "thread.session-stop-requested":
           yield* processSessionStopRequested(event);
+          return;
+        case "thread.provider.switched":
+          yield* processProviderSwitched(event);
           return;
       }
     });

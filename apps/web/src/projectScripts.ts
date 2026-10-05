@@ -68,9 +68,11 @@ export function projectScriptRuntimeEnv(
 ): Record<string, string> {
   const env: Record<string, string> = {
     CUT3_PROJECT_ROOT: input.project.cwd,
+    ROWL_PROJECT_ROOT: input.project.cwd,
   };
   if (input.worktreePath) {
     env.CUT3_WORKTREE_PATH = input.worktreePath;
+    env.ROWL_WORKTREE_PATH = input.worktreePath;
   }
   if (input.extraEnv) {
     return { ...env, ...input.extraEnv };

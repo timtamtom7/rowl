@@ -17,6 +17,7 @@ const project = (overrides: Partial<Project> = {}): Project => ({
   name: "Alpha",
   cwd: "/repo/alpha",
   model: "gpt-5.4",
+  projectGroupId: null,
   expanded: true,
   scripts: [],
   updatedAt: "2026-03-26T10:00:00.000Z",

@@ -464,3 +464,31 @@ export function resolveProjectSkillSelection(input: {
 
   return resolvedSkills;
 }
+
+export function createProjectSkill(input: {
+  readonly cwd: string;
+  readonly name: ProjectSkillName;
+  readonly description: string;
+  readonly contents: string;
+}): { relativePath: string; absolutePath: string } {
+  const skillDir = path.join(input.cwd, SKILLS_DIRECTORY_RELATIVE_PATH, input.name);
+  const skillFilePath = path.join(skillDir, SKILL_FILE_NAME);
+
+  fs.mkdirSync(skillDir, { recursive: true });
+
+  const frontmatter = [
+    "---",
+    `name: ${input.name}`,
+    `description: ${input.description}`,
+    "---",
+  ].join("\n");
+
+  const fileContents = `${frontmatter}\n${input.contents}`;
+  fs.writeFileSync(skillFilePath, fileContents, "utf8");
+
+  const relativePath = path.relative(input.cwd, skillFilePath).replaceAll(path.sep, "/");
+  return {
+    relativePath,
+    absolutePath: skillFilePath,
+  };
+}

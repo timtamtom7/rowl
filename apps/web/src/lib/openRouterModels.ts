@@ -68,7 +68,7 @@ export function supportsOpenRouterReasoningEffortControl(
   _model: OpenRouterFreeModelOption | null | undefined,
 ): boolean {
   // OpenRouter's public catalog currently tells us whether a model supports reasoning,
-  // but not which effort levels are valid. CUT3 should not send Codex-specific effort
+  // but not which effort levels are valid. Rowl should not send Codex-specific effort
   // values for OpenRouter models until that metadata is available.
   return false;
 }

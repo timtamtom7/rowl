@@ -68,6 +68,8 @@ import type {
 import type {
   ThreadCompactInput,
   ThreadCompactResult,
+  ThreadContextBudgetInput,
+  ThreadContextBudgetResult,
   ThreadCreateShareInput,
   ThreadCreateShareResult,
   ThreadGetShareInput,
@@ -85,6 +87,13 @@ import type {
   ThreadUndoInput,
   ThreadUndoResult,
 } from "./threadFeatures";
+import type {
+  OverseerAddPatternInput,
+  OverseerGetStateInput,
+  OverseerGetStateResult,
+  OverseerRemovePatternInput,
+  OverseerToggleInput,
+} from "./overseer";
 import { EditorId } from "./editor";
 
 export interface ContextMenuItem<T extends string = string> {
@@ -190,6 +199,13 @@ export interface NativeApi {
     undo: (input: ThreadUndoInput) => Promise<ThreadUndoResult>;
     redo: (input: ThreadRedoInput) => Promise<ThreadRedoResult>;
     getRedoStatus: (input: ThreadRedoStatusInput) => Promise<ThreadRedoStatusResult>;
+    getContextBudget: (input: ThreadContextBudgetInput) => Promise<ThreadContextBudgetResult>;
+  };
+  overseer: {
+    getState: (input: OverseerGetStateInput) => Promise<OverseerGetStateResult>;
+    toggle: (input: OverseerToggleInput) => Promise<void>;
+    addPattern: (input: OverseerAddPatternInput) => Promise<void>;
+    removePattern: (input: OverseerRemovePatternInput) => Promise<void>;
   };
   shell: {
     openInEditor: (cwd: string, editor: EditorId) => Promise<void>;

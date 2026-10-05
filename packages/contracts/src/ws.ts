@@ -66,6 +66,8 @@ import {
 import {
   ThreadCompactInput,
   ThreadCompactResult,
+  ThreadContextBudgetInput,
+  ThreadContextBudgetResult,
   ThreadCreateShareInput,
   ThreadCreateShareResult,
   ThreadGetShareInput,
@@ -83,7 +85,31 @@ import {
   ThreadUndoInput,
   ThreadUndoResult,
 } from "./threadFeatures";
-import { OpenInEditorInput } from "./editor";
+import {
+  OverseerAddPatternInput,
+  OverseerGetStateInput,
+  OverseerGetStateResult,
+  OverseerRemovePatternInput,
+  OverseerToggleInput,
+} from "./overseer";
+import {
+  SmartDefaultsTrackSelectionInput,
+  SmartDefaultsGetSuggestionInput,
+  SmartDefaultsGetSuggestionResult,
+  SmartDefaultsGetAllPreferencesResult,
+  SmartDefaultsClearPreferencesInput,
+} from "./smartDefaults";
+import {
+  Notification,
+  NotificationDismissInput,
+  NotificationGetSettingsResult,
+  NotificationListResult,
+  NotificationMarkAllReadInput,
+  NotificationMarkReadInput,
+  NotificationType,
+  NotificationUpdateSettingsInput,
+} from "./notification";
+import { SearchInput, SearchResultArray } from "./search";
 import {
   ServerConfig,
   ServerConfigUpdatedPayload,
@@ -123,6 +149,19 @@ export const WS_METHODS = {
   threadsUndo: "threads.undo",
   threadsRedo: "threads.redo",
   threadsGetRedoStatus: "threads.getRedoStatus",
+  threadsGetContextBudget: "threads.getContextBudget",
+
+  // Overseer methods
+  overseerGetState: "overseer.getState",
+  overseerToggle: "overseer.toggle",
+  overseerAddPattern: "overseer.addPattern",
+  overseerRemovePattern: "overseer.removePattern",
+
+  // Smart Defaults methods
+  smartDefaultsTrackSelection: "smartDefaults.trackSelection",
+  smartDefaultsGetSuggestion: "smartDefaults.getSuggestion",
+  smartDefaultsGetAllPreferences: "smartDefaults.getAllPreferences",
+  smartDefaultsClearPreferences: "smartDefaults.clearPreferences",
 
   // Shell methods
   shellOpenInEditor: "shell.openInEditor",
@@ -156,6 +195,17 @@ export const WS_METHODS = {
   serverUpsertKeybinding: "server.upsertKeybinding",
   serverAddOpenCodeCredential: "server.addOpenCodeCredential",
   serverRemoveOpenCodeCredential: "server.removeOpenCodeCredential",
+
+  // Search
+  search: "search",
+
+  // Notification methods
+  notificationList: "notification.list",
+  notificationMarkRead: "notification.markRead",
+  notificationDismiss: "notification.dismiss",
+  notificationMarkAllRead: "notification.markAllRead",
+  notificationGetSettings: "notification.getSettings",
+  notificationUpdateSettings: "notification.updateSettings",
 } as const;
 
 // ── Push Event Channels ──────────────────────────────────────────────
@@ -164,6 +214,7 @@ export const WS_CHANNELS = {
   terminalEvent: "terminal.event",
   serverWelcome: "server.welcome",
   serverConfigUpdated: "server.configUpdated",
+  notificationNew: "notification.new",
 } as const;
 
 // -- Tagged Union of all request body schemas ─────────────────────────
@@ -208,6 +259,19 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.threadsUndo, ThreadUndoInput),
   tagRequestBody(WS_METHODS.threadsRedo, ThreadRedoInput),
   tagRequestBody(WS_METHODS.threadsGetRedoStatus, ThreadRedoStatusInput),
+  tagRequestBody(WS_METHODS.threadsGetContextBudget, ThreadContextBudgetInput),
+
+  // Overseer methods
+  tagRequestBody(WS_METHODS.overseerGetState, OverseerGetStateInput),
+  tagRequestBody(WS_METHODS.overseerToggle, OverseerToggleInput),
+  tagRequestBody(WS_METHODS.overseerAddPattern, OverseerAddPatternInput),
+  tagRequestBody(WS_METHODS.overseerRemovePattern, OverseerRemovePatternInput),
+
+  // Smart Defaults methods
+  tagRequestBody(WS_METHODS.smartDefaultsTrackSelection, SmartDefaultsTrackSelectionInput),
+  tagRequestBody(WS_METHODS.smartDefaultsGetSuggestion, SmartDefaultsGetSuggestionInput),
+  tagRequestBody(WS_METHODS.smartDefaultsGetAllPreferences, Schema.Struct({})),
+  tagRequestBody(WS_METHODS.smartDefaultsClearPreferences, SmartDefaultsClearPreferencesInput),
 
   // Shell methods
   tagRequestBody(WS_METHODS.shellOpenInEditor, OpenInEditorInput),
@@ -241,6 +305,17 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.serverUpsertKeybinding, KeybindingRule),
   tagRequestBody(WS_METHODS.serverAddOpenCodeCredential, ServerOpenCodeAddCredentialInput),
   tagRequestBody(WS_METHODS.serverRemoveOpenCodeCredential, ServerOpenCodeRemoveCredentialInput),
+
+  // Search
+  tagRequestBody(WS_METHODS.search, SearchInput),
+
+  // Notification methods
+  tagRequestBody(WS_METHODS.notificationList, Schema.Struct({})),
+  tagRequestBody(WS_METHODS.notificationMarkRead, NotificationMarkReadInput),
+  tagRequestBody(WS_METHODS.notificationDismiss, NotificationDismissInput),
+  tagRequestBody(WS_METHODS.notificationMarkAllRead, NotificationMarkAllReadInput),
+  tagRequestBody(WS_METHODS.notificationGetSettings, Schema.Struct({})),
+  tagRequestBody(WS_METHODS.notificationUpdateSettings, NotificationUpdateSettingsInput),
 ]);
 
 export const WebSocketRequest = Schema.Struct({
@@ -275,6 +350,7 @@ export interface WsPushPayloadByChannel {
   readonly [WS_CHANNELS.serverWelcome]: WsWelcomePayload;
   readonly [WS_CHANNELS.serverConfigUpdated]: typeof ServerConfigUpdatedPayload.Type;
   readonly [WS_CHANNELS.terminalEvent]: typeof TerminalEvent.Type;
+  readonly [WS_CHANNELS.notificationNew]: Notification;
   readonly [ORCHESTRATION_WS_CHANNELS.domainEvent]: OrchestrationEvent;
 }
 
@@ -298,6 +374,7 @@ export const WsPushServerConfigUpdated = makeWsPushSchema(
   ServerConfigUpdatedPayload,
 );
 export const WsPushTerminalEvent = makeWsPushSchema(WS_CHANNELS.terminalEvent, TerminalEvent);
+export const WsPushNotificationNew = makeWsPushSchema(WS_CHANNELS.notificationNew, Notification);
 export const WsPushOrchestrationDomainEvent = makeWsPushSchema(
   ORCHESTRATION_WS_CHANNELS.domainEvent,
   OrchestrationEvent,
@@ -356,6 +433,15 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.threadsUndo]: ThreadUndoResult,
   [WS_METHODS.threadsRedo]: ThreadRedoResult,
   [WS_METHODS.threadsGetRedoStatus]: ThreadRedoStatusResult,
+  [WS_METHODS.threadsGetContextBudget]: ThreadContextBudgetResult,
+  [WS_METHODS.overseerGetState]: OverseerGetStateResult,
+  [WS_METHODS.overseerToggle]: Schema.Void,
+  [WS_METHODS.overseerAddPattern]: Schema.Void,
+  [WS_METHODS.overseerRemovePattern]: Schema.Void,
+  [WS_METHODS.smartDefaultsTrackSelection]: Schema.Void,
+  [WS_METHODS.smartDefaultsGetSuggestion]: SmartDefaultsGetSuggestionResult,
+  [WS_METHODS.smartDefaultsGetAllPreferences]: SmartDefaultsGetAllPreferencesResult,
+  [WS_METHODS.smartDefaultsClearPreferences]: Schema.Void,
   [WS_METHODS.shellOpenInEditor]: Schema.Void,
   [WS_METHODS.gitPull]: GitPullResult,
   [WS_METHODS.gitStatus]: GitStatusResult,
@@ -381,6 +467,7 @@ export const WsRpcResultSchemaByMethod = {
   [WS_METHODS.serverUpsertKeybinding]: ServerUpsertKeybindingResult,
   [WS_METHODS.serverAddOpenCodeCredential]: ServerOpenCodeCredentialResult,
   [WS_METHODS.serverRemoveOpenCodeCredential]: ServerOpenCodeCredentialResult,
+  [WS_METHODS.search]: SearchResultArray,
 } as const;
 
 export type WsRpcMethod = keyof typeof WsRpcResultSchemaByMethod;

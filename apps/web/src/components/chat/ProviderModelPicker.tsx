@@ -335,6 +335,7 @@ const PickerModelRow = memo(function PickerModelRow(props: {
   openRouterContextLengthsBySlug: ReadonlyMap<string, number | null>;
   opencodeContextLengthsBySlug: ReadonlyMap<string, number | null>;
   onSelect: () => void;
+  onSetAsDefault: () => void;
 }) {
   const displayParts = getModelPickerOptionDisplayParts(props.modelOption);
   const contextLabel = getModelOptionContextLabel(
@@ -432,6 +433,19 @@ const PickerModelRow = memo(function PickerModelRow(props: {
         ) : null}
         {props.isSelected ? (
           <CheckIcon className="size-3.5 shrink-0 text-primary/70" strokeWidth={2.5} />
+        ) : null}
+        {!props.isDefault ? (
+          <button
+            type="button"
+            title={props.defaultLabel}
+            className="invisible ml-1 flex size-6 shrink-0 items-center justify-center rounded-md text-amber-600 opacity-0 transition-colors hover:bg-amber-500/20 hover:text-amber-500 group-hover/model-row:visible group-hover/model-row:opacity-100 focus-visible:visible focus-visible:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onSetAsDefault();
+            }}
+          >
+            <SparklesIcon className="size-3.5" />
+          </button>
         ) : null}
       </div>
     </button>
@@ -939,6 +953,9 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                                       section.isDisabledByProviderLock,
                                     );
                                   }}
+                                  onSetAsDefault={() => {
+                                    props.onSetAsDefault(section.option.value, modelOption.slug);
+                                  }}
                                 />
                               );
                             })}
@@ -973,60 +990,40 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           </div>
 
           {/* Footer toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 bg-muted/15 px-3 py-2">
-            <div className="flex items-center gap-2">
-              <p className="text-[11px] text-muted-foreground/65 leading-relaxed">
-                {props.hasHiddenModels ? copy.hiddenModelsHint : copy.pickModelHint}
-              </p>
-              {props.model !== props.projectDefaultModel && (
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  className="h-6 gap-1 text-[11px] text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
-                  onClick={() => {
-                    props.onSetAsDefault(props.providerPickerKind, props.model);
-                  }}
-                >
-                  <SparklesIcon className="size-3" />
-                  {copy.setAsDefault}
-                </Button>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => {
-                  setIsOpen(false);
-                  props.onOpenUsageDashboard();
-                }}
-              >
-                <BarChart3Icon className="size-3.5" />
-                {props.language === "fa" ? "مصرف" : "Usage"}
-              </Button>
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => {
-                  setIsOpen(false);
-                  props.onOpenProviderSetup();
-                }}
-              >
-                <PlusIcon className="size-3.5" />
-                {copy.connectProvider}
-              </Button>
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => {
-                  setIsOpen(false);
-                  props.onOpenManageModels();
-                }}
-              >
-                <SlidersHorizontalIcon className="size-3.5" />
-                {copy.manageModels}
-              </Button>
-            </div>
+          <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-border/60 bg-muted/15 px-3 py-2">
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => {
+                setIsOpen(false);
+                props.onOpenUsageDashboard();
+              }}
+            >
+              <BarChart3Icon className="size-3.5" />
+              {props.language === "fa" ? "مصرف" : "Usage"}
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => {
+                setIsOpen(false);
+                props.onOpenProviderSetup();
+              }}
+            >
+              <PlusIcon className="size-3.5" />
+              {copy.connectProvider}
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => {
+                setIsOpen(false);
+                props.onOpenManageModels();
+              }}
+            >
+              <SlidersHorizontalIcon className="size-3.5" />
+              {copy.manageModels}
+            </Button>
           </div>
         </div>
       </PopoverPopup>

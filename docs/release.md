@@ -1,6 +1,6 @@
 # Release Checklist
 
-This document covers how CUT3 desktop releases are built, optionally signed, and published from one tag.
+This document covers how Rowl desktop releases are built, optionally signed, and published from one tag.
 
 ## Local desktop builds for your own machine
 
@@ -63,15 +63,15 @@ Recommended local verification before sharing artifacts:
 - Aligns package version strings to the release version before the reusable desktop/server build is produced, so the bundled web/server/desktop metadata matches the tag being published.
 - Archives and uploads the prebuilt `apps/desktop/dist-electron` and `apps/server/dist` output from preflight, then each packaging job extracts that bundle and reuses it via `--skip-build` so the matrix does not rebuild the same JS bundles four times.
 - Builds four desktop artifacts in parallel:
-  - macOS `arm64` DMG and ZIP, named `CUT3-macOS-<version>-<arch>.<ext>`
-  - macOS `x64` DMG and ZIP, named `CUT3-macOS-<version>-<arch>.<ext>`
-  - Linux `x64` AppImage, named `CUT3-linux-<version>-<arch>.<ext>`
-  - Windows `x64` NSIS installer, named `CUT3-windows-<version>-<arch>.<ext>`
+  - macOS `arm64` DMG and ZIP, named `Rowl-macOS-<version>-<arch>.<ext>`
+  - macOS `x64` DMG and ZIP, named `Rowl-macOS-<version>-<arch>.<ext>`
+  - Linux `x64` AppImage, named `Rowl-linux-<version>-<arch>.<ext>`
+  - Windows `x64` NSIS installer, named `Rowl-windows-<version>-<arch>.<ext>`
 - Publishes one GitHub Release with all produced files.
   - Versions with a suffix after `X.Y.Z` (for example `1.2.3-alpha.1`) are published as GitHub prereleases.
   - Only plain `X.Y.Z` releases are marked as the repository's latest release.
-  - Desktop prerelease artifacts launch as `CUT3`, the same as stable builds.
-  - The GitHub Release title is `CUT3 v<version>`.
+  - Desktop prerelease artifacts launch as `Rowl`, the same as stable builds.
+  - The GitHub Release title is `Rowl v<version>`.
 - Includes Electron auto-update metadata (`latest*.yml` and `*.blockmap`) in release assets.
 - Generates and verifies a `SHA256SUMS` manifest before publishing the GitHub Release.
 - Optionally publishes the CLI package (`apps/server`, npm package `cut3`) when explicitly enabled.
@@ -87,10 +87,10 @@ Recommended local verification before sharing artifacts:
   - The desktop UI shows a rocket update button when an update is available; click once to download, click again after download to restart/install.
 - Provider: GitHub Releases (`provider: github`) configured at build time.
 - Repository slug source:
-  - `CUT3_DESKTOP_UPDATE_REPOSITORY` (format `owner/repo`), if set.
+  - `Rowl_DESKTOP_UPDATE_REPOSITORY` (format `owner/repo`), if set.
   - otherwise `GITHUB_REPOSITORY` from GitHub Actions.
 - Temporary private-repo auth workaround:
-  - set `CUT3_DESKTOP_UPDATE_GITHUB_TOKEN` (or `GH_TOKEN`) in the desktop app runtime environment.
+  - set `Rowl_DESKTOP_UPDATE_GITHUB_TOKEN` (or `GH_TOKEN`) in the desktop app runtime environment.
   - the app forwards it as an `Authorization: Bearer <token>` request header for updater HTTP calls.
 - Required release assets for updater:
   - platform installers (`.exe`, `.dmg`, `.AppImage`, plus macOS `.zip` for Squirrel.Mac update payloads)
@@ -105,7 +105,7 @@ Recommended local verification before sharing artifacts:
 The workflow only publishes the CLI when you explicitly opt in:
 
 - `workflow_dispatch` with `publish_cli=true`, or
-- repository variable `CUT3_PUBLISH_CLI=true` for tag-triggered releases.
+- repository variable `Rowl_PUBLISH_CLI=true` for tag-triggered releases.
 
 When enabled, it publishes the CLI with `bun publish` from `apps/server` after bumping the package version to the release tag version.
 
@@ -155,7 +155,7 @@ Release signing is still auto-detected from secrets, but you can now make unsign
 Controls:
 
 - Tag-triggered releases:
-  - set repository variable `CUT3_REQUIRE_SIGNING=true`
+  - set repository variable `Rowl_REQUIRE_SIGNING=true`
 - Manual releases:
   - set workflow-dispatch input `require_signing=true`
 
@@ -191,7 +191,7 @@ Checklist:
    - `APPLE_API_KEY_ID`: Key ID
    - `APPLE_API_ISSUER`: Issuer ID
 8. Re-run a tag release and confirm macOS artifacts are signed and notarized.
-9. If you want stable releases to fail when signing is unavailable, enable `CUT3_REQUIRE_SIGNING=true`.
+9. If you want stable releases to fail when signing is unavailable, enable `Rowl_REQUIRE_SIGNING=true`.
 
 Notes:
 
@@ -223,14 +223,14 @@ Checklist:
 5. Create a client secret for the service principal.
 6. Add the Azure secrets listed above in GitHub Actions secrets.
 7. Re-run a tag release and confirm the Windows installer is signed.
-8. If you want stable releases to fail when signing is unavailable, enable `CUT3_REQUIRE_SIGNING=true`.
+8. If you want stable releases to fail when signing is unavailable, enable `Rowl_REQUIRE_SIGNING=true`.
 
 ## 5) Ongoing release checklist
 
 1. Ensure `main` is green in CI.
 2. Confirm the release version is correct.
 3. Decide whether signing must be enforced for this run:
-   - repository variable `CUT3_REQUIRE_SIGNING=true`, or
+   - repository variable `Rowl_REQUIRE_SIGNING=true`, or
    - manual `require_signing=true`
 4. Create release tag: `vX.Y.Z`.
 5. Push tag.
@@ -246,10 +246,10 @@ Checklist:
 
 - macOS build is unsigned when it should be signed:
   - check all Apple secrets are populated and non-empty
-  - enable `CUT3_REQUIRE_SIGNING=true` so the workflow fails instead of silently continuing unsigned
+  - enable `Rowl_REQUIRE_SIGNING=true` so the workflow fails instead of silently continuing unsigned
 - Windows build is unsigned when it should be signed:
   - check all Azure ATS and auth secrets are populated and non-empty
-  - enable `CUT3_REQUIRE_SIGNING=true` so the workflow fails instead of silently continuing unsigned
+  - enable `Rowl_REQUIRE_SIGNING=true` so the workflow fails instead of silently continuing unsigned
 - Build fails with signing verification errors:
   - retry with signing disabled to isolate packaging vs signing problems
   - re-check certificate/profile names and tenant/client credentials

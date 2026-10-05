@@ -1,6 +1,6 @@
 # Keybindings
 
-CUT3 reads keybindings from the active state directory:
+Rowl reads keybindings from the active state directory:
 
 - `<state-dir>/keybindings.json`
 
@@ -8,7 +8,7 @@ Examples:
 
 - Default server/desktop path: `~/.t3/userdata/keybindings.json`
 - Root dev commands usually use a dev-scoped state dir, so the file is typically under `~/.t3/dev/keybindings.json`
-- `--state-dir` or `CUT3_STATE_DIR` changes the location
+- `--state-dir` or `ROWL_STATE_DIR` (or `CUT3_STATE_DIR`) changes the location
 
 The file must be a JSON array of rules:
 
@@ -25,6 +25,7 @@ See the full schema for more details: [`packages/contracts/src/keybindings.ts`](
 
 ```json
 [
+  { "key": "mod+b", "command": "sidebar.toggle", "when": "!terminalFocus" },
   { "key": "mod+j", "command": "terminal.toggle" },
   { "key": "mod+d", "command": "terminal.split", "when": "terminalFocus" },
   { "key": "mod+n", "command": "terminal.new", "when": "terminalFocus" },
@@ -33,6 +34,8 @@ See the full schema for more details: [`packages/contracts/src/keybindings.ts`](
   { "key": "mod+n", "command": "chat.new", "when": "!terminalFocus" },
   { "key": "mod+shift+o", "command": "chat.new", "when": "!terminalFocus" },
   { "key": "mod+shift+n", "command": "chat.newLocal", "when": "!terminalFocus" },
+  { "key": "escape", "command": "chat.interrupt", "when": "!terminalFocus" },
+  { "key": "mod+k", "command": "commandPalette.toggle" },
   { "key": "mod+o", "command": "editor.openFavorite" }
 ]
 ```
@@ -53,6 +56,7 @@ Invalid rules are ignored. Invalid config files are ignored. Warnings are logged
 
 ### Available Commands
 
+- `sidebar.toggle`: show/hide the projects and threads sidebar
 - `terminal.toggle`: open/close terminal drawer
 - `terminal.split`: split terminal (in focused terminal context by default)
 - `terminal.new`: create new terminal (in focused terminal context by default)
@@ -60,6 +64,8 @@ Invalid rules are ignored. Invalid config files are ignored. Warnings are logged
 - `diff.toggle`: open/close the current diff panel outside terminal focus
 - `chat.new`: create a new chat thread preserving the active thread's branch/worktree state
 - `chat.newLocal`: create a new chat thread for the active project in a new environment (local/worktree determined by app settings (default `local`))
+- `chat.interrupt`: interrupt the active chat session
+- `commandPalette.toggle`: open/close the command palette
 - `editor.openFavorite`: open current project/worktree in the last-used editor
 - `script.{id}.run`: run a project script by id (for example `script.test.run`)
 

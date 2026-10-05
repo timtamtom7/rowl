@@ -11,6 +11,8 @@ interface PersistedSidebarPreferencesState {
   pinnedThreadIds: ThreadId[];
   archivedThreadIds: ThreadId[];
   projectSortMode: SidebarProjectSortMode;
+  collapsedGroupIds: string[];
+  groupOrder: string[];
 }
 
 interface SidebarPreferencesState {
@@ -19,19 +21,26 @@ interface SidebarPreferencesState {
   pinnedThreadIds: ReadonlySet<ThreadId>;
   archivedThreadIds: ReadonlySet<ThreadId>;
   projectSortMode: SidebarProjectSortMode;
+  collapsedGroupIds: ReadonlySet<string>;
+  groupOrder: readonly string[];
   setProjectPinned: (projectId: ProjectId, pinned: boolean) => void;
   setProjectArchived: (projectId: ProjectId, archived: boolean) => void;
   setThreadPinned: (threadId: ThreadId, pinned: boolean) => void;
   setThreadArchived: (threadId: ThreadId, archived: boolean) => void;
   setProjectSortMode: (mode: SidebarProjectSortMode) => void;
+  setGroupCollapsed: (groupId: string, collapsed: boolean) => void;
+  setGroupOrder: (groupOrder: string[]) => void;
+  setProjectGroupId: (projectId: ProjectId, groupId: string | null) => void;
   pruneMissing: (input: {
     projectIds: readonly ProjectId[];
     threadIds: readonly ThreadId[];
+    groupIds?: readonly string[];
   }) => void;
 }
 
 const EMPTY_PROJECT_IDS: ProjectId[] = [];
 const EMPTY_THREAD_IDS: ThreadId[] = [];
+const EMPTY_GROUP_IDS: string[] = [];
 
 function withToggledId<TId extends string>(
   current: ReadonlySet<TId>,
@@ -55,6 +64,8 @@ export const useSidebarPreferencesStore = create<SidebarPreferencesState>()(
       pinnedThreadIds: new Set<ThreadId>(),
       archivedThreadIds: new Set<ThreadId>(),
       projectSortMode: "recent",
+      collapsedGroupIds: new Set<string>(),
+      groupOrder: [],
       setProjectPinned: (projectId, pinned) => {
         set((state) => ({
           pinnedProjectIds: withToggledId(state.pinnedProjectIds, projectId, pinned),
@@ -77,6 +88,23 @@ export const useSidebarPreferencesStore = create<SidebarPreferencesState>()(
       },
       setProjectSortMode: (projectSortMode) => {
         set((state) => (state.projectSortMode === projectSortMode ? state : { projectSortMode }));
+      },
+      setGroupCollapsed: (groupId, collapsed) => {
+        set((state) => {
+          const next = new Set(state.collapsedGroupIds);
+          if (collapsed) {
+            next.add(groupId);
+          } else {
+            next.delete(groupId);
+          }
+          return { collapsedGroupIds: next };
+        });
+      },
+      setGroupOrder: (groupOrder) => {
+        set({ groupOrder });
+      },
+      setProjectGroupId: (_projectId, _groupId) => {
+        // This is handled through orchestration commands, not local state
       },
       pruneMissing: ({ projectIds, threadIds }) => {
         set((state) => {
@@ -124,6 +152,8 @@ export const useSidebarPreferencesStore = create<SidebarPreferencesState>()(
         pinnedThreadIds: [...state.pinnedThreadIds],
         archivedThreadIds: [...state.archivedThreadIds],
         projectSortMode: state.projectSortMode,
+        collapsedGroupIds: [...state.collapsedGroupIds],
+        groupOrder: [...state.groupOrder],
       }),
       merge: (persistedState, currentState) => {
         const persisted = (persistedState as PersistedSidebarPreferencesState | undefined) ?? {
@@ -132,6 +162,8 @@ export const useSidebarPreferencesStore = create<SidebarPreferencesState>()(
           pinnedThreadIds: EMPTY_THREAD_IDS,
           archivedThreadIds: EMPTY_THREAD_IDS,
           projectSortMode: "recent" as const,
+          collapsedGroupIds: EMPTY_GROUP_IDS,
+          groupOrder: EMPTY_GROUP_IDS,
         };
 
         return {
@@ -141,6 +173,8 @@ export const useSidebarPreferencesStore = create<SidebarPreferencesState>()(
           pinnedThreadIds: new Set(persisted.pinnedThreadIds),
           archivedThreadIds: new Set(persisted.archivedThreadIds),
           projectSortMode: persisted.projectSortMode,
+          collapsedGroupIds: new Set(persisted.collapsedGroupIds),
+          groupOrder: persisted.groupOrder,
         } satisfies SidebarPreferencesState;
       },
     },

@@ -184,6 +184,7 @@ export function projectEvent(
             workspaceRoot: payload.workspaceRoot,
             defaultModel: payload.defaultModel,
             scripts: payload.scripts,
+            projectGroupId: payload.projectGroupId ?? null,
             createdAt: payload.createdAt,
             updatedAt: payload.updatedAt,
             deletedAt: null,
@@ -216,6 +217,16 @@ export function projectEvent(
                     ? { defaultModel: payload.defaultModel }
                     : {}),
                   ...(payload.scripts !== undefined ? { scripts: payload.scripts } : {}),
+                  ...(payload.projectGroupId !== undefined
+                    ? { projectGroupId: payload.projectGroupId }
+                    : {}),
+                  ...(payload.briefGoal !== undefined ? { briefGoal: payload.briefGoal } : {}),
+                  ...(payload.briefProblemSolving !== undefined
+                    ? { briefProblemSolving: payload.briefProblemSolving }
+                    : {}),
+                  ...(payload.briefKeyContext !== undefined
+                    ? { briefKeyContext: payload.briefKeyContext }
+                    : {}),
                   updatedAt: payload.updatedAt,
                 }
               : project,
@@ -239,6 +250,9 @@ export function projectEvent(
         })),
       );
 
+    case "skill.created":
+      return Effect.succeed(nextBase);
+
     case "thread.created":
       return Effect.gen(function* () {
         const payload = yield* decodeForEvent(
@@ -258,6 +272,7 @@ export function projectEvent(
             interactionMode: payload.interactionMode,
             branch: payload.branch,
             worktreePath: payload.worktreePath,
+            goal: payload.goal,
             latestTurn: null,
             createdAt: payload.createdAt,
             updatedAt: payload.updatedAt,
@@ -299,6 +314,7 @@ export function projectEvent(
             ...(payload.model !== undefined ? { model: payload.model } : {}),
             ...(payload.branch !== undefined ? { branch: payload.branch } : {}),
             ...(payload.worktreePath !== undefined ? { worktreePath: payload.worktreePath } : {}),
+            ...(payload.goal !== undefined ? { goal: payload.goal } : {}),
             updatedAt: payload.updatedAt,
           }),
         })),

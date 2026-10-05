@@ -18,6 +18,7 @@ import { ProviderService } from "../../provider/Services/ProviderService.ts";
 import { resolveThreadWorkspaceCwd } from "../../checkpointing/Utils.ts";
 import { isGitRepository } from "../../git/isRepo.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
+import { OverseerService } from "../../overseer/Services/OverseerService.ts";
 import {
   ProviderRuntimeIngestionService,
   type ProviderRuntimeIngestionShape,
@@ -581,6 +582,7 @@ function runtimeEventToActivities(
 const make = Effect.gen(function* () {
   const orchestrationEngine = yield* OrchestrationEngineService;
   const providerService = yield* ProviderService;
+  const overseerService = yield* OverseerService;
 
   const assistantDeliveryModeRef = yield* Ref.make<AssistantDeliveryMode>(
     DEFAULT_ASSISTANT_DELIVERY_MODE,
@@ -744,6 +746,10 @@ const make = Effect.gen(function* () {
             : "";
 
       if (text.length > 0) {
+        yield* overseerService
+          .processOutput(input.threadId, text, input.createdAt)
+          .pipe(Effect.catchAll(() => Effect.succeed([])));
+
         yield* orchestrationEngine.dispatch({
           type: "thread.message.assistant.delta",
           commandId: providerCommandId(input.event, input.finalDeltaCommandTag),

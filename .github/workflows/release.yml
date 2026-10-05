@@ -82,8 +82,8 @@ jobs:
             require_signing="${{ github.event.inputs.require_signing }}"
             dry_run="${{ github.event.inputs.dry_run }}"
           else
-            publish_cli="${{ vars.CUT3_PUBLISH_CLI || 'false' }}"
-            require_signing="${{ vars.CUT3_REQUIRE_SIGNING || 'false' }}"
+            publish_cli="${{ vars.ROWL_PUBLISH_CLI || vars.CUT3_PUBLISH_CLI || 'false' }}"
+            require_signing="${{ vars.ROWL_REQUIRE_SIGNING || vars.CUT3_REQUIRE_SIGNING || 'false' }}"
             dry_run="false"
           fi
 

@@ -1,7 +1,7 @@
 /**
  * CommandPalette - Global searchable command overlay.
  *
- * Opens with Ctrl+Shift+P / Cmd+Shift+P and provides quick access to
+ * Opens with Ctrl+K / Cmd+K and provides quick access to
  * all major app actions with their keyboard shortcuts displayed.
  */
 import { type KeybindingCommand, type ResolvedKeybindingsConfig } from "@t3tools/contracts";
@@ -14,6 +14,8 @@ import {
   SquareTerminalIcon,
   CodeIcon,
   BellIcon,
+  SearchIcon,
+  Minimize2Icon,
 } from "lucide-react";
 import { memo, useCallback, type ReactNode } from "react";
 import { formatShortcutLabel } from "../keybindings";
@@ -185,4 +187,6 @@ export const PALETTE_ICONS = {
   settings: <SettingsIcon className="size-4.5 text-muted-foreground/80" />,
   openInEditor: <CodeIcon className="size-4.5 text-muted-foreground/80" />,
   notifications: <BellIcon className="size-4.5 text-muted-foreground/80" />,
+  search: <SearchIcon className="size-4.5 text-muted-foreground/80" />,
+  compact: <Minimize2Icon className="size-4.5 text-muted-foreground/80" />,
 } as const;

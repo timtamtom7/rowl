@@ -453,7 +453,7 @@ Review States: pending | approved | rejected | changes_requested
 
 ### Why Seventh?
 
-Valo has 66+ tests per feature. CUT3 has minimal tests. This is a reliability gap.
+Valo has 66+ tests per feature. Rowl has minimal tests. This is a reliability gap.
 
 ### Features
 

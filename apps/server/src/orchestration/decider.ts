@@ -3,6 +3,7 @@ import type {
   OrchestrationEvent,
   OrchestrationReadModel,
   OrchestrationThread,
+  ProjectId,
 } from "@t3tools/contracts";
 import { Effect } from "effect";
 
@@ -14,6 +15,7 @@ import {
   requireThread,
   requireThreadAbsent,
 } from "./commandInvariants.ts";
+import { createProjectSkill } from "../projectWorkspaceMetadata.ts";
 
 const nowIso = () => new Date().toISOString();
 const DEFAULT_ASSISTANT_DELIVERY_MODE = "buffered" as const;
@@ -413,6 +415,16 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
           ...(command.workspaceRoot !== undefined ? { workspaceRoot: command.workspaceRoot } : {}),
           ...(command.defaultModel !== undefined ? { defaultModel: command.defaultModel } : {}),
           ...(command.scripts !== undefined ? { scripts: command.scripts } : {}),
+          ...(command.projectGroupId !== undefined
+            ? { projectGroupId: command.projectGroupId }
+            : {}),
+          ...(command.briefGoal !== undefined ? { briefGoal: command.briefGoal } : {}),
+          ...(command.briefProblemSolving !== undefined
+            ? { briefProblemSolving: command.briefProblemSolving }
+            : {}),
+          ...(command.briefKeyContext !== undefined
+            ? { briefKeyContext: command.briefKeyContext }
+            : {}),
           updatedAt: occurredAt,
         },
       };
@@ -436,6 +448,32 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         payload: {
           projectId: command.projectId,
           deletedAt: occurredAt,
+        },
+      };
+    }
+
+    case "skill.create": {
+      const occurredAt = nowIso();
+      const { relativePath } = createProjectSkill({
+        cwd: command.cwd,
+        name: command.name,
+        description: command.description,
+        contents: command.contents,
+      });
+      return {
+        ...withEventBase({
+          aggregateKind: "project",
+          aggregateId: command.cwd as ProjectId,
+          occurredAt,
+          commandId: command.commandId,
+        }),
+        type: "skill.created",
+        payload: {
+          cwd: command.cwd,
+          name: command.name,
+          description: command.description,
+          relativePath,
+          createdAt: occurredAt,
         },
       };
     }
@@ -468,6 +506,7 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
           interactionMode: command.interactionMode,
           branch: command.branch,
           worktreePath: command.worktreePath,
+          goal: command.goal,
           createdAt: command.createdAt,
           updatedAt: command.createdAt,
         },
@@ -519,6 +558,7 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         interactionMode: command.interactionMode,
         branch: command.branch,
         worktreePath: command.worktreePath,
+        goal: null,
         createdAt: command.createdAt,
         updatedAt: command.createdAt,
       });
@@ -621,6 +661,7 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
           ...(command.model !== undefined ? { model: command.model } : {}),
           ...(command.branch !== undefined ? { branch: command.branch } : {}),
           ...(command.worktreePath !== undefined ? { worktreePath: command.worktreePath } : {}),
+          ...(command.goal !== undefined ? { goal: command.goal } : {}),
           updatedAt: occurredAt,
         },
       };
@@ -1110,6 +1151,35 @@ export const decideOrchestrationCommand = Effect.fn("decideOrchestrationCommand"
         payload: {
           threadId: command.threadId,
           state: command.state,
+        },
+      };
+    }
+
+    case "thread.provider.switch": {
+      yield* requireThread({
+        readModel,
+        command,
+        threadId: command.threadId,
+      });
+      const thread = readModel.threads.find((t) => t.id === command.threadId);
+      const sourceProvider = thread?.session?.providerName ?? "codex";
+      return {
+        ...withEventBase({
+          aggregateKind: "thread",
+          aggregateId: command.threadId,
+          occurredAt: command.createdAt,
+          commandId: command.commandId,
+        }),
+        type: "thread.provider.switched",
+        payload: {
+          threadId: command.threadId,
+          sourceProvider: sourceProvider as OrchestrationEvent["payload"] extends {
+            sourceProvider: infer S;
+          }
+            ? S
+            : "codex",
+          targetProvider: command.targetProvider,
+          createdAt: command.createdAt,
         },
       };
     }

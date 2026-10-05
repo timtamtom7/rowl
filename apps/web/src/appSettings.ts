@@ -320,7 +320,7 @@ export function normalizeCustomModelSlugs(
       continue;
     }
 
-    // CUT3 only persists explicit OpenRouter free slugs so model picks cannot
+    // Rowl only persists explicit OpenRouter free slugs so model picks cannot
     // silently drift onto a billed OpenRouter model later.
     if (
       provider === "codex" &&

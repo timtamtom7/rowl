@@ -15,6 +15,7 @@ import {
   OrchestrationGetSnapshotResult,
   OrchestrationGetTurnDiffResult,
   OrchestrationReplayEventsResult,
+  OverseerGetStateResult,
   ProjectAgentsFileResult,
   ProjectDraftAgentsFileResult,
   ProjectListCommandTemplatesResult,
@@ -29,8 +30,11 @@ import {
   ServerOpenCodeCredentialResult,
   ServerOpenCodeState,
   ServerUpsertKeybindingResult,
+  SmartDefaultsGetAllPreferencesResult,
+  SmartDefaultsGetSuggestionResult,
   TerminalSessionSnapshot,
   ThreadCompactResult,
+  ThreadContextBudgetResult,
   ThreadCreateShareResult,
   ThreadGetShareResult,
   ThreadRedoResult,
@@ -41,6 +45,7 @@ import {
   ThreadImportShareResult,
   WS_CHANNELS,
   WS_METHODS,
+  SearchResultArray,
   type WsWelcomePayload,
 } from "@t3tools/contracts";
 import { Schema } from "effect";
@@ -217,6 +222,34 @@ export function createWsNativeApi(): NativeApi {
       redo: (input) => requestWithSchema(WS_METHODS.threadsRedo, ThreadRedoResult, input),
       getRedoStatus: (input) =>
         requestWithSchema(WS_METHODS.threadsGetRedoStatus, ThreadRedoStatusResult, input),
+      getContextBudget: (input) =>
+        requestWithSchema(WS_METHODS.threadsGetContextBudget, ThreadContextBudgetResult, input),
+    },
+    overseer: {
+      getState: (input) =>
+        requestWithSchema(WS_METHODS.overseerGetState, OverseerGetStateResult, input),
+      toggle: (input) => requestWithSchema(WS_METHODS.overseerToggle, Schema.Void, input),
+      addPattern: (input) => requestWithSchema(WS_METHODS.overseerAddPattern, Schema.Void, input),
+      removePattern: (input) =>
+        requestWithSchema(WS_METHODS.overseerRemovePattern, Schema.Void, input),
+    },
+    smartDefaults: {
+      trackSelection: (input) =>
+        requestWithSchema(WS_METHODS.smartDefaultsTrackSelection, Schema.Void, input),
+      getSuggestion: (input) =>
+        requestWithSchema(
+          WS_METHODS.smartDefaultsGetSuggestion,
+          SmartDefaultsGetSuggestionResult,
+          input,
+        ),
+      getAllPreferences: () =>
+        requestWithSchema(
+          WS_METHODS.smartDefaultsGetAllPreferences,
+          SmartDefaultsGetAllPreferencesResult,
+          {},
+        ),
+      clearPreferences: () =>
+        requestWithSchema(WS_METHODS.smartDefaultsClearPreferences, Schema.Void, {}),
     },
     shell: {
       openInEditor: (cwd, editor) =>
@@ -295,6 +328,10 @@ export function createWsNativeApi(): NativeApi {
           ServerOpenCodeCredentialResult,
           input,
         ),
+    },
+    search: {
+      search: (input: { query: string; limit?: number; projectId?: string }) =>
+        requestWithSchema(WS_METHODS.search, SearchResultArray, input),
     },
     orchestration: {
       getSnapshot: () =>

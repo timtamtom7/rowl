@@ -17,6 +17,7 @@ import { OpenInPicker } from "./OpenInPicker";
 interface ChatHeaderProps {
   activeThreadId: ThreadId;
   activeThreadTitle: string;
+  activeThreadGoal: string | null | undefined;
   activeProjectName: string | undefined;
   isGitRepo: boolean;
   openInCwd: string | null;
@@ -37,6 +38,7 @@ interface ChatHeaderProps {
 export const ChatHeader = memo(function ChatHeader({
   activeThreadId,
   activeThreadTitle,
+  activeThreadGoal,
   activeProjectName,
   isGitRepo,
   openInCwd,
@@ -57,22 +59,34 @@ export const ChatHeader = memo(function ChatHeader({
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3">
         <SidebarTrigger className="size-7 shrink-0 md:hidden" />
-        <h2
-          className="min-w-0 shrink truncate text-sm font-semibold text-foreground/90"
-          title={activeThreadTitle}
-        >
-          {activeThreadTitle}
-        </h2>
-        {activeProjectName && (
-          <Badge variant="outline" className="min-w-0 shrink truncate">
-            {activeProjectName}
-          </Badge>
-        )}
-        {activeProjectName && !isGitRepo && (
-          <Badge variant="outline" className="shrink-0 text-[10px] text-amber-700">
-            No Git
-          </Badge>
-        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2
+              className="min-w-0 shrink truncate text-sm font-semibold text-foreground/90"
+              title={activeThreadTitle}
+            >
+              {activeThreadTitle}
+            </h2>
+            {activeProjectName && (
+              <Badge variant="outline" className="min-w-0 shrink truncate">
+                {activeProjectName}
+              </Badge>
+            )}
+            {activeProjectName && !isGitRepo && (
+              <Badge variant="outline" className="shrink-0 text-[10px] text-amber-700">
+                No Git
+              </Badge>
+            )}
+          </div>
+          {activeThreadGoal ? (
+            <p
+              className="min-w-0 truncate text-xs text-muted-foreground/80"
+              title={activeThreadGoal}
+            >
+              {activeThreadGoal}
+            </p>
+          ) : null}
+        </div>
       </div>
       <div className="@container/header-actions flex min-w-0 flex-1 items-center justify-end gap-2 @sm/header-actions:gap-3">
         {activeProjectScripts && (

@@ -79,6 +79,7 @@ export interface Project {
   name: string;
   cwd: string;
   model: string;
+  projectGroupId: string | null;
   expanded: boolean;
   scripts: ProjectScript[];
   updatedAt?: string | undefined;
@@ -103,6 +104,7 @@ export interface Thread {
   lastVisitedAt?: string | undefined;
   branch: string | null;
   worktreePath: string | null;
+  goal: string | null;
   turnDiffSummaries: TurnDiffSummary[];
   activities: OrchestrationThreadActivity[];
 }

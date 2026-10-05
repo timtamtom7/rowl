@@ -40,6 +40,7 @@ import { projectQueryKeys } from "../lib/projectReactQuery";
 import { collectActiveTerminalThreadIds } from "../lib/terminalStateCleanup";
 import { selectLatestThreadForNavigation } from "../lib/threadOrdering";
 import { useSidebarPreferencesStore } from "../sidebarPreferencesStore";
+import { SearchModal } from "../components/SearchModal";
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -55,6 +56,19 @@ function RootRouteView() {
   const {
     settings: { language },
   } = useAppSettings();
+
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     applyDocumentLanguage(language);
@@ -80,6 +94,7 @@ function RootRouteView() {
         <ServerConnectionBanner />
         <EventRouter />
         <DesktopProjectBootstrap />
+        <SearchModal open={searchOpen} onOpenChange={setSearchOpen} />
         <Outlet />
       </AnchoredToastProvider>
     </ToastProvider>

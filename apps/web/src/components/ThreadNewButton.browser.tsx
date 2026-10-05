@@ -67,6 +67,7 @@ function createSnapshot(): OrchestrationReadModel {
         workspaceRoot: "/repo/project",
         defaultModel: "gpt-5",
         scripts: [],
+        projectGroupId: null,
         createdAt: NOW_ISO,
         updatedAt: NOW_ISO,
         deletedAt: null,

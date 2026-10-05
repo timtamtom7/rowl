@@ -8,29 +8,29 @@
 - If a change affects user-visible behavior, settings, build steps, release steps, or developer workflows, update the relevant documentation in the same change as part of the implementation.
 - Treat stale docs as a bug. A task is not complete until `README.md`, `CONTRIBUTING.md`, `.docs/*`, `docs/*`, and any task-specific guides touched by the change are accurate.
 - Update `AGENTS.md` too when a task exposes a repeatable mistake, workflow correction, or durable lesson that should guide future work.
-- Keep developer docs aligned with the current `CUT3_*` dev-runner env names. `dev:web` and `dev:server` are expected to share one port offset per `CUT3_STATE_DIR`, so docs should not describe them as independently drifting port selections.
+- Keep developer docs aligned with the current `ROWL_*` dev-runner env names. `dev:web` and `dev:server` are expected to share one port offset per `ROWL_STATE_DIR`, so docs should not describe them as independently drifting port selections.
 - Keep `apps/web/vitest.browser.config.ts` explicitly prebundling `vitest/browser` and `vitest-browser-react`; cold-cache browser runs can otherwise fail before tests start because the optimized browser bundle imports raw Vitest browser helpers.
-- Keep Linux Electron smoke runs CI-safe: GitHub-hosted Linux runners need the smoke harness to add `--no-sandbox`, or Electron exits before CUT3 can emit the desktop backend ready marker.
-- Keep release hardening aligned across workflow + docs: reuse the preflight desktop bundle with `dist:desktop:artifact -- --skip-build` instead of rebuilding the JS pipeline in every packaging job, always publish/verify `SHA256SUMS`, gate signed macOS/Windows releases through the `CUT3_REQUIRE_SIGNING` policy instead of silently shipping unsigned artifacts when signing is expected, and keep manual `dry_run` releases non-mutating by skipping both GitHub Release publishing and the finalize version-bump push to `main`.
+- Keep Linux Electron smoke runs CI-safe: GitHub-hosted Linux runners need the smoke harness to add `--no-sandbox`, or Electron exits before Rowl can emit the desktop backend ready marker.
+- Keep release hardening aligned across workflow + docs: reuse the preflight desktop bundle with `dist:desktop:artifact -- --skip-build` instead of rebuilding the JS pipeline in every packaging job, always publish/verify `SHA256SUMS`, gate signed macOS/Windows releases through the `ROWL_REQUIRE_SIGNING` policy instead of silently shipping unsigned artifacts when signing is expected, and keep manual `dry_run` releases non-mutating by skipping both GitHub Release publishing and the finalize version-bump push to `main`.
 - Keep provider availability claims in docs and onboarding copy aligned with `apps/web/src/session-logic.ts` and its tests.
 - Keep built-in composer slash command parsing, aliases, and menu suggestions aligned through `apps/web/src/composer-logic.ts`; do not duplicate the command list in multiple places and let them drift.
 - Keep chat timeline rendering consolidated in `apps/web/src/components/chat/MessagesTimeline.tsx`; do not reintroduce an inline `MessagesTimeline` copy inside `apps/web/src/components/ChatView.tsx`.
-- Keep OpenCode auth UX aligned with the real CLI surface: credentials are managed via `opencode auth login/logout`, while CUT3 only inspects OpenCode state and forwards the shared OpenRouter key to new OpenCode sessions as `OPENROUTER_API_KEY` when configured.
-- Keep OpenCode MCP status parsing aligned with the real `opencode mcp list` / `opencode mcp auth list` output. Disabled, auth-gated, failed, and connected entries should stay distinguishable in CUT3 instead of being collapsed into a generic success/failure view.
+- Keep OpenCode auth UX aligned with the real CLI surface: credentials are managed via `opencode auth login/logout`, while Rowl only inspects OpenCode state and forwards the shared OpenRouter key to new OpenCode sessions as `OPENROUTER_API_KEY` when configured.
+- Keep OpenCode MCP status parsing aligned with the real `opencode mcp list` / `opencode mcp auth list` output. Disabled, auth-gated, failed, and connected entries should stay distinguishable in Rowl instead of being collapsed into a generic success/failure view.
 - Keep approval UX labels precise: approval decision `cancel` only dismisses/cancels the pending approval prompt, not the running turn, so UI copy must never present it as a turn stop/interrupt action.
 - Keep browser composer interrupt/approval controls optimistic and visibly pending until orchestration state catches up; stop/approve/decline clicks should produce immediate browser feedback instead of looking inert while websocket/provider roundtrips finish, and browser interrupt requests should resolve the best current turn id from session/latest activity instead of assuming a single field is current.
-- Keep Kimi auth UX aligned with the official Kimi CLI docs: user-facing guidance should mention `kimi login` and the in-shell `/login` path, plus the CUT3 Kimi API key setting, instead of assuming only one auth flow.
-- Keep Pi auth and discovery UX aligned with the real Pi surfaces: CUT3 embeds Pi through the Node SDK, but Pi credentials still live in `~/.pi/agent/auth.json` / Pi env vars or the external `pi` `/login` flow, and CUT3 should keep Pi packages, AGENTS files, system prompts, extensions, skills, prompt templates, and themes disabled so CUT3 injects workspace instructions only once.
+- Keep Kimi auth UX aligned with the official Kimi CLI docs: user-facing guidance should mention `kimi login` and the in-shell `/login` path, plus the Rowl Kimi API key setting, instead of assuming only one auth flow.
+- Keep Pi auth and discovery UX aligned with the real Pi surfaces: Rowl embeds Pi through the Node SDK, but Pi credentials still live in `~/.pi/agent/auth.json` / Pi env vars or the external `pi` `/login` flow, and Rowl should keep Pi packages, AGENTS files, system prompts, extensions, skills, prompt templates, and themes disabled so Rowl injects workspace instructions only once.
 - Keep Pi model discovery live in the chat UI: `server.getConfig` / provider refreshes must rerun provider health, and when Pi already exposes authenticated models from local `~/.pi/agent` state, the picker and `/model` suggestions should surface those provider/model ids instead of collapsing back to a static `pi/default` placeholder.
 - Keep provider onboarding/readiness UX centralized in the chat provider-readiness surface plus shared provider health/state helpers; do not scatter provider-specific setup copy, login commands, or readiness summaries across multiple unrelated components.
 - Keep model-picker ranking state centralized through app settings + shared model-preference helpers. Favorites, recents, hidden-model state, picker ordering, and `/model` suggestion ordering must stay aligned instead of each view inventing its own ranking rules.
-- Keep Pi reasoning UX aligned with the real Pi SDK surface: CUT3 should trust Pi's live `model.reasoning` catalog flag plus `AgentSession.getAvailableThinkingLevels()` / `setThinkingLevel()` instead of hardcoding Codex-style assumptions, and should preserve Pi defaults until the user explicitly picks a thinking level override.
+- Keep Pi reasoning UX aligned with the real Pi SDK surface: Rowl should trust Pi's live `model.reasoning` catalog flag plus `AgentSession.getAvailableThinkingLevels()` / `setThinkingLevel()` instead of hardcoding Codex-style assumptions, and should preserve Pi defaults until the user explicitly picks a thinking level override.
 - Keep GitHub Copilot reasoning UX aligned with the real CLI/ACP surface: current Copilot CLI builds expose `xhigh` reasoning for some models, so contracts, probes, and composer docs must not clamp Copilot to only low/medium/high.
 - Keep GitHub Copilot model slugs aligned with live ACP session metadata. Do not hard-code blanket slug rewrites; mirror whatever the runtime actually advertises, and treat stale picker-only entries that never appear in live Copilot/OpenCode model catalogs as bugs.
 - When retiring built-in provider model slugs from picker catalogs, preserve legacy thread hydration and provider inference for historical snapshots/imports; removing a picker entry must not silently reclassify old provider threads or rewrite their stored model ids.
 - Keep server-side fallback models aligned with `DEFAULT_MODEL_BY_PROVIDER` in `packages/contracts/src/model.ts`; do not hardcode older Codex defaults in bootstraps, managers, or internal helpers.
 - Do not leave ad-hoc provider `console.log` debugging in runtime managers; provider/account payloads can leak into server logs.
-- Keep provider event logging opt-in. Raw provider prompts, tool payloads, approval answers, and runtime output must not be persisted by default; use `CUT3_ENABLE_PROVIDER_EVENT_LOGS=1` only for deliberate local debugging.
+- Keep provider event logging opt-in. Raw provider prompts, tool payloads, approval answers, and runtime output must not be persisted by default; use `ROWL_ENABLE_PROVIDER_EVENT_LOGS=1` only for deliberate local debugging.
 - Keep provider exit failures visible end-to-end. If a runtime emits `session.exited` with a non-graceful reason, orchestration must preserve that reason in `thread.session.lastError` so OpenCode/Copilot/Kimi/Codex crashes do not look like silent clean stops.
 - When testing hot orchestration streams backed by PubSub, avoid `fork + sleep` subscription races. Start the collector with an explicit readiness handshake (for example `Effect.forkScoped` plus `Effect.yieldNow`, or another deterministic subscription barrier) before dispatching commands.
 - Keep interactive controls properly disabled during in-flight async operations (e.g. export, share, revoke): users must not be able to trigger conflicting actions while a prior action is still completing. Guard format toggles, download buttons, and secondary actions behind the relevant `isSaving`/`isRevoking` flags.
@@ -46,7 +46,7 @@
 
 ## Project Snapshot
 
-CUT3 is a minimal web GUI for using coding agents. It currently supports Codex, GitHub Copilot, OpenCode, Kimi Code, and the Pi agent harness, with a visible Gemini coming-soon entry plus unavailable picker placeholders for Claude Code and Cursor.
+Rowl is a minimal web GUI for using coding agents. It currently supports Codex, GitHub Copilot, OpenCode, Kimi Code, and the Pi agent harness, with a visible Gemini coming-soon entry plus unavailable picker placeholders for Claude Code and Cursor.
 
 This repository is a VERY EARLY WIP. Proposing sweeping changes that improve long-term maintainability is encouraged.
 
@@ -61,7 +61,7 @@ If a tradeoff is required, choose correctness and robustness over short-term con
 ## GPT-5.4 Prompt Guidance
 
 <task_context>
-You are working in the CUT3 monorepo.
+You are working in the Rowl monorepo.
 Priorities:
 
 1. Performance first.
@@ -149,7 +149,7 @@ Long term maintainability is a core priority. If you add new functionality, firs
 
 ## Provider Runtimes (Important)
 
-CUT3 exposes one orchestration/WebSocket surface, then delegates provider-native runtime behavior to provider adapters and managers.
+Rowl exposes one orchestration/WebSocket surface, then delegates provider-native runtime behavior to provider adapters and managers.
 
 How we use it in this codebase:
 
@@ -157,12 +157,12 @@ How we use it in this codebase:
 - GitHub Copilot sessions are brokered through ACP-backed runtime management in `apps/server/src/copilotAcpManager.ts`.
 - OpenCode sessions are brokered through ACP-backed runtime management in `apps/server/src/opencodeAcpManager.ts`.
 - Kimi Code sessions are brokered through ACP-backed runtime management in `apps/server/src/kimiAcpManager.ts`, including optional API-key-backed startup.
-- Pi sessions are brokered through the embedded `@mariozechner/pi-coding-agent` Node SDK in `apps/server/src/piSdkManager.ts`, while CUT3 intentionally disables Pi's own resource discovery so repo instructions still come only from CUT3.
+- Pi sessions are brokered through the embedded `@mariozechner/pi-coding-agent` Node SDK in `apps/server/src/piSdkManager.ts`, while Rowl intentionally disables Pi's own resource discovery so repo instructions still come only from Rowl.
 - Cross-provider routing and shared runtime event fan-out are coordinated in `apps/server/src/provider/Layers/ProviderService.ts`.
 - WebSocket request handling and push channels are served from `apps/server/src/wsServer.ts`.
 - The web app consumes orchestration domain events plus terminal/server push channels over WebSocket.
 - For future tool-backed providers, prefer runtimes with a native app-server or ACP surface instead of inventing a bespoke terminal wrapper. This matters for plan-backed products like GLM Coding Plan, where direct API adapters do not satisfy the vendor's supported-tool quota rules.
-- OpenCode's `opencode acp` is the current best-fit substrate for new plan-backed integrations because it matches CUT3's existing ACP provider pattern.
+- OpenCode's `opencode acp` is the current best-fit substrate for new plan-backed integrations because it matches Rowl's existing ACP provider pattern.
 
 Docs:
 

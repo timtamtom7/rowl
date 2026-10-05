@@ -8,7 +8,11 @@ import {
   ThreadShareId,
   TrimmedNonEmptyString,
 } from "./baseSchemas";
-import { OrchestrationThreadRestoreState } from "./orchestration";
+import {
+  OrchestrationMessageRole,
+  OrchestrationThreadRestoreState,
+  ProviderKind,
+} from "./orchestration";
 
 export const ThreadShareSummary = Schema.Struct({
   shareId: ThreadShareId,
@@ -91,6 +95,7 @@ export type ThreadCompactInput = typeof ThreadCompactInput.Type;
 export const ThreadCompactResult = Schema.Struct({
   compactedAt: IsoDateTime,
   summary: TrimmedNonEmptyString,
+  tombstoneCount: Schema.optional(NonNegativeInt),
 });
 export type ThreadCompactResult = typeof ThreadCompactResult.Type;
 
@@ -126,3 +131,42 @@ export const ThreadRedoStatusResult = Schema.Struct({
   depth: NonNegativeInt,
 });
 export type ThreadRedoStatusResult = typeof ThreadRedoStatusResult.Type;
+
+export const ThreadContextBudgetInput = Schema.Struct({
+  threadId: ThreadId,
+});
+export type ThreadContextBudgetInput = typeof ThreadContextBudgetInput.Type;
+
+export const ThreadContextBudgetResult = Schema.Struct({
+  threadId: ThreadId,
+  maxTokens: NonNegativeInt,
+  usedTokens: NonNegativeInt,
+  tokenLimit: NonNegativeInt,
+  warningThreshold: Schema.Number,
+  criticalThreshold: Schema.Number,
+  tombstoneCount: NonNegativeInt,
+  isOverBudget: Schema.Boolean,
+  isOverCritical: Schema.Boolean,
+});
+export type ThreadContextBudgetResult = typeof ThreadContextBudgetResult.Type;
+
+export const TransferMessage = Schema.Struct({
+  role: OrchestrationMessageRole,
+  content: TrimmedNonEmptyString,
+  timestamp: IsoDateTime,
+});
+export type TransferMessage = typeof TransferMessage.Type;
+
+export const TransferPackage = Schema.Struct({
+  version: Schema.Literal(1),
+  sourceProvider: ProviderKind,
+  targetProvider: ProviderKind,
+  transferredAt: IsoDateTime,
+  threadGoal: Schema.NullOr(TrimmedNonEmptyString),
+  messages: Schema.Array(TransferMessage),
+  metadata: Schema.Struct({
+    sourceSessionId: TrimmedNonEmptyString,
+    originalModelId: TrimmedNonEmptyString,
+  }),
+});
+export type TransferPackage = typeof TransferPackage.Type;
