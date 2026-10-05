@@ -1,4 +1,5 @@
 export * from "./baseSchemas";
+export * from "./notification";
 export * from "./ipc";
 export * from "./terminal";
 export * from "./provider";
@@ -12,3 +13,4 @@ export * from "./orchestration";
 export * from "./editor";
 export * from "./project";
 export * from "./threadFeatures";
+export * from "./search";
