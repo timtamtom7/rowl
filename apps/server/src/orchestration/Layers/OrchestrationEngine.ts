@@ -219,7 +219,20 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     Effect.gen(function* () {
       const result = yield* Deferred.make<{ sequence: number }, OrchestrationDispatchError>();
       yield* Queue.offer(commandQueue, { command, result });
-      return yield* Deferred.await(result);
+      yield* Effect.logInfo("orchestration engine dispatch: command queued", {
+        commandType: command.type,
+        commandId: command.commandId,
+      });
+      const timeoutEffect = Effect.sleep("10 seconds").pipe(
+        Effect.flatMap(() =>
+          Effect.fail(
+            new OrchestrationDispatchError({
+              message: `orchestration engine dispatch timed out after 10s waiting for command ${command.commandId}`,
+            }),
+          ),
+        ),
+      );
+      return yield* Deferred.await(result).pipe(Effect.race(timeoutEffect));
     });
 
   return {
