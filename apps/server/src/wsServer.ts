@@ -87,6 +87,7 @@ import { Open, resolveAvailableEditors } from "./open";
 import { ServerConfig } from "./config";
 import { GitCore } from "./git/Services/GitCore.ts";
 import { tryHandleProjectFaviconRequest } from "./projectFaviconRoute";
+import { handleVoiceRoute } from "./voice/voiceRouter";
 import {
   ATTACHMENTS_ROUTE_PREFIX,
   normalizeAttachmentRelativePath,
@@ -898,6 +899,14 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
 
         if (tryHandleProjectFaviconRequest(url, res)) {
           return;
+        }
+
+        if (url.pathname === "/api/voice/transcribe") {
+          const port = serverConfig.port;
+          const handled = yield* Effect.promise(() => handleVoiceRoute(url, req, res, port));
+          if (handled) {
+            return;
+          }
         }
 
         if (url.pathname.startsWith(ATTACHMENTS_ROUTE_PREFIX)) {
